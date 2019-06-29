@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals XVIII • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals XVIII"/>
+<meta name="twitter:description" content="A look at how output parameters are handled in SQL Server R Services"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals XVIII" />
+<meta property="og:description" content="A look at how output parameters are handled in SQL Server R Services" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/01/10/microsoft-sql-server-r-services---internals-xviii/" />
+
+
+
+<meta property="article:published_time" content="2018-01-10T10:19:41&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-01-10T10:19:41&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals XVIII</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Jan 10, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+           
+      
+          <a class="post__tag" href="/tags/bxl">bxl</a>
+           
+      
+          <a class="post__tag" href="/tags/process-monitor">process monitor</a>
+           
+      
+          <a class="post__tag" href="/tags/wireshark">wireshark</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 21 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the 19:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 18:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In this post we&rsquo;ll continue looking at data coming back to SQL Server, and what happens code-wise in SQL.</p>
+
+<p></p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In the last few posts in this series, we have looked at what happens when data is being returned to SQL Server from the SqlSatellite.</p>
+
+<p>In <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at the data packages coming back to SQL Server, and realized there were two:</p>
+
+<ul>
+<li>One small:ish</li>
+<li>One large.</li>
+</ul>
+
+<p>We subsequently saw that the small packet held meta data about the columns being returned and the large packet held the actual data. The reason for the packet being large was due to the data being treated as originating from nullable columns, so quite an overhead was put onto the various columns. This is similar to what we discussed in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
+
+<p><a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> talked about what happens inside SQL Server when data is being returned, e.g. what the code flow looks like. We saw how, after the data packet(s) were sent to the SqlSatellite:</p>
+
+<ul>
+<li>Immediately <code>sqllang!CUDXR_ExternalScript::PullRow</code> was called, and waited to be signaled when data was returned.</li>
+<li>The schema of the returning data was determined by calls to <code>sqllang!CUDXR_ExternalScript::ProcessOutputSchema</code>, <code>sqllang!CUDXR_ExternalScript::GetOutputSchema</code>, <code>sqllang!CServerCargoContext::ReadSchemaInternal</code>, and <code>sqllang!CServerCargoContext::ReadSchemaFromPacket</code>.</li>
+<li>The result rows were processed, and turned into <em>TDS</em> packets, by calls to <code>ProcessResultRows</code> (one <code>ProcessResultRows</code> per row).</li>
+<li>During the first <code>ProcessResultRows</code> an ack packet is sent to the SqlSatellite and two packets is being returned.</li>
+<li>A final <code>ProcessResultRows</code> was called to indicate that no more rows are coming.</li>
+</ul>
+
+<p>There was a question what the two packets returned to SQL Server after the ack packet did, and we &ldquo;sort of&rdquo; realized that one of the packets indicated that no more data was coming from the SqlSatellite. The other packet we did not know what it did.</p>
+
+<p>To illustrate the code flow we had a figure like so:</p>
+
+<p><img src="/images/posts/sql_r_services_17_flow.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Code Flow Receiving Data from SqlSatellite</em></p>
+
+<p>The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens:</p>
+
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent together with two end packets.</li>
+<li>Packet are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled.</li>
+<li>Execution continues to process meta-data as well as result rows.</li>
+</ol>
+
+<h2 id="housekeeping">Housekeeping</h2>
+
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+
+<h4 id="helper-tools">Helper Tools</h4>
+
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, <em>WinDbg</em>, and <em>WireShark</em>:</p>
+
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+<li>I&rsquo;ll use <em>WireShark</em> for network packet sniffing. In previous posts I have used <em>Microsoft Message Analyzer</em> for this, but I am now back to <em>WireShark</em> as I find it gives me more readable output. If you want a refresher about <em>WireShark</em>, we covered the setup etc., in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+
+<h4 id="code">Code</h4>
+
+<p>The code below sets up the database and creates some tables with some data. It is more or less the same as we&rsquo;ve used in the last posts:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+SET NOCOUNT ON;
+GO
+
+DROP DATABASE IF EXISTS ResultData;
+GO
+
+CREATE DATABASE ResultData;
+GO
+
+USE ResultData;
+GO
+
+DROP TABLE IF EXISTS dbo.rand_1M
+CREATE TABLE dbo.rand_1M(RowID bigint identity primary key, 
+                          y int NOT NULL, rand1 int NOT NULL,
+              rand2 int NOT NULL, rand3 int NOT NULL, 
+              rand4 int NOT NULL, rand5 int NOT NULL);
+GO
+
+INSERT INTO dbo.rand_1M(y, rand1, rand2, rand3, rand4, rand5)
+SELECT TOP(1000000) CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT) 
+  , CAST(ABS(CHECKSUM(NEWID())) % 20 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 25 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 50 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 100 AS INT)
+FROM sys.objects o1
+CROSS JOIN sys.objects o2
+CROSS JOIN sys.objects o3
+CROSS JOIN sys.objects o4;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+
+<p>The code we&rsquo;ll use should by now look very familiar:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
+
+<p>In previous posts, the script has also contained a <code>Sys.sleep</code>, but for now it is not necessary - we may change the script further down and include <code>Sys.sleep</code>, or we may not :).</p>
+
+<h2 id="with-result-sets">WITH RESULT SETS</h2>
+
+<p>Up until now, when we have executed code where data comes back from the SqlSatellite, the result looks something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_18_no_column.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Undefined Column Name</em></p>
+
+<p>From <em>Figure 2</em> we see the result, but with no column name. That&rsquo;s because the SqlSatellite (or the R engine for that matter) doesn&rsquo;t know about column names, or - at least - doesn&rsquo;t take them into account. So, if you wanted the columns in the return result-set to be named in a specific way, you&rsquo;d have to use the <code>WITH RESULT SETS &lt;result_sets_definition&gt;</code>:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+WITH RESULT SETS ((Column1 int ))               
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Defining Output</em></p>
+
+<p>The <code>WITH RESULT SETS</code> in <em>Code Snippet 2</em> tells SQL server that the one column being returned from the SqlSatellite, should be named <code>Column1</code> and be treated as an <code>int</code>. Executing the code in <em>Code Snippet 2</em>, results in the following:</p>
+
+<p><img src="/images/posts/sql_r_services_18_column_name.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Result with Column Name</em></p>
+
+<p>Having defined <code>WITH RESULT SETS</code> we see now in <em>Figure 3</em> how the one column is named <code>Column1</code>. However, this post (or section in this post) doesn&rsquo;t really have anything to do with <code>WITH RESULT SETS</code>, but what happens inside the SQL Server engine when a result-set comes back from the SqlSatellite and <code>WITH RESULT SETS</code> is set.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Almost all examples you see of <code>sp_execute_external_script</code> include <code>WITH RESULT SETS</code>. As we have seen in previous posts as well as this, <code>WITH RESULT SETS</code> is not required. If you want to read more about <code>WITH RESULT SETS</code> specifically, there is a link <a href="https://docs.microsoft.com/en-us/sql/t-sql/language-elements/execute-transact-sql">here</a>.</p>
+</blockquote>
+
+<p>Ok, so let&rsquo;s find out what happens - and where - when a result-set comes back from SqlSatellite, with <code>WITH RESULT SETS</code> is defined. Here&rsquo;s what we&rsquo;ll do:</p>
+
+<ul>
+<li>Run <em>WinDbg</em> as admin.</li>
+<li>Attach <em>WinDbg</em> to the SQL Server process (<code>sqlservr.exe</code>) - <strong>DO NOT DO THIS ON A PRODUCTION SERVER</strong>.</li>
+<li>Enable an <em>Event Filter</em>, in <em>WinDbg</em> for <code>C++ EH Exception</code>. If you need to refresh you memory about how to do it, <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Internals - II</a> goes into the details.</li>
+<li>Change the <code>WITH RESULT SETS</code> in <em>Code Snippet 2</em> to: <code>WITH RESULT SETS ((Column1 int, ExtraColumn int ))</code>.</li>
+</ul>
+
+<p>By adding an extra column to the result-set definition, an exception will occur when executing - as the number of columns in the definition has to match exactly what is being returned. The idea is that we&rsquo;ll then be able to to break in the debugger where the exception happens and investigate the call-stack, to be able to see where we break. So now we can execute the altered code, and sure enough an exception happens:</p>
+
+<p><img src="/images/posts/sql_r_services_18_exception.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>C++ EH Exception</em></p>
+
+<p>From <em>Figure 4</em> we see how we have stopped execution at the point of the exception. This gives us now the ability to check the call-stack: <code>k</code>:</p>
+
+<pre><code class="language-c++">KERNELBASE!RaiseException+0x68
+MSVCR120!_CxxThrowException+0xb3 [f:\dd\vctools\crt\crtw32\eh\throw.cpp @ 154] 
+sqldk!ExceptionBackout::GetCurrentException+0x385
+sqldk!ex_raise2+0x52f
+sqldk!ex_raise+0xc4
+sqllang!CExecWithResultSetsCOut::SendMetaImpl+0xa8
+sqllang!CUDXR_ExternalScript::BeginOutput+0xd5
+sqllang!CUDXR_ExternalScript::ProcessOutputSchema+0x67
+sqllang!CUDXR_ExternalScript::PullRow+0xc7
+sqlmin!CQScanUdx::GetRow+0x196
+sqlmin!CQueryScan::GetRow+0x81
+sqllang!CXStmtQuery::ErsqExecuteQuery+0x4dc
+sqllang!CXStmtSelect::XretExecute+0x322
+sqllang!CMsqlExecContext::ExecuteStmts&lt;1,1&gt;+0x40d
+sqllang!CMsqlExecContext::FExecute+0xa9e
+sqllang!CSQLSource::Execute+0x983
+sqllang!SpExecuteExternalScript+0x140e
+...
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Call Stack at Exception</em></p>
+
+<p>The code in <em>Code Snippet 3</em> shows the abbreviated call-sack at the time of the exception, and we see some routines that we also saw in <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> as well as in the <em>Recap</em> above:</p>
+
+<ul>
+<li><code>sqllang!CUDXR_ExternalScript::PullRow</code></li>
+<li><code>sqllang!CUDXR_ExternalScript::ProcessOutputSchema</code></li>
+<li><code>sqllang!CUDXR_ExternalScript::BeginOutput</code></li>
+</ul>
+
+<p>One routine we haven&rsquo;t seen before though is the <code>sqllang!CExecWithResultSetsCOut::SendMetaImpl</code>, and it is this routine that handles the <code>WITH RESULT SET</code>. We can verify that this is the case by setting a breakpoint at <code>SendMetaImpl</code> and execute the code in <em>Code Snippet 2</em> (without the extra column in the result set definition). We see how the execution breaks at the break-point. If we were to execute without any result set definition, the break-point wouldn&rsquo;t be hit.</p>
+
+<p>The <code>WITH RESULT SETS</code> is not specific to <code>sp_execute_external_script</code> but was introduced in SQL Server 2012 as a way to &ldquo;reformat&rdquo; a result-set, and can be used whenever <code>EXECUTE</code> is called. Let&rsquo;s say we have code like so:</p>
+
+<pre><code class="language-sql">EXEC sp_executesql N'SELECT TOP(1) rand1 FROM dbo.rand_1M' 
+WITH RESULT SETS((Column1 int));
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>sp_executesql with Result Set Definition</em></p>
+
+<p>If the breakpoint we set above is still enabled, we&rsquo;ll see how we break when we execute the code in <em>Code Snippet 4</em>.</p>
+
+<p>So from all of the above, when we are defining a result set definition for data being returned from the SqlSatellite, we see how the processing is handled in:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::PullRow
+  sqllang!CUDXR_ExternalScript::ProcessOutputSchema
+    sqllang!CUDXR_ExternalScript::BeginOutput
+      sqllang!CExecWithResultSetsCOut::SendMetaImpl
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Routines Involved with Result Set Definition</em></p>
+
+<p>So that is <code>WITH RESULT SETS</code>. What about output parameters?</p>
+
+<h2 id="output-parameters">Output Parameters</h2>
+
+<p>So far in previous posts as well as in this- we have discussed what happens when result sets come back from the SqlSatellite, and we should be fairly confident now in understanding what happens in SQL Server. However, result-sets are not then only thing we can get back, we can also get back output parameters and in this section we&rsquo;ll have a look at how that works.</p>
+
+<p>This is some of the code we&rsquo;ll use:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int;
+EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'd&lt;-42
+                     a &lt;- as.integer(3)
+                     OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+               , @params = N'@a int OUTPUT'
+               , @a = @p1 OUTPUT
+WITH RESULT SETS((ResultSet1 int));
+SELECT @p1 As OutParam1
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Base Code for Output Parameters</em></p>
+
+<p>As you see in <em>Code Snippet 6</em>, there is one output parameter <code>@a</code> which in the script is assigned to a value of 3. When we execute the code, the result is:</p>
+
+<p><img src="/images/posts/sql_r_services_18_output1.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Result and Output Parameter</em></p>
+
+<h4 id="output-parameter-packets-and-content">Output Parameter Packets and Content</h4>
+
+<p>Let&rsquo;s see how output parameters are handled:</p>
+
+<ul>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 6</em> and look at the output from <em>Process Monitor</em>.</li>
+<li>Pay attention to the <code>Path</code> column in the output, as it shows - as last part - what port SQL Server listens on. We&rsquo;ll use that later when doing <em>WireShark</em> packet sniffing.</li>
+</ul>
+
+<p>The output looks something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_18_procmon1.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Result and Output Parameter</em></p>
+
+<p>What we see in <em>Figure 6</em> is what we have seen a few times before: we see the two data packets coming back from SQL Server (lengths: 51, 2051), followed by the ack message sent from SQL Server, followed by the two packets coming back from the SqlSatellite. We believe that one of the packets is indicating end of result-set, but we don&rsquo;t know what the other packet is for. But wait a second, normally (with no output parameters) the second packet coming back after the ack message has a length of 28 - now, the packet (outlined in red) has a length of 61! What if we were to execute and expect back two output parameters (both <code>int</code>):</p>
+
+<pre><code class="language-sql">DECLARE @p1 int;
+DECLARE @p2 int;
+EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'd&lt;-42
+                     a &lt;- as.integer(3)
+                     b &lt;- as.integer(5)
+                     OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+               , @params = N'@a int OUTPUT, @b int OUTPUT'
+               , @a = @p1 OUTPUT
+               , @b = @p2 OUTPUT
+WITH RESULT SETS((ResultSet1 int));
+SELECT @p1 As OutParam1, @p2 As OutParam2
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Code for 2 Output Parameters</em></p>
+
+<p>The output from <em>Process Monitor</em> when executing the code in <em>Code Snippet 7</em> will show that the second packet (the one with a length of 61 above), now has a length of 94. With three <code>int</code> output parameters the length will be 127. So that particular packer definitely has something to do with output parameters, and for each new output parameters (of type <code>int</code> and a short parameter name) an additional 33 bytes are added to the packet. Seeing that with no output parameters the packet length was 28 bytes, so it would would make sense to assume that the output parameter packet has an overhead of 28 bytes (61 - 33 = 28).</p>
+
+<p>To try and figure out what happens we&rsquo;ll switch over to <em>WireShark</em>, and do some packet sniffing:</p>
+
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on. In this case we want to sniff incoming packets, so the filter should be: <code>tcp.dstport==xyz</code> (<code>xyz</code> is the listening port of SQL Server).</li>
+<li>Apply the filter.</li>
+</ul>
+
+<p>When we execute the code in <em>Code Snippet 6</em> the output in <em>WireShark</em> will be:</p>
+
+<p><img src="/images/posts/sql_r_services_18_wireshark1.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Result and Output Parameter</em></p>
+
+<p>In <em>Figure 7</em> we see some of the packets being received by SQL Server from the SqlSatallite, and the packet outlined in red is the one we are interested in (length of 61). When looking the data part of the packet (the 61 bytes) as a hex-dump it looks like so:</p>
+
+<pre><code class="language-c++">01 00 0d 80 3d 00 00 00  0b eb 62 a3 e1 fb 4f 45   ....=... ..b...OE
+aa ff 44 be ef 1e 4f 5d  01 00 00 00 38 00 00 00   ..D...O] ....8...
+38 00 00 00 04 00 0a 00  00 00 00 00 02 00 00 00   8....... ........
+40 00 61 00 04 00 00 00  03 00 00 00 01            @.a..... .....
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>One Output Parameter Packet</em></p>
+
+<p>What we see in <em>Code Snippet 8</em> is the &ldquo;raw&rdquo; hex dump (with ASCII hex on the right). Let&rsquo;s see if it can be made somewhat more readable:</p>
+
+<pre><code class="language-c++">// Hex 28 Bytes &quot;Header&quot;
+01 00 0d 80 3d 00 00 00  0b eb 62 a3 e1 fb 4f 45   ....=... ..b...OE
+aa ff 44 be ef 1e 4f 5d  01 00 00 00               ..D...O] ....
+
+// Hex 33 Bytes &quot;Payload&quot;
+38 00 00 00 38 00 00 00  04 00 0a 00 00 00 00 00   8...8... ........
+02 00 00 00 40 00 61 00  04 00 00 00 03 00 00 00   ....@.a. ........
+01                                                 .
+
+// ASCII Hex 28 Bytes &quot;Header&quot;
+....=.....b...OE..D...O]....
+
+// ASCII Hex 33 Bytes &quot;Payload&quot;
+8...8...............@.a..........
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Formatted One Output Parameter Packet</em></p>
+
+<p>I have tried to &ldquo;finesse&rdquo; the packet in <em>Code Snippet 9</em> by breaking it up in a &ldquo;header&rdquo; part, which is the first 28 bytes and a &ldquo;payload&rdquo; part. I have also taken the ASCII hex and tried to make it more readable. What we see from <em>Code Snippet 9</em> is something like this:</p>
+
+<ul>
+<li>The parameter name is in the packet as double byte characters. It is human readable in the ASCII hex representation where it starts at byte 21 in the &ldquo;payload&rdquo;, and you can see it in the hex dump as well at byte 21: <code>40 00 61 00</code> (<code>@a</code>).</li>
+<li>The value of the parameter starts at byte 29 in the payload: hex <code>03 00 00 00</code>.</li>
+<li>It looks like there is an &ldquo;end&rdquo; byte, hex <code>01</code> at the end of the packet, or at least at the end of the data that defines the parameter.</li>
+<li>There are 4 bytes between the end of the parameter name, and where the value is.</li>
+</ul>
+
+<p>Let&rsquo;s see if we can further confirm what we see in <em>Code Snippet 9</em>, by executing the code in <em>Code Snippet 7</em> and capture the packets in <em>WireShark</em>. :</p>
+
+<pre><code class="language-c++">// Hex 28 Bytes &quot;Header&quot;
+01 00 0d 80 5e 00 00 00  3e c0 89 ed 08 e0 b8 4d   ....^... &gt;......M
+9f 5b 86 be c4 ef c6 eb  02 00 00 00               .[...... ....
+
+
+// Hex 33 Bytes &quot;Payload&quot; Parameter 1 @a
+38 00 00 00 38 00 00 00  04 00 0a 00 00 00 00 00   8...8... ........
+02 00 00 00 40 00 61 00  04 00 00 00 03 00 00 00   ....@.a. ........
+01                                                 .
+
+// Hex 33 Bytes &quot;Payload&quot; Parameter 2 @b
+38 00 00 00 38 00 00 00  04 00 0a 00 00 00 00 00   8...8... ........
+02 00 00 00 40 00 62 00  04 00 00 00 05 00 00 00   ....@.b. ........
+01                                                 .
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Formatted Two Output Parameters Packet</em></p>
+
+<p>As you see in <em>Code Snippet 10</em>, I have broken up the packet in three parts; &ldquo;header&rdquo; and one &ldquo;payload&rdquo; per parameter. I did it as, when looking at the &ldquo;raw&rdquo; packet, it was obvious that each parameter started with hex <code>38 00 00 00</code> and ended with hex <code>01</code>. So <em>Code Snippet 10</em> confirms our assumptions above. It also shows another interesting thing: look in the &ldquo;header&rdquo; at the last four bytes. In <em>Code Snippet 9</em> the value was hex <code>01 00 00 00</code>, which is decimal 1, and in <em>Code Snippet 10</em> it is hex <code>02 00 00 00</code>, decimal 2. Is it a coincidence that the number of parameters in <em>Code Snippet 9</em> was 1, and in <em>Code Snippet 10</em> 2? I do not think so, as when I tested with more parameters those 4 bytes always showed the number of parameters being returned.</p>
+
+<h4 id="sql-server-code">SQL Server Code</h4>
+
+<p>Now when we know where the output parameters come back and what the packets look like, let&rsquo;s look at at what happens inside SQL Server when that output parameter packet comes back.</p>
+
+<p>In <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> we looked for interesting routines in <code>x sqllang!CUDXR_ExternalScript*</code> for handling rows coming back from the SqlSatellite. Let&rsquo;s do the same for output arguments:</p>
+
+<ul>
+<li>Start up <em>WinDbg</em> as admin - once again, <strong>DO NOT DO THIS ON A PRODUCTION SERVER</strong>.</li>
+<li>Attach to the SQL Server process.</li>
+<li>Execute in the <em>WinDbg</em> console: <code>x sqllang!CUDXR_ExternalScript*Process*Arguments*</code></li>
+</ul>
+
+<p>The execute statement results in one routine: <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code>, and - if I may say so myself - it looks like we&rsquo;re onto something here. To confirm we&rsquo;re on the right track, set a breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code> and change the code in <em>Code Snippet 6</em> to have a <code>Sys.sleep</code> in the script so we can better determine what is being called when:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int;
+EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'Sys.sleep(10)
+                     d&lt;-42
+                     a &lt;- as.integer(3)
+                     OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+               , @params = N'@a int OUTPUT'
+               , @a = @p1 OUTPUT
+WITH RESULT SETS((ResultSet1 int));
+SELECT @p1 As OutParam1
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Base Code for Output Parameters with Pause</em></p>
+
+<p>Execute the code in <em>Code Snippet 11</em>, and when the breakpoint is hit (after the sleep), check the call-stack: <code>k</code>:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessOutputArguments
+sqllang!CUDXR_ExternalScript::PullRow+0x139
+sqlmin!CQScanUdx::GetRow+0x196
+sqlmin!CQueryScan::GetRow+0x81
+sqllang!CXStmtQuery::ErsqExecuteQuery+0x4dc
+sqllang!CXStmtSelect::XretExecute+0x322
+sqllang!CMsqlExecContext::ExecuteStmts&lt;1,1&gt;+0x40d
+sqllang!CMsqlExecContext::FExecute+0xa9e
+sqllang!CSQLSource::Execute+0x983
+sqllang!SpExecuteExternalScript+0x140e
+...
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Call Stack Leading up to ProcessOutputArguments</em></p>
+
+<p>Aha, <em>Code Snippet 12</em> show how <code>ProcessOutputArguments</code> is part of <code>PullRow</code> which we looked at in <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a>, and which we mentioned in the <em>Recap</em> above. If we look back at <code>PullRow</code>, a very, very abbreviated call-stack looked like so:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::PullRow
+  sqllang!CUDXR_ExternalScript::ProcessOutputSchema
+    ...
+  sqllang!CUDXR_ExternalScript::ProcessResultRows
+    ...
+    sqllang!CUDXR_ExternalScript::OutputRow
+      ...
+    sqllang!CUDXR_ExternalScript::EndOutput
+      ...
+</code></pre>
+
+<p><strong>Code Snippet 12:</strong> <em>Highly Abbreviated PullRow Call Stack</em></p>
+
+<p>Looking at the <code>PullRow</code> call-stack in <em>Code Snippet 12</em>, the question is where <code>ProcessOutputArguments</code> fit in? The call-stack in <em>Code Snippet 11</em> shows how <code>ProcessOutputArguments</code> is called directly from <code>PullRow</code>, so is that before or after <code>ProcessResultRows</code>? To figure this out, what do we do - well, we&rsquo;ll set a breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>, in addition to the breakpoint at <code>ProcessOutputArguments</code>. When we execute we see that <code>ProcessResultRows</code> is called twice, followed by <code>ProcessOutputArguments</code>. From that we can say that the call-stack also including <code>ProcessOutputArguments</code> looks something like so:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::PullRow
+  sqllang!CUDXR_ExternalScript::ProcessOutputSchema
+    ...
+  sqllang!CUDXR_ExternalScript::ProcessResultRows
+    ...
+    sqllang!CUDXR_ExternalScript::OutputRow
+      ...
+    sqllang!CUDXR_ExternalScript::EndOutput
+      ...
+  sqllang!CUDXR_ExternalScript::ProcessOutputArguments
+    ...
+</code></pre>
+
+<p><strong>Code Snippet 13:</strong> <em>Highly Abbreviated PullRow Call Stack Including ProcessOutputArguments</em></p>
+
+<p>We could have reached the same conclusion as we came to in <em>Code Snippet 13</em> if we had had a look at the &ldquo;trace and watch&rdquo; file we did in <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> for <code>PullRow</code>: <code>pull_row_full.txt</code>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you wonder why there are two <code>ProcessResultRows</code> calls when only one row is coming back - go back up to the <em>Recap</em>, where it is explained.</p>
+</blockquote>
+
+<p>To finish off with, let&rsquo;s see what happens inside <code>ProcessOutputArguments</code>:</p>
+
+<ul>
+<li>Disable the <code>ProcessResultRows</code> breakpoint, but keep the <code>ProcessOutputArguments</code> breakpoint.</li>
+<li>Execute the code in <em>Code Snippet 11</em> (the one with <code>Sys.sleep</code>).</li>
+<li>When the <code>ProcessOutputArguments</code> breakpoint is hit, do a &ldquo;trace and watch&rdquo;: <code>wt -l4</code> (trace 4 levels deep).</li>
+</ul>
+
+<p>When the trace has finished you can copy it to a file, to make it easier to follow what happens. When looking at the file, we see something like this:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessOutputArguments
+  sqllang!CServerCargoContext::ReadOutputArgumentsInternal
+    ...
+    sqlllang!CServerCargoContext::ReadAllPackets
+      sqllang!CSQLSatelliteConnection::GetNextMessage
+        sqllang!CSQLSatelliteConnection::RetrieveMessage
+    ...
+    sqllang!CServerCargoContext::ReadOutputArgsFromPackets
+      ...
+      ...
+      sqllang!CSQLSatelliteMessageArgument::ReadPayload
+        sqllang!CSQLSatelliteMessageArgument::ReadArgsTypeInfo
+          ...
+        sqllang!CSQLSatelliteMessageArgument::ReadArgsName
+        ...
+        sqllang!CSQLSatelliteMessageArgument::ReadArgsValueSize
+        ...
+        sqllang!CSQLSatelliteMessageArgument::ReadArgsValue
+        ...
+      sqllang!CSQLSatelliteMessageArgument::ReadPayload
+      ...
+    sqllang!CServerCargoContext::ReadOutputArgsFromPackets
+    ...
+  sqllang!CServerCargoContext::ReadOutputArgumentsInternal
+  ...
+sqllang!CUDXR_ExternalScript::ProcessOutputArguments
+</code></pre>
+
+<p><strong>Code Snippet 14:</strong> *<em>Routines During ProcessOutputArguments</em></p>
+
+<p>From <em>Code Snippet 14</em> we see how the argument packet is being read, from there we read the type information, followed by the argument name and value. If there are more than one output argument, the do it all over again. Oh, and if there are no output parameters we &ldquo;bail&rdquo; out after the <code>ReadPayload</code> routine.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post we have looked at what happens if we have a result set definition when executing <code>sp_execute_external_script</code>. We saw that the result set definition was handled during <code>sqllang!CUDXR_ExternalScript::ProcessOutputSchema</code> and the routine that did this was <code>sqllang!CExecWithResultSetsCOut::SendMetaImpl</code>. The <code>SendMetaImpl</code> is used not only for external scripts but for all executions with result set definitions.</p>
+
+<p>We then went on to how output parameters are handled and we started looking at where the parameters are returned and what the packet looked like:</p>
+
+<ul>
+<li>The output parameters is being returned in the second packet coming back from the SqlSatellite after the ack packet has been sent to the SqlSatellite.</li>
+<li>The packet returning the output parameters has a 28 bytes &ldquo;header&rdquo;.</li>
+<li>The header contains the number of parameters being returned.</li>
+<li>There is one &ldquo;payload&rdquo; per output parameter.</li>
+<li>The parameter &ldquo;payload&rdquo; contains the name of the output parameter as double byte characters.</li>
+<li>The payload consists of 20 bytes before the name of the parameter.</li>
+<li>After the parameter name is 4 bytes.</li>
+<li>The 4 bytes are followed by the parameter value.</li>
+<li>At the end of the parameter payload is an &ldquo;end&rdquo; byte, hex <code>01</code>.</li>
+<li>The size of the value is the data type size for numerics, and storage size for alpha-numerics.</li>
+<li>For alpha-numerics there are 2 bytes pre-pending the value. These 2 bytes indicate the size.</li>
+</ul>
+
+<p>An example of this would be what we receive if we were to execute the following:</p>
+
+<pre><code class="language-sql">DECLARE @p2 int 
+DECLARE @p3 varchar(10);
+EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'd&lt;-42
+                     #outParam &lt;- d
+               a &lt;- as.integer(3)
+               b &lt;- &quot;abcd&quot;
+                     OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M' --2051    --51 --94
+               , @params = N'@a int OUTPUT, @b varchar(10) OUTPUT'
+               , @a = @p2 OUTPUT
+         , @b = @p3 OUTPUT
+WITH RESULT SETS((ResultSet1 int));
+SELECT @p2 AS IntParam, @p3 AS StringParam
+</code></pre>
+
+<p><strong>Code Snippet 15:</strong> <em>Two Output Params: Integer and Varchar</em></p>
+
+<p>The code in <em>Code Snippet 15</em> reults in two output parameters: one - <code>int</code> - with a value of 3, and the other - <code>varchar</code> - with a value of &ldquo;abcd&rdquo;. The output parameter packet looks something like so after I have formatted it a bit:</p>
+
+<pre><code class="language-c++">// header
+01 00 0d 80 60 00 00 00 fc f6 1d a8 98 e3 13 41 be 12 d2 7f 79 ad e4 47 
+02 00 00 00 // number of parameters
+
+ // payload int param @a, value 3
+38 00 00 00 38 00 00 00 04 00 0a 00 00 00 00 00 02 00 00 00 
+40 00 61 00 // parameter name
+04 00 00 00 // 4 bytes
+03 00 00 00 // value
+01 // end byte
+
+//payload varchar param @b, value 'abcd'
+a7 02 00 00 a7 00 00 00 0a 00 00 00 08 d0 00 34 02 00 00 00 
+40 00 62 00 // parameter name
+06 00 00 00 // 4 bytes
+04 00 // size of parameter value
+61 62 63 64 // value
+01 // end byte
+</code></pre>
+
+<p><strong>Code Snippet 16:</strong> <em>Output Parameter Packet</em></p>
+
+<p>As you see in <em>Code Snippet 16</em>, I have separated the &ldquo;header&rdquo; from the &ldquo;payload&rdquo;, and also made the hex somewhat more readable by separating out the various parts we discussed above.</p>
+
+<p>When output arguments are returned to SQL Server, they are handled by the <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code> routine which is part of the <code>PullRow</code> call. I have taken the <em>Figure 1</em> in the recap and altered it to show the flow for output arguments:</p>
+
+<p><img src="/images/posts/sql_r_services_18_flow.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Code Flow Receiving Output Arguments from SqlSatellite</em></p>
+
+<p>The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens, there is not much of a difference from what is in the <em>Recap</em>, except for the added point 11:</p>
+
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent together with two end packets.</li>
+<li>Packet are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled.</li>
+<li>Execution continues to process meta-data as well as result rows.</li>
+<li>After processing result rows, output arguments are processed.</li>
+</ol>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2018/01/07/interesting-stuff---christmas-new-year-week-1/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Christmas, New Year, Week 1</span>
+    </a>
+    
+    
+    <a href="/2018/01/14/interesting-stuff---week-2/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 2</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Microsoft SQL Server R Services - Internals XVII</a>
+      
+      <time class="pull-right hidden-tablet">Jan 03 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Microsoft SQL Server R Services - Internals XVI</a>
+      
+      <time class="pull-right hidden-tablet">Dec 24 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Microsoft SQL Server R Services - Internals XV</a>
+      
+      <time class="pull-right hidden-tablet">Dec 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>
+      
+      <time class="pull-right hidden-tablet">Nov 25 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Microsoft SQL Server R Services - Internals X</a>
+      
+      <time class="pull-right hidden-tablet">Aug 29 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

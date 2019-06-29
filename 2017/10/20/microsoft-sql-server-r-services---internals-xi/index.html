@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals XI • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals XI"/>
+<meta name="twitter:description" content="What are the two strange TCP/IP packets sent from SQL Server to SqlSatellite, and who sends them?"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals XI" />
+<meta property="og:description" content="What are the two strange TCP/IP packets sent from SQL Server to SqlSatellite, and who sends them?" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/10/20/microsoft-sql-server-r-services---internals-xi/" />
+
+
+
+<meta property="article:published_time" content="2017-10-20T18:42:47&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-10-20T18:42:47&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals XI</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Oct 20, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/sqlsatellite">sqlsatellite</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 12 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the twelfth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eleventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In the last <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">post</a> we spoke about how the transfer of data happens between SQL Server and the R components, and we saw how data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server. In the post we mentioned that the protocol being used is  <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>), and this post was supposed to talk about BXL.</p>
+
+<p></p>
+
+<p>However, while I was investigating BXL I did some WinDbg <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a> in SQL Server and came across some interesting &ldquo;stuff&rdquo; that ties into how data is being sent, so I decided to post about that instead (a future post will definitely cover BXL).</p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>, as mentioned above, we looked at how data was transferred from SQL Server to R. By using <strong>WireShark</strong> we could see how the data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> We discussed the communications mechanisms in general and the TCP connection specifically in <a href="/2017/08/18/microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>.</p>
+</blockquote>
+
+<p>To see what happens in SQL Server as well as the launchpad service when a script executes we set some break-points in WinDbg, for both processes:</p>
+
+<ul>
+<li>SQL Server: <code>sqllang!SpExecuteExternalScript</code></li>
+<li>SQL Server: <code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li>SQL Server: <code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>SQL Server: <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li>Launchpad: <code>launchpad!Np::AcceptConnection</code></li>
+<li>Launchpad: <code>launchpad!Np::ReadAsync</code></li>
+<li>Launchpad: <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li>Launchpad: <code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ul>
+
+<p>The script used when investigation what happens is very simple:</p>
+
+<pre><code class="language-sql">exec sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'Sys.sleep(30)
+                 d&lt;-42'
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Basic External Script</em></p>
+
+<p>The reason for using simple code like in <em>Code Snippet 1</em>, is that it might make it easier to understand what is happening, and we can compare with what is happening when executing some other, not so basic, code. Notice how in <em>Code Snippet 1</em> there is a <code>Sys.sleep</code>. It is there to make it easier to determine - when debugging - when data is sent to R and when data is coming back.</p>
+
+<p>When we executed the code in <em>Code Snippet 1</em>, we saw how the breakpoints where hit as below:</p>
+
+<ol>
+<li><code>sqllang!SpExecuteExternalScript</code> is called.</li>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li><code>launchpad!Np::AcceptConnection</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code> - notice how nothing happens in the SQL process until <code>WriteMessage</code> is executed.</li>
+<li><code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>Pause for <code>Sys.sleep</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ol>
+
+<p>The above led us to the conclusion - which I voiced in the start of this recap - that data may not be sent via the launchpad service, but over the SqlSatellite TCP connection. The reason that conclusion was achieved was that some of the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> did not have a corresponding <code>launchpad!Np::ReadAsync</code>.</p>
+
+<p>In <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> we further proved that theory by using <em>Process Monitor</em> and capturing what TCP packets were sent to the SqlSatellite (or rather <code>BxlServer.exe</code> - which hosts SqlSatellite). When executing the code in <em>Code Snippet 1</em> we saw <em>Process Monitor</em> output like so:</p>
+
+<p><img src="/images/posts/sql_r_services_10_procmon_output1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Process Monitor Base Output</em></p>
+
+<p>Combined with the breakpoints the flow looked like below:</p>
+
+<ol>
+<li><code>sqllang!SpExecuteExternalScript</code> is called.</li>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li><code>launchpad!Np::AcceptConnection</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li>TCP Connect</li>
+<li><code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li>TCP Receive</li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li>Pause for <code>Sys.sleep</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ol>
+
+<p>From what we can see, the three first TCP events happens while we connect. The fourth happens after a <code>WriteMessage</code>, and the fifth after the second <code>WriteMessage</code> before <code>Sys.sleep</code>. The remainders will be covered when we investigate how data is returned to SQL Server.</p>
+
+<p>By using *<em>WireShark</em> we saw how the actual script was sent to SqlSatellite in one of the TCP packets, and if data (<code>@input_data_1 = SELECT ...</code>) was sent, that also was transferred in TCP packet(s). In <em>Figure 2</em> below we see what it looks like in <em>Process Monitor</em> when both script and data is sent:</p>
+
+<p><img src="/images/posts/sql_r_services_10_procmon_output3.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Process Monitor Output Data Select</em></p>
+
+<p>The two highlighted packets (with length of 350, and 6300 respectively) contains the data that is sent to SqlSatellite, but what are the two first packets being sent? That, and what in SQL Server that sends these packets are  what we&rsquo;ll try to figure out in the rest of this post.</p>
+
+<h2 id="packets-sent-from-sql-server">Packets Sent from SQL Server</h2>
+
+<p>So let&rsquo;s start at the top; when we look at <em>Figure 1</em> we see two <code>TCP Receive</code> after the connection is opened, and these two have a length of 217 and 17 respectively. Regardless what we execute, we&rsquo;ll always see these two &ldquo;events&rdquo; and they will always have the same lengths. Seeing that they appear after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, it may have something to do with setup of the connection, or something like that. To find out what these events are, let&rsquo;s do some &ldquo;spelunking&rdquo; using WinDbg. Run WinDbg as admin and attach to the <code>sqlservr.exe</code> process.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach WinDbg to a process, and what commands to use.</p>
+</blockquote>
+
+<p>When we look at the code flow above combining breakpoints together with the <em>Process Monitor</em> output we see that the two first <code>TCP Receive</code> events (the ones we are interested in appears after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, but there are no <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> preceding them. Let&rsquo;s see if we can find out something based on what <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> calls. In <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a> we used the <code>uf [options] &lt;address&gt;</code> WinDbg command to see what a particular routine did, so let&rsquo;s do that for <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. In the WinDbg console execute <code>uf /c sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> (we&rsquo;re using the <code>/c</code> options which displays only the call instructions). That returns something like so:</p>
+
+<pre><code class="language-cpp">sqllang!CUDXR_ExternalScript::ConnectToSatellite
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0x30:
+    call to sqllang!CSatelliteProxy::RetrieveConnection
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0x5d:
+    call to sqllang!CSatelliteProxy::PostSetupMessage
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0x90:
+    unresolvable call: call    qword ptr [rax+48h]
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0x9e:
+    call to sqllang!ex_raise_oom (00007ff8`3d183fe0)
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0xab:
+    call to sqllang!CServerCargoContext::CServerCargoContext
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0xc2:
+    call to sqllang!CSatelliteCargoContext::Init
+  sqllang!CUDXR_ExternalScript::ConnectToSatellite+0x111:
+    call to sqllang!CSatelliteCargoContext::SetupMessageWriter
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>ConnectToSatellite Calls</em></p>
+
+<p>Nothing, in <em>Code Snippet 2</em>, really stands out and screams &ldquo;pick me, pick me&rdquo; (think the donkey in Shrek) - for being responsible for the TCP events, so let&rsquo;s approach it from another angle. Let&rsquo;s try and see if we can find some routine that actually sends the TCP packets.</p>
+
+<p>For that we&rsquo;ll search in WinDbg for some routines that has TCP and Write in their names. So in the WinDbg console, execute the following: <code>x *!*TCP*Write*</code>. Hmm, that returned some interesting &ldquo;stuff&rdquo; (the result below is somewhat reduced for readability):</p>
+
+<pre><code class="language-cpp">00007ff8\`3d1bac30 sqllang!Tcp::WriteSync (&lt;no parameter info&gt;)
+00007ff8\`3d1ba9b0 sqllang!Tcp::WriteDone (&lt;no parameter info&gt;)
+00007ff8\`3d1baf30 sqllang!Tcp::WriteSyncPost (&lt;no parameter info&gt;)
+00007ff8\`3d1b6f40 sqllang!Tcp::GatherWriteAsync (&lt;no parameter info&gt;)
+00007ff8\`3d1bb200 sqllang!Tcp::WriteSyncWait (&lt;no parameter info&gt;)
+00007ff8\`3cf79e40 sqllang!Tcp::WriteAsync (&lt;no parameter info&gt;)
+...
+</code></pre>
+
+<p><strong>Code Snippet 3&rdquo;:</strong> <em>Partial Output for TCP::Write</em></p>
+
+<p>The output in <em>Code Snippet 3</em> has some &ldquo;promising&rdquo; routines, where <code>sqllang!Tcp::WriteAsync</code> looks very interesting. Let&rsquo;s set some breakpoints:</p>
+
+<ul>
+<li><code>bp sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>bp sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li><code>bp sqllang!Tcp::WriteAsync</code></li>
+</ul>
+
+<p>The breakpoints above are &ldquo;loosely&rdquo; based on what we did in [Internals - X], and hopefully they&rsquo;ll give us some clarity in what happens. After having set the breakpoints execute the code in <em>Code Snippet 1</em> and notice how the breakpoints are hit:</p>
+
+<pre><code class="language-cpp">sqllang!CSQLSatelliteConnection::WriteMessage:
+sqllang!CUDXR_ExternalScript::ConnectToSatellite:
+sqllang!Tcp::WriteAsync:
+sqllang!Tcp::WriteAsync:
+sqllang!CSQLSatelliteConnection::WriteMessage:
+sqllang!Tcp::WriteAsync:
+sqllang!CSQLSatelliteConnection::WriteMessage:
+sqllang!Tcp::WriteAsync:
+# here is sys.Sleep
+sqllang!CSQLSatelliteConnection::WriteMessage:
+sqllang!Tcp::WriteAsync:
+sqllang!CSQLSatelliteConnection::WriteMessage:
+</code></pre>
+
+<p><strong>Code Snippet 4&rdquo;:</strong> <em>Breakpoints Hit</em></p>
+
+<p>The code in <em>Code Snippet 4</em> matches quite well up with what we saw in the flow in the beginning; <code>ConnectToSatellite</code> followed by two TCP events, followed by <code>WriteMessage</code>, TCP event, <code>WriteMessage</code> and TCP event, and then <code>Sys.sleep</code>. Here we see two <code>sqllang!Tcp::WriteAsync</code> calls after <code>ConnectToSatellite</code> without any <code>WriteMessage</code>. Maybe if we investigated the call-stack at the first <code>sqllang!Tcp::WriteAsync</code>, that could give us some more information:</p>
+
+<ol>
+<li>Execute the code in <code>Code Snippet 1</code> again.</li>
+<li>Let it run through the <code>WriteMessage</code> and <code>ConnectToSatellite</code> breakpoints.</li>
+<li>When the first <code>sqllang!Tcp::WriteAsync</code> breakpoint is hit, check the call-stack: <code>kc</code>.</li>
+</ol>
+
+<blockquote>
+<p><strong>NOTE:</strong> By using <code>kc</code> we display a clean stack trace where each display line includes only the module name and the function name.</p>
+</blockquote>
+
+<p>The call-stack after step 3 above, looks like so (I have &ldquo;snipped&rdquo; out some of the initial calls):</p>
+
+<pre><code class="language-cpp"># Call Site
+00 sqllang!Tcp::WriteAsync
+01 sqllang!CryptoBase::HandshakeWriteToken
+02 sqllang!CryptoBase::ProcessAndWriteSecurityToken
+03 sqllang!CryptoBase::ProcessAddProvider
+04 sqllang!CryptoBase::NegotiateSecurityContext
+05 sqllang!Sspi::InitX
+06 sqllang!AddProvider
+07 sqllang!SNIAddProviderEx
+08 sqllang!CSQLSatelliteConnection::AuthenticateConnection
+09 sqllang!CSQLSatelliteConnection::DataCargoAcceptTask
+0a sqldk!SOS_Task::Param::Execute
+[snip]
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Call Stack at First WriteAsync</em></p>
+
+<p>When we look at the call-stack we see some routines that have to do with security; <code>NegotiateSecurityContext</code>, <code>ProcessAndWriteSecurityToken</code>, etc. We also see a routine: <code>sqllang!SNIAddProviderEx</code>. This refers to the <strong>SQL Server Network Interface</strong> which is a protocol layer that establishes the network connection between the client and the server. Paired this with the routine <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> it seems that our initial thoughts that the first packet has something to do with setting up the connection to the satellite may not be totally off. Now, let the code run through by pressing F5 or <code>g</code> in the WinDbg console?</p>
+
+<p><strong>NOTE:</strong> At this stage, the TCP connection may be closed due to timeout and you eventually will get an error.</p>
+
+<p>So let&rsquo;s ensure that we have the part about <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> correct, by setting a breakpoint at it (<code>bp sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>). When you execute you will see how you hit that breakpoint breakpoint almost immediately. You can ignore that, and continue executing until you hit <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. After you have hit <code>ConnectToSatellite</code>  you break at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>. When you now continue execution you&rsquo;ll see something like so:</p>
+
+<pre><code class="language-cpp">sqllang!CSQLSatelliteConnection::AuthenticateConnection:
+00007ff8\`9fbc1990 488bc4          mov     rax,rsp
+0:054&gt; g
+Breakpoint 2 hit
+sqllang!Tcp::WriteAsync:
+00007ff8\`9e864a40 4c8bdc          mov     r11,rsp
+0:054&gt; g
+Breakpoint 2 hit
+sqllang!Tcp::WriteAsync:
+00007ff8\`9e864a40 4c8bdc          mov     r11,rsp
+0:050&gt; g
+Breakpoint 2 hit
+sqllang!Tcp::WriteAsync:
+00007ff8\`9e864a40 4c8bdc          mov     r11,rsp
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Breakpoints Hit</em></p>
+
+<p>What happens is that straight after the <code>AuthenticateConnection</code> you will hit the <code>WriteAsync</code> breakpoint twice, the same way as we see in <em>Code Snippet 4</em>. The first hit at <code>WriteAsync</code> sort of makes sense, as it ties up with the call-stack we see in <em>Code Snippet 5</em>. But what about the second <code>WriteAsync</code> (the one that causes the second package to be sent), where does that come from? To try to figure that out, we start with the call-stack for that particular <code>WriteAsync</code>.</p>
+
+<p>Execute the code in <em>Code Snippet 1</em> again, and continue to the second <code>WriteAsync</code>. When you hit the breakpoint do a <code>kc</code> again. The call-stack should now look somewhat like this (this time it is the full call-stack):</p>
+
+<pre><code class="language-cpp"> # Call Site
+00 sqllang!Tcp::WriteAsync
+01 sqllang!CryptoBase::HandshakeWriteToken
+02 sqllang!CryptoBase::ProcessAndWriteSecurityToken
+03 sqllang!CryptoBase::ProcessAddProvider
+04 sqllang!SNIProcessAddProviderOnWorker
+05 sqldk!SOS_Task::Param::Execute
+06 sqldk!SOS_Scheduler::RunTask
+07 sqldk!SOS_Scheduler::ProcessTasks
+08 sqldk!SchedulerManager::WorkerEntryPoint
+09 sqldk!SystemThread::RunWorker
+0a sqldk!SystemThreadDispatcher::ProcessWorker
+0b sqldk!SchedulerManager::ThreadEntryPoint
+0c KERNEL32!BaseThreadInitThunk
+0d ntdll!RtlUserThreadStart
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Call Stack at Second WriteAsync</em></p>
+
+<p>Comparing the call-stack in <em>Code Snippet 7</em> with the one in <em>Code Snippet 5</em> we see that they are somewhat similar. We also see that <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> is nowhere to be seen in the second call-stack. However it looks like this call has something to do with SNI as there is the <code>sqllang!SNIProcessAddProviderOnWorker</code> call. So what causes the second <code>WriteAsync</code>? As we did with <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> let&rsquo;s see what calls <code>AuthenticateConnection</code> makes (<code>uf /c sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>):</p>
+
+<pre><code class="language-cpp">sqllang!CSQLSatelliteConnection::AuthenticateConnection
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x9d:
+    call to sqllang!SNISetInfo
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0xbc:
+    call to sqllang!SNIAddProviderEx
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x100:
+    call to sqllang!EventInternal&lt;SuspendQueueSLock&gt;::Wait
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x13c:
+    call to sqllang!RefCountImpl&lt;CSQLSatelliteConnection&gt;::Release
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x14a:
+    call to sqllang!CSQLSatelliteConnection::FireAuthenticationXEvent
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x163:
+    call to KERNEL32!TlsGetValueStub
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x17a:
+    call to sqldk!SystemThread::MakeMiniSOSThread
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x189:
+    call to KERNEL32!TlsGetValueStub
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x1bf:
+    call to sqllang!AutoSwitchPreemptive::AutoSwitchPreemptive
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x1d5:
+    call to sqllang!CSQLSatelliteConnection::AuthorizeNamedPipeConnection
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x204:
+    call to sqllang!SNIGetInfo
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x21c:
+    call to SSPICLI!QueryContextAttributesW
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x239:
+    call to ADVAPI32!CheckTokenMembershipStub
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x241:
+    call to KERNEL32!GetLastErrorStub
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x26c:
+    call to sqllang!CSQLSatelliteConnection::FireAuthorizationXEvent
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x2a8:
+    unresolvable call: call    qword ptr [rax+10h]
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x2b0:
+    call to sqllang!SOS_ExternalAutoWait::~SOS_ExternalAutoWait
+  sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x2da:
+    call to sqllang!SNIRemoveProvider
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Calls from AuthenticateConnection</em></p>
+
+<p>Looking at the code in <em>Code Snippet 8</em>, we can see the call to <code>sqllang!SNIAddProviderEx</code> (line 5), but nowhere we see <code>sqllang!SNIProcessAddProviderOnWorker</code>. A first thought would be that <code>SNIProcessAddProviderOnWorker</code> is called from another routine, but looking at the call-stack for the second <code>WriteAsync</code> call (<em>Code Snippet 7</em>), we cannot see any particular method that would call <code>SNIProcessAddProviderOnWorker</code>. The only thing we see is that the first call in the call-stack is a start of a new thread: <code>ntdll!RtlUserThreadStart</code>.</p>
+
+<p>Hmm, based on the fact that a new thread is started and we&rsquo;re doing SNI &ldquo;stuff&rdquo;, we may assume that we are still inside <code>AuthenticateConnection</code>. With that in mind we can now start &ldquo;spelunking&rdquo; away in <code>AuthenticateConnection</code>. From the code in <em>Code Snippet 8</em> wee see that the call to <code>SNIAddProviderEx</code> happens at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0xbc</code>. We know that the first call to <code>WriteAsync</code> happens after <code>SNIAddProviderEx</code>, which then tells us that the second <code>WriteAsync</code> must happen after <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0xbc</code>. Next call is at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x100</code>, so let us set a break-point there.</p>
+
+<p>When you execute again, (and ignore the first breaks on <code>AuthenticateConnection</code> and <code>AuthenticateConnection+0x100</code>), you will eventually see the following:</p>
+
+<pre><code class="language-cpp">sqllang!CUDXR_ExternalScript::ConnectToSatellite:
+mov     qword ptr [rsp+8],rcx ss:0000010d\`6e4fc2e0=000002ab0d57d620
+
+sqllang!CSQLSatelliteConnection::AuthenticateConnection:
+mov     rax,rsp
+
+sqllang!Tcp::WriteAsync:
+mov     r11,rsp
+
+sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x100
+call    sqllang!EventInternal&lt;SuspendQueueSLock&gt;::Wait
+
+sqllang!Tcp::WriteAsync:
+mov     r11,rsp
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Calls from AuthenticateConnection 2</em></p>
+
+<p>Our hunch was right, we can see how we are breaking at <code>AuthenticateConnection+0x100</code> right before the second <code>WriteAsync</code>. In other words the two packets we are interested in are both sent during authentication of the TCP/IP connection between SQL Server and SqlSatellite.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post we set out to find out more about the two TCP/IP packets that are sent from SQL Server to the SqlSatellite, before the actual packages with the script etc., are sent. After some WinDbg &ldquo;spelunking&rdquo; we figured out that the packets were sent during the connection to the SqlSatellite, more specifically during <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>.</p>
+
+<p>In <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a> I had a figure which tried to illustrate what happens in SQL Server when executing <code>sp_execute_external_script</code>, and - based on that figure - I created a new figure where I have included what we found out in this post:</p>
+
+<p><img src="/images/posts/sql_r_services_11_calls.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Flow in SQL Server</em></p>
+
+<p>The numbered arrows shows the communication out from SQL Server, and in what order it happens:</p>
+
+<ol>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code> - SQL Server opens named pipe connection to the launchpad service.</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code> - Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>During <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> SQL Server sends the first packet to the SQL Satellite. The packet has something to do with authentication.</li>
+<li>After the first packet is sent, a second packet (still within <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>), which also is related to authentication, is sent on a separate thread to SqlSatellite.</li>
+</ol>
+
+<p>Thus we have figured out what the two first packets are, and where they are sent from.</p>
+
+<p>In the next post we&rsquo;ll look at what is sending the packets containing the scripts, and what the flow looks like.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/10/13/interesting-stuff---week-41/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 41</span>
+    </a>
+    
+    
+    <a href="/2017/10/22/interesting-stuff---week-42/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 42</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Microsoft SQL Server R Services - Internals X</a>
+      
+      <time class="pull-right hidden-tablet">Aug 29 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/18/microsoft-sql-server-r-services---internals-ix/">Microsoft SQL Server R Services - Internals IX</a>
+      
+      <time class="pull-right hidden-tablet">Aug 18 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/07/22/microsoft-sql-server-r-services---internals-viii/">Microsoft SQL Server R Services - Internals VIII</a>
+      
+      <time class="pull-right hidden-tablet">Jul 22 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/07/11/microsoft-sql-server-r-services---internals-vii/">Microsoft SQL Server R Services - Internals VII</a>
+      
+      <time class="pull-right hidden-tablet">Jul 11 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/05/16/microsoft-sql-server-r-services---internals-vi/">Microsoft SQL Server R Services - Internals VI</a>
+      
+      <time class="pull-right hidden-tablet">May 16 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

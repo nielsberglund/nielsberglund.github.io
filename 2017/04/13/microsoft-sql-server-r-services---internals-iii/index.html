@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals III • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals III"/>
+<meta name="twitter:description" content="SQL Server R Services series. Here we look at what happens when the launchpad service creates processes in SQL Server R Services."/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals III" />
+<meta property="og:description" content="SQL Server R Services series. Here we look at what happens when the launchpad service creates processes in SQL Server R Services." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/04/13/microsoft-sql-server-r-services---internals-iii/" />
+
+
+
+<meta property="article:published_time" content="2017-04-13T06:13:14&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-04-13T06:13:14&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals III</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Apr 13, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 17 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the fourth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the third post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In the previous internals posts <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">here</a> and <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">here</a> we have looked at what goes on inside SQL Server when executing an R script, and what happens in the launchpad service when executing.</p>
+
+<p>This post was initially to be about the R runtime, and what other parts are involved when executing R scripts in SQL Server. However, during my &ldquo;spelunking&rdquo; around I realized that I did not really understand what happens when we create the processes for the R runtime from the launchpad service and the launcher (which is what I covered in the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II post</a>).</p>
+
+<p>So, instead of looking at the R runtime and the other R related components, we&rsquo;ll look at what happens when creating external processes. A subsequent blog-post will cover the R runtime and components.</p>
+
+<p></p>
+
+<p>To begin with, the code we use in this post to execute R scripts are the same as we have used in the other posts:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script 
+                    @language =N'R',
+                    @script=N'OutputDataSet&lt;-InputDataSet',
+                    @input_data_1 =N'SELECT 42'
+WITH RESULT SETS (([TheAnswer] int not null));
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Execute sp_execute_external_script</em></p>
+
+<p>The code in <em>Code Snippet 1</em> doesn&rsquo;t do much, but it is quite sufficient for our purposes. Having said that, let us get on with it.</p>
+
+<h2 id="recap">Recap</h2>
+
+<p>Let us refresh our memories about what the two previous internals posts covered, by looking at some images from those two posts. In <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">internals I</a> we said that the following happened when executing what <em>Code Snippet 1</em> shows:</p>
+
+<p><img src="/images/posts/sql-launchpad_post.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Call Flow Executing sp_execute_external_script</em></p>
+
+<p>In <em>Figure 1</em> we see how an named pipe connection is opened from the SQL Server engine into the launchpad service, and eventually the routine <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> writes a message to the service. The message will at one stage or another cause the <code>launchpad!CLaunchContext::Launch</code> routine in the launchpad service to be called.</p>
+
+<p><em>Figure 2</em> below, from the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II</a> shows the flow the call in <em>Figure 1</em> enters the launchpad service:</p>
+
+<p><img src="/images/posts/sql-launchpad-r-post.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Launchpad Service Call Flow</em></p>
+
+<p>Various routines are called, and eventually <code>launchpad!PhysicalUserContext::LaunchProcess</code> is called followed by <code>KERNELBASE!CreateProcessInternalW</code> which creates the <em>RTerm.exe</em> process, which you can see in <em>Figure 3</em>. The script to be executed is sent to the R process in the <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> call.</p>
+
+<p>In the beginning of this post I mentioned that I had changed what to cover in this post, and what you see in <em>Figure 3</em> is partly why I did that:</p>
+
+<p><img src="/images/posts/sql_r_services_launchpad_after_launch_process.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>RTerm Process</em></p>
+
+<p>We see a number of RTerm processes, why is that? Let us see if we can answer that question as well as see what happens when we create the processes as well as when the R script code executes. To understand how that works we should however first talk about users and user accounts.</p>
+
+<h2 id="user-accounts">User Accounts</h2>
+
+<p>When we execute something in SQL Server we do it in context of a user, either a SQL Server user or Windows user, and SQL Server has the concept of <code>ISOLATION LEVELS</code> to ensure that the same code can be executed concurrently. When we execute <code>sp_execute_external_script</code> however, we exit SQL Server and the actual execution takes place outside of the SQL Server engine; inside the external runtime. The external engine does not have the notion of <code>ISOLATION LEVELS</code>, so if multiple users executed the same script concurrently, bad things could potentially happen. How can we ensure isolation between users executing concurrently?</p>
+
+<p>To ensure isolation, SQL Server R Services creates during installation a pool of Windows accounts in a Windows account group. The group (and accounts) are created per instance of SQL Server R Service. The group for SQL Server R Services installed on the default SQL Server instance is <strong>SQLRUserGroup</strong> and for non-default instances it is <strong>SQLRUserGroupInstanceName</strong>. On my machine I have three installations of SQL Server, with SQL Server R Services installed on all of them, and <em>Figure 4</em> shows the groups that have been created:</p>
+
+<p><img src="/images/posts/sql_r_services_usergroups.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>SQL Server R Services User Groups</em></p>
+
+<p>So what does a user group look like then? If we double click on the <strong>SQLRUserGroup</strong>, we&rsquo;ll see something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_usergroup_users.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Members in User Group</em></p>
+
+<p>The installation of SQL Server R Services creates by default 20 user accounts, named MSSQLSERVER01&hellip;20 for the default instance, and InstanceName01&hellip;20 for named instances. When executing external scripts the executing user will be mapped to one of these accounts by the launchpad service.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The number of accounts created can be altered. See this <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/modify-the-user-account-pool-for-sql-server-r-services">MSDN post</a> for information about that.</p>
+</blockquote>
+
+<p>While executing external scripts, there may be a need to store script objects, intermediate results, etc. For this reason the installation of SQL Server R Services not only creates the user accounts as per above, but it also creates folders for each account where to store the objects, results etc. The folders are created at: <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code>, and are named as the user account. In <em>Figure 6</em> below you see an example of this:</p>
+
+<p><img src="/images/posts/sql_r_services_userfolders.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Folders for User Accounts</em></p>
+
+<p>It is not entirely correct to say that the files, results, etc., are stored directly in the user folder. They are in fact stored in sub-folders of the user folder. Let us do some coding to see an example of the mapping to a user account as well as sub-folders:</p>
+
+<ol>
+<li>Stop the launchpad service if it is running.</li>
+<li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account folders themselves.</li>
+<li>Restart the launchpad service.</li>
+<li>Execute the code in <em>Code Snippet 1</em>.</li>
+</ol>
+
+<p>When you have executed go to the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory and check in the various user account folders. If you are the only user on the server, you should now see in the <em>xxx01</em> folder some sub-folders as in <em>Figure 7</em> below:</p>
+
+<p><img src="/images/posts/sql_r_services_subfolders.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Sub-folders of the User Account Folder</em></p>
+
+<p>If two SQL Server users had executed scripts concurrently two of the user folders would have had sub-folders. If you open one of the sub-folder you should see some files and a folder. This comes from what we mentioned above, about storage of files etc.</p>
+
+<p>The question is why are there more than one sub-folder, since we only executed the code once? The same question can be asked when you look at <em>Figure 3</em>, the RTerm processes; why do we have more than one RTerm process for one execution? The other question to ask is if the multiple RTerm processes are related to the multiple sub-folders? We can probably guess that is the case, but can we prove it?</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Ina future blog-post I&rsquo;ll look into what the files are that are stored in the sub-folders.</p>
+</blockquote>
+
+<h2 id="rterm-processes">RTerm Processes</h2>
+
+<p>The assumption is that there is something in common between the user account&rsquo;s sub-folders and the multiple RTerm processes we saw in <em>Figure 3</em>. Let us execute some code and see if we can figure out if our assumption is right. For this we should change the code in <em>Code Snippet 1</em> slightly, to inject an artificial pause in the execution. That way it should be easier for us to see what is going on. The code to execute now looks like so:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script 
+                    @language =N'R',
+                    @script=N'OutputDataSet&lt;-InputDataSet;
+                              Sys.sleep(120);',
+                    @input_data_1 =N'SELECT 42'
+WITH RESULT SETS (([TheAnswer] int not null));
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Execute with Sys.Sleep</em></p>
+
+<p>As you can see in <em>Figure 2</em>, the code looks almost the same as in <em>Code Snippet 1</em>, apart from that we have injected a <code>Sys.sleep(120)</code>, which will make the execution stop for 2 minutes. That should give us ample time to do some &ldquo;spelunking&rdquo;.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> For this investigation I use <strong>Sysinternals</strong> <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><em>Process Explorer</em></a>.</p>
+</blockquote>
+
+<p>So:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do <strong>NOT</strong> delete the user account folders themselves. Keep the <em>File Explorer</em> open at the <code>ExtensibilityData</code> directory.</li>
+<li>Restart the launchpad service.</li>
+<li>Start <em>Process Explorer</em>, order by Process, and scroll down to where you see process names starting with &ldquo;RT&rdquo; (on my box there are none at this stage), or where the processes should be.
+
+<ul>
+<li>If you at this stage see RTerm, restart the launchpad service again and kill those processes.</li>
+</ul></li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ol>
+
+<p>While the code is running, take a quick look in <em>Process Explorer</em>, and you should see something like so:</p>
+
+<p><img src="/images/posts/sql-launchpad-rterm_processes.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>RTerm Processes</em></p>
+
+<p>You will see multiple RTerm processes running, quickly right click on each of them and you&rsquo;ll see some properties like in the figure below:</p>
+
+<p><img src="/images/posts/sql-launchpad-rterm_properties.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>RTerm Process Properties</em></p>
+
+<p>When you look in the properties pop-up window, you can see the part highlighted in <em>Figure 9</em>, is actually the path and folder name of one of the sub-folders of the user account:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_subfolders.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>User Account Sub-folders</em></p>
+
+<p><em>Figure 10</em> is just to prove that the above is correct. So it seems that our assumption was correct and that there is a one-to-one relationship between the RTerm processes and the sub-folders.</p>
+
+<p>It looks like we have answered the question above about correlation between the sub-folders and the RTerm processes, but what about the question why? Well, in my opinion it is for performance reasons. By having a pool of processes for a user, it should be quicker to to execute multiple scripts: a new process does not have to be &ldquo;spun up&rdquo; for the execution but can be taken from the process pool.</p>
+
+<p>So how does this work under the covers?</p>
+
+<h3 id="process-pools">Process Pools</h3>
+
+<p>In the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II post</a> I covered how an external runtime is launched. However we are not launching a runtime as such, we are launching multiple runtime processes (in this case <code>RTerm.exe</code>). So even if the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">previous post</a> is correct, there are more things going on that what was covered there, and that is related to the multiple processes and the process pool I mentioned above. The way I came across this was due to me pondering why there are multiple RTerm processes launched, and if there was any logic behind the number. I quite often saw 5 processes, and 5 or 6 sub-folders.</p>
+
+<p>My initial thought was that this is stored in some config file, and the obvious file would be for the launcher(s), and we looked at this file in the previous post:</p>
+
+<p><img src="/images/posts/sql_r_services_rlauncher_config.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>RLauncher Configuration</em></p>
+
+<p>However, the file doesn&rsquo;t contain that much, and nothing that seems to relate to number of processes. There is the <code>USER_POOL_SIZE</code> setting, but it is set to 0, so I guess it is not that. When looking at the file, I saw the <code>TRACE_LEVEL</code> setting, and I browsed through the web and came across <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/configure-and-manage-advanced-analytics-extensions">this post</a>, which briefly discusses <code>rlauncher.config</code>, In that post they mention the <code>TRACE_LEVEL</code> setting which is used to configure the trace verbosity level of the launchpad service, and the traces stored in the log file for the launchers:</p>
+
+<ul>
+<li>1 = Error (default)</li>
+<li>2 = Performance</li>
+<li>3 = Warning</li>
+<li>4 = Information</li>
+</ul>
+
+<p>Maybe if we change the <code>TRACE_LEVEL</code> to 4, we&rsquo;d be able to get more information. I stopped the launchpad service, and opened the config file as an administrator and changed the <code>TRACE_LEVEL</code> to 4, and saved it. I then deleted all log files in the <code>C:\&lt;path_to_slq_server_instance&gt;\MSSQL\Log\ExtensibilityLog</code>, and restarted the launchpad service.</p>
+
+<p>When opening the <code>rlauncher.log</code> file, there is quite a lot if interesting information, and in the code snippet below I have selected out some of the more interesting bits and pieces:</p>
+
+<pre><code>[2017-04-09 05:37:50.253]
+ # &quot;stuff&quot; from config
+ File=C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\Binn\rlauncher.config
+ RHome=C:\&lt;path_to_sql_server_Instance&gt;\R_SERVICES
+ MpiHome=C:\Program Files\Microsoft MPI
+ InstanceName=MSSQLSERVER
+ LogDirectory=
+      C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\LOG\ExtensibilityLog
+ WorkingDirectory=C:\\PROGRA~1\MICROS~2\MSSQL1~1.MSS\MSSQL\EXTENS~1
+ WorkingDirectoryLongPath=
+      C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\ExtensibilityData
+
+ 1.
+ SqlSatellitePath=
+      C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\Binn\sqlsatellite.dll
+ SqlSatelliteRPath=
+      C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\\Binn\\sqlsatellite.dll
+ SqlSatelliteDirectory=C:\\&lt;path_to_sql_server_Instance&gt;\MSSQL\Binn
+
+ 2.
+ ProcessPoolingEnabled=1
+ ProcessRecycleEnabled=0
+ StaleProcessTime=300000 msecs
+ StaleProcessPollTime=60000 msecs
+ TelemetryFlushInterval=300000
+
+ 3.
+ ProcessPoolSqlSatelliteGrowth=5
+ ProcessPoolRxJobGrowth=3
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Excerpt from rlauncher.log</em></p>
+
+<p>So, some comments about the above:</p>
+
+<ol>
+<li>We have some log entries about <strong>SqlSatellite</strong>. This is an API to support external code and external run times. We will see more about it in later blog-posts.</li>
+<li>Process pooling, settings if it is enabled and when a process is considered stale. In this case a process is considered stale after 5 minutes of inactivity, and we poll every minute against the processes.</li>
+<li>Aha, settings about size of the pool.</li>
+</ol>
+
+<p>From the above we can see that the number of processes are not a random number. I still can&rsquo;t find where the actual number is stored, so my assumption is that it is hard coded into respective launcher.</p>
+
+<p>If you remember from the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internal II post</a>, I said that I believe that the launcher(s) are loaded when the launchpad service starts up. At the end of the log-file we see some entries that points to that as well:</p>
+
+<pre><code>SQLSatellite_InitLauncher(600000, 1, 1, 
+    C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\LOG\ExtensibilityLog, 
+    C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\Binn\sqlsatellite.dll, 
+    C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\ExtensibilityData) 
+    completed: 00000000
+&lt; SQLSatellite_InitLauncher, dllmain.cpp, 157 (4 msecs)
+&gt; SQLSatellite_RegisterLaunchContext, dllmain.cpp, 209
+    SQLSatellite_RegisterLaunchContext(000000664E9FF750) 
+               completed: 00000000
+&lt; SQLSatellite_RegisterLaunchContext, dllmain.cpp, 209 (0 msecs)
+&gt; SQLSatellite_GetSupportedScriptTypes, dllmain.cpp, 107
+    SQLSatellite_GetSupportedScriptTypes(1) completed: 00000000
+&lt; SQLSatellite_GetSupportedScriptTypes, dllmain.cpp, 107 (0 msecs)
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Initialization of Launcher(s)</em></p>
+
+<p>The way I read what is in <em>Code Snippet 4</em> is that at the very end of the launchpad service startup, launchers are initialized, and information about what script types are supported is retrieved.</p>
+
+<p>We have now seen what happens when the launchpad service is started, and have drawn some conclusions from that. What will the log-file tell us when we execute some code:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do <strong>NOT</strong> delete the user account folders themselves.</li>
+<li>Delete all log files in the <code>C:\&lt;path_to_slq_server_instance&gt;\MSSQL\Log\ExtensibilityLog</code></li>
+<li>Restart the launchpad service.</li>
+<li>Execute the code in <em>Code Snippet 1</em> (the code without pause).</li>
+</ol>
+
+<p>When looking through the log-file, it is a LOT of information logged. I have tried to excerpt the most important bits below:</p>
+
+<pre><code>1.
+Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74) 
+   CleanupOnExit=1, Settings.JobCleanupOnExit=1
+Session 3291DD7C-4451-48E1-9838-C5A0DF67FA74 
+   assigned to MSSQLSERVER01 user
+
+2.
+ProcessPool(MSSQLSERVER01-ss-2) with minimum processes 5 created
+
+3. 
+WorkingDirectory(C:\...\MSSQLSERVER01\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF) created (1)
+WorkingDirectory(C:\...\MSSQLSERVER01\E7AB7781-A8C7-421F-BAA0-074075B41082) created (1)
+
+4.
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save
+    -e &quot;library(RevoScaleR);
+    sessionDirectory &lt;- 'C:\...\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF';
+    sessionId &lt;- '5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF';
+  
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save 
+    -e &quot;library(RevoScaleR); 
+    sessionDirectory &lt;- 'C:\...\E7AB7781-A8C7-421F-BAA0-074075B41082';
+    sessionId &lt;- 'E7AB7781-A8C7-421F-BAA0-074075B41082';
+
+5.
+Assigning PooledProcess(..., ..., 5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe) 
+    to Job PooledProcess-5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF(0000081C)
+Assigning PooledProcess(..., ..., E7AB7781-A8C7-421F-BAA0-074075B41082, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe) 
+    to Job PooledProcess-E7AB7781-A8C7-421F-BAA0-074075B41082(00000804)
+
+6.
+Session[3291DD7C-4451-48E1-9838-C5A0DF67FA74] 
+    attached to pooled processes [5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF]
+
+7.
+WorkingDirectory(C:\...\A379EE0B-385A-41A9-86C3-A5C9D1FFDE7F) created (1)
+CreateProces
+    C:\...\R_SERVICES\bin\x64\rterm.exe
+    ...
+    sessionId &lt;- 'A379EE0B-385A-41A9-86C3-A5C9D1FFDE7F';
+
+8. This is interleaved with 7
+SQLSatellite_LaunchSatellite(1, 3291DD7C-4451-48E1-9838-C5A0DF67FA74, 
+    1, 51008, nullptr, 000000CC5ADFE720, 
+    C:\...\ExtensibilityData\MSSQLSERVER01) completed: 00000000    
+
+7a. here we continue with creation of processes started at 7
+Assigning PooledProcess(..., ..., A379EE0B-385A-41A9-86C3-A5C9D1FFDE7F, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe) 
+    to Job PooledProcess-A379EE0B-385A-41A9-86C3-A5C9D1FFDE7F(00000854)
+
+...
+
+9. 
+ProcessPool(MSSQLSERVER01-ss-2) adding PooledProcess(..., ..., 
+    E7AB7781-A8C7-421F-BAA0-074075B41082, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe)
+ProcessPool(MSSQLSERVER01-ss-2) adding PooledProcess(..., ..., 
+    A379EE0B-385A-41A9-86C3-A5C9D1FFDE7F, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe)
+ProcessPool(MSSQLSERVER01-ss-2) adding PooledProcess(..., ..., 
+    8CE5541F-3A70-4538-9329-9A74FC0580DE, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe)
+ProcessPool(MSSQLSERVER01-ss-2) adding PooledProcess(..., ..., 
+    97608E5B-B70D-4E69-9D6D-56BEC2FC0F81, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe)
+ProcessPool(MSSQLSERVER01-ss-2) adding PooledProcess(..., ..., 
+    74E3C23C-56B6-4A16-B1E3-E4C00335FB97, 
+    C:\...\R_SERVICES\bin\x64\rterm.exe)
+
+10.
+Job PooledProcess-5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF(0000081C) 
+    WaitAll(1, 5000) completed with 0
+Job PooledProcess-5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF(0000081C) 
+    destroyed
+~WorkingDirectory
+    (C:\...\MSSQLSERVER01\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF) 
+    deleted (0)
+11.
+Session 3291DD7C-4451-48E1-9838-C5A0DF67FA74 
+   removed from MSSQLSERVER01 user
+Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74) 
+    [SqlSatellite] deleted. Elapsed time: 1222 msecs
+
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Log when Executing Script</em></p>
+
+<p>Geez, quite a lot of information, and - as I mentioned above - I have tried to just show the log entries that I deem important. The entries themselves are also abbreviated quite a bit. So what do we see:</p>
+
+<ol>
+<li>We create a session for this request, and assigns the session to the executing user (MSSQLSERVER01).</li>
+<li>A pool for the processes is created.</li>
+<li>Two working directories (sub-folders) are created for the user (MSSQLSERVER01).</li>
+<li>Two physical RTerm process are created and assigned the id of the sub-folders.</li>
+<li>The processes are added to a job object (which has been created prior to this).</li>
+<li>The session is attached to one of the two processes. This process will now execute the request.</li>
+<li>Four new processes and working directories are created. Interleaved with this is point 8 (below). The existing session is not assigned to any of these. At this stage there are 6 processes in total, two from the original process creation and these four new ones. Five of these processes do not have any session attached.</li>
+<li>From what I can gather, here is where the request is actually executed.</li>
+<li>The 5 processes without the session are added to the process pool, and are available for new requests from the same user.</li>
+<li>The process which executed the request finishes and is being destroyed.</li>
+<li>The session is removed and deleted.</li>
+</ol>
+
+<p>From the above we can see how processes are created and then being pooled. The processes will eventually be torn down if they are not in use, as per the <code>StaleProcessTime</code> in <em>Code Snippet 3</em>.</p>
+
+<p>How does all this now fit into what we covered in the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II post</a>, and <em>Figure 2</em> above?</p>
+
+<h2 id="windbg">WinDbg</h2>
+
+<p>Well, let us try to find out. For this we use our trusty WinDbg (go back to the <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">internals I post</a> if you need a re-fresher about WinDbg):</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do <strong>NOT</strong> delete the user account folders themselves.</li>
+<li>Delete all log files in the <code>C:\&lt;path_to_slq_server_instance&gt;\MSSQL\Log\ExtensibilityLog</code></li>
+<li>Restart the launchpad service.</li>
+<li>Attach WinDbg to the launchpad process.</li>
+</ol>
+
+<p>As we did in the <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">internals I post</a>, let&rsquo;s hunt for routines from the symbols. When looking at the log files above we see some references to <code>SQLSatellite</code> and in previous posts we have also seen satellite references. So, let us do a very coarse search: <code>x /n launchpad!*Satellite*</code>. By using the <code>/n</code> flag you sort everything by name, which can make things a bit more readable. Looking through what was returned, I have below listed some classes that looks interesting as well a couple of independent routines:</p>
+
+<pre><code class="language-cpp">//classes
+launchpad!CSQLSatelliteCommunication
+launchpad!CSQLSatelliteConnection
+launchpad!CSQLSatelliteMessage
+launchpad!CSatelliteCargoContext
+launchpad!CSatelliteRuntimeContext
+launchpad!SatelliteJobObject
+launchpad!SatelliteSession
+launchpad!SatelliteSessionManager
+launchpad!Satellite_ResourceManager
+
+//independent routines
+launchpad!CreateProcessForSatelliteSession
+launchpad!SQLSatellite_Init
+launchpad!SQLSatellite_InitLaunchContext
+launchpad!SQLSatellite_LaunchProcess
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Interesting Output</em></p>
+
+<p>Having identified interesting classes and function as in <em>Code Snippet 6</em>, it is time to fine interesting routines, and through trial and error (setting breakpoints and executing code) finding out what is happening. I eventually arrived at the following (please remember from the previous post that I do not have symbols for the <code>RLauncher.dll</code>):</p>
+
+<pre><code class="language-cpp">1. launchpad!CLaunchContext::LaunchServTask
+2.  launchpad!SatelliteSessionManager::ConstructSatelliteSession
+2.    launchpad!SatelliteJobObject::CreateSatelliteJobObject
+2.      launchpad!SatelliteSessionManager::CreateNewSessionObject
+3.        launchpad!CLaunchContext::Launch
+4.          Rlauncher!&quot;MiscCalls&quot;
+4.            launchpad!SQLSatellite_LaunchProcess
+4.              launchpad!CreateProcessForSatelliteSession
+4.                launchpad!PhysicalUserContext::LaunchProcess
+4.                  KERNELBASE!CreateProcessInternalW
+4.          Rlauncher!&quot;MiscCalls&quot;
+4.            launchpad!SQLSatellite_LaunchProcess
+4.              launchpad!CreateProcessForSatelliteSession
+4.                launchpad!PhysicalUserContext::LaunchProcess
+4.                  KERNELBASE!CreateProcessInternalW
+4.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+4.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+4.                  launchpad!SatelliteJobObject::AssociateProcess
+4.                  launchpad!SatelliteJobObject::AssociateProcess
+4.          Rlauncher!&quot;MiscCalls&quot;
+4.            launchpad!SQLSatellite_LaunchProcess
+4.              launchpad!CreateProcessForSatelliteSession
+4.                launchpad!PhysicalUserContext::LaunchProcess
+4.                  KERNELBASE!CreateProcessInternalW
+5.  launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo
+5.    launchpad!CSQLSatelliteConnection::WriteMessage
+4.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+4.                 launchpad!SatelliteJobObject::AssociateProcess
+6.          Rlauncher!&quot;MiscCalls&quot;
+6.            launchpad!SQLSatellite_LaunchProcess
+6.              launchpad!CreateProcessForSatelliteSession
+6.                launchpad!PhysicalUserContext::LaunchProcess
+6.                  KERNELBASE!CreateProcessInternalW
+6.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+6.                  launchpad!SatelliteJobObject::AssociateProcess
+6.          Rlauncher!&quot;MiscCalls&quot;
+6.            launchpad!SQLSatellite_LaunchProcess
+6.              launchpad!CreateProcessForSatelliteSession
+6.                launchpad!PhysicalUserContext::LaunchProcess
+6.                  KERNELBASE!CreateProcessInternalW
+6.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+6.                  launchpad!SatelliteJobObject::AssociateProcess
+6.          Rlauncher!&quot;MiscCalls&quot;
+6.            launchpad!SQLSatellite_LaunchProcess
+6.              launchpad!CreateProcessForSatelliteSession
+6.                launchpad!PhysicalUserContext::LaunchProcess
+6.                  KERNELBASE!CreateProcessInternalW
+6.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+6.                  launchpad!SatelliteJobObject::AssociateProcess
+7.          launchpad!SatelliteSessionManager::DestroySatelliteSession
+7.            launchpad!SatelliteSessionManager::RemoveSessionObjectFromStore
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>High Level Call Chain</em></p>
+
+<p>From <em>Code Snippet 7</em> we see how we:</p>
+
+<ol>
+<li>Call <code>LaunchServTask</code></li>
+<li>Creating a satellite session, a job object and a session object.</li>
+<li>We then come into the code path were we launch the launcher and create the RTerm processes: <code>launchpad!CLaunchContext::Launch</code>.</li>
+<li>In there we do calls to the launcher dll (<code>Rlauncher!&quot;MiscCalls&quot;</code>), create the actual processes and assigns that to the job object. We initially create two processes, and one of the processes will be mapped to the session (as we saw from the log-file).</li>
+<li>The calls <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> and <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> is where the script is sent to the R process and executed. These calls are interleaved with the create process calls.</li>
+<li>We continue creating processes until we have six in total.</li>
+<li>The executing process (and session) is torn down when the execution has finished.</li>
+</ol>
+
+<blockquote>
+<p><strong>NOTE:</strong> While the code executes we may see six RTerm processes.</p>
+</blockquote>
+
+<h2 id="summary">Summary</h2>
+
+<p>So, what does all this come to then? We have <em>Figure 2</em> which originates from the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II post</a>, where we looked into what is going on in the launchpad service. In this post we have seen the log files in <em>Code Snippet 3, 4, 5</em> and then we have the WinDbg output in <em>Code Snippet 7</em>. In <em>Figure 12</em> I try to summarize what we have discussed in this post:</p>
+
+<p><img src="/images/posts/sql-launchpad_processes_post.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Summary</em></p>
+
+<p>In <em>Figure 12</em> we see:</p>
+
+<ul>
+<li>How there are backing folders in <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> for the group of user accounts that are mapped to SQL Server users when executing code via <code>sp_execute_external_script</code>. These backing folders will be storage for files etc., when executing.
+
+<ul>
+<li>The files are not placed directly in the account folder but in sub-folders created when the processes are created (see below).</li>
+</ul></li>
+<li>When executing we, as in <em>Code Snippet 7</em>, call <code>launchpad!CLaunchContext::LaunchServTask</code>, and create a satellite session and a session object.</li>
+<li>We then go on and start creating working directories (the sub-folders mentioned above), and processes. In the figure the working directories are named <code>WorkingDir1</code> etc., whereas in reality the names are <code>Guid</code> values. The processes are RTerm processes and are assigned the same <code>Guid</code> as the working directory name. So a RTerm process always executes &ldquo;under&rdquo; one user account sub-folder.</li>
+<li>After two initial directories and processes have been created, one of the two processes are assigned to the created session.</li>
+<li>When the process has been assigned to the session, the script is executed via; <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> and <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>. This normally happens while the third process is created.</li>
+<li>Processes and working directories 4 - 6 are created. These processes are available for subsequent executions.</li>
+<li>When the execution has finished the session is torn down together with the process.
+
+<ul>
+<li>At this stage we now have 5 processes running, and 5 working folders.</li>
+</ul></li>
+</ul>
+
+<p>As was the case in the <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">internals II post</a>, some parts of this post is educated guesswork. If anyone have more information I wild be more than happy to correct any inaccuracies. In either case, I hope you have enjoyed this journey in the &ldquo;bowels&rdquo; of the launchpad service.</p>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/04/09/interesting-stuff---week-14/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 14</span>
+    </a>
+    
+    
+    <a href="/2017/04/16/interesting-stuff---week-15/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 15</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a>
+      
+      <time class="pull-right hidden-tablet">Apr 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>
+      
+      <time class="pull-right hidden-tablet">Mar 18 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/04/microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a>
+      
+      <time class="pull-right hidden-tablet">Mar 04 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/19/interesting-stuff---week-11/">Interesting Stuff - Week 11</a>
+      
+      <time class="pull-right hidden-tablet">Mar 19 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/12/interesting-stuff---week-10/">Interesting Stuff - Week 10</a>
+      
+      <time class="pull-right hidden-tablet">Mar 12 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

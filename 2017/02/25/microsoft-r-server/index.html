@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft R Server • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft R Server"/>
+<meta name="twitter:description" content="Microsoft R Server. Comparison of performance between Microsoft R Server and open source R (CRAN)"/>
+
+<meta property="og:title" content="Microsoft R Server" />
+<meta property="og:description" content="Microsoft R Server. Comparison of performance between Microsoft R Server and open source R (CRAN)" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/02/25/microsoft-r-server/" />
+
+
+
+<meta property="article:published_time" content="2017-02-25T06:28:25&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-02-25T06:28:25&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft R Server</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Feb 25, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/r">R</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/microsoft-r-server">microsoft r server</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/data-science">data science</a>
+           
+      
+          <a class="post__tag" href="/tags/revolution-analytics">revolution analytics</a>
+           
+      
+          <a class="post__tag" href="/tags/rstats">rstats</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 11 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>Last Saturday (February 18) I was in Cape Town at the second world-wide <a href="http://capetown2017.satrdays.org/">satRday conference</a> ever, where I gave a talk named: &ldquo;Microsoft, Open Source, R: You gotta be kidding me!&ldquo;. The talk was about Microsoft&rsquo;s R Server offering, and how it in some cases offered a better performance than Open R. Seeing the session lengths were only 20 minutes, I could not show any code, so in a &ldquo;weak&rdquo; moment I promised to put the code up on my web-site together with an accompanying blog-post. This is it :).</p>
+
+<p></p>
+
+<h2 id="demo-code-scenario-installation-and-data">Demo Code - Scenario, Installation and Data</h2>
+
+<p>This blog-post has some accompanying demo code, which we will use in order to compare R with Microsoft R Server. The code can be downloaded from <a href="/downloads/code/microsoft_r_server.zip">here</a>.</p>
+
+<h3 id="scenario">Scenario</h3>
+
+<p>We are using simulated mortgage data for a 10 year period where the data contains information about mortgages and if they were defaulted or not. All in all it is 10 million records, originally stored in <code>.csv</code> files, but the installation process inserts the data into a SQL Server table.</p>
+
+<p>What we want to do is to retrieve the data from the database, and then create a model based on the data.</p>
+
+<h3 id="installation">Installation</h3>
+
+<ul>
+<li>Unzip the downloaded <code>microsoft_r_server.zip</code> file to some location on your hard-drive.</li>
+<li>Follow the install instructions in the <code>index.html</code> file.</li>
+<li>Please remember to close the @path variable with a &ldquo;\&ldquo;.</li>
+</ul>
+
+<p>At this point you should now have a database, <code>MortgageDb</code>, with a table, <code>dbo.tb_MortgageData</code> containing 10 million records.</p>
+
+<h3 id="data">Data</h3>
+
+<p>To see what the data looks like, execute: <code>SELECT TOP(5) * FROM dbo.tb_MortgageData</code>, and you&rsquo;ll see something like so:</p>
+
+<p><img src="/images/posts/top_5_mortgage_data.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Mortgage Data</em></p>
+
+<p>The data contains 6 variables (columns):</p>
+
+<ul>
+<li><em>CreditScore</em> - credit rating for the holder of the mortgage</li>
+<li><em>HouseAge</em> - how old the house is (years)</li>
+<li><em>YearsEmp</em> - number of years the mortgage holder has been employed at their current job</li>
+<li><em>CreditCardDebt</em> - how much debt the mortgage holder has on his (or hers) credit card</li>
+<li><em>Year</em> - the year the data was collected</li>
+<li><em>DidDefault</em> - binary variable indicating whether the mortgage holder defaulted (0 - no, 1 - yes)</li>
+</ul>
+
+<p>The variables above are what we will use to create a model.</p>
+
+<h2 id="r">R</h2>
+
+<p>So onto R. R is awesome! It is no doubt about it, and it has become a defacto standard for advanced analytics. <em>Figure 2</em> below is from <a href="http://spectrum.ieee.org/computing/software/the-2016-top-programming-languages">IEEE Spectrum’s third interactive ranking</a> of the most popular programming languages:</p>
+
+<p><img src="/images/posts/top-10-prog-lanf-2016.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Language Popularity</em></p>
+
+<p>During the last few years R has steadily climbed and is now in 5:th place, pushing C# down to 6:th! A lot of R&rsquo;s popularity can probably be attributed to its packages, where there seems to be packages for anything you want to do, plus some more. At the moment (late February 2017) the <a href="https://cran.r-project.org/web/packages/">CRAN package repository</a> features ~10,120 available packages (it increases by the day). To put the number of packages in perspective; in March 2016, there were ~8,000 packages available.</p>
+
+<h3 id="issues">Issues</h3>
+
+<p>As great as R is, there are some shortcomings:</p>
+
+<ul>
+<li>Data movement</li>
+<li>Operationalization</li>
+<li>Scale / performance</li>
+</ul>
+
+<h4 id="data-movement">Data Movement</h4>
+
+<p>When you use R, you have to move data from the source to R (most likely your machine). Moving large data volumes over the network may not be ideal, and the security department may not be too happy either.</p>
+
+<h4 id="operationalization">Operationalization</h4>
+
+<p>The data scientist has created the best model - ever! How do you now put this into production; do you have the data science guy retrieve data to predict upon to his (or hers) machine and run the model against live data, or what do you do?</p>
+
+<h4 id="scale-performance">Scale / Performance</h4>
+
+<p>A problem with R is that it is single threaded. Furthermore when working with data, all data has to be in memory. In todays world when we more and more want to analyze <em>big data</em>, this can become an issue.</p>
+
+<h3 id="demo-code-r">Demo Code R</h3>
+
+<p>To showcase some issues with Open R, let us to create a model against our data in <code>dbo.tb_MortgageData</code>. So in our favorite R editor we probably write some code like:</p>
+
+<pre><code class="language-r"># load in the ODBC library for R
+library(RODBC)
+
+# set up a connection
+conn &lt;- odbcDriverConnect(connection = &quot;Driver={SQL Server native Client 11.0};server=server_name;database=MortgageDb;uid=user_id;pwd=secret_password&quot;)
+
+# read the data into a dataframe - mydata - this will take a while
+mydata &lt;- sqlQuery(conn, &quot;SELECT CreditScore, HouseAge, YearsEmp, CreditCardDebt, Year, DidDefault FROM dbo.tb_MortgageData&quot;)
+
+# treat HouseAge and Year as a categorical variable
+mydata$HouseAge &lt;- factor(mydata$HouseAge)
+mydata$Year &lt;- factor(mydata$Year)
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Load Mortgage Data into R</em></p>
+
+<p>From <em>Code Snippet 1</em> above you can see how we load all the 10 million rows of data into a data-frame. If you run this code yourself, you will notice it will take a while - but all 10 millions row will eventually be in memory.</p>
+
+<p>After having read the data, we want to treat <code>Year</code> and <code>HouseAge</code> as a categorical/factor variables, so we use the  <code>factor</code> function for that. At this stage we are now ready to create a model.</p>
+
+<p>We do believe that a logistic regression model would be useful, where <code>DidDefault</code> is the dependent variable with <code>CreditScore</code>, <code>YearsEmp</code>, <code>CreditCardDebt</code> and the <code>factor</code>:ized <code>HouseAge</code> and <code>Year</code> as independent variables:</p>
+
+<pre><code class="language-r"># this comes after the factoring of HouseAge and Year
+logit &lt;- glm(DidDefault ~ HouseAge + Year + CreditScore + 
+             YearsEmp + CreditCardDebt,
+             data = mydata, family = &quot;binomial&quot;)
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Logistic Regression with glm()</em></p>
+
+<p>Before you execute the above, have a look at task manager for how much memory you are consuming. On my development PC it looks like this:</p>
+
+<p><img src="/images/posts/memory_before_logreg.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Memory After Loaded Data</em></p>
+
+<p>The memory consumption is very small, 25% overall. Let us see what happens when we execute the logistic regression as in <em>Code Snippet 2</em>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you run this yourself, have a very close eye at the memory consumption, and be prepared to kill RStudio, when memory reaches 98 - 99%.</p>
+</blockquote>
+
+<p>After a while, the logistic regression is still running and the memory is like below:</p>
+
+<p><img src="/images/posts/memory_during_logreg.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Memory During Logistic Regression</em></p>
+
+<p>My development PC has 24 Gb of Ram and a couple of times when I have tested this, the PC has blue-screened, due to running out of memory. Other times the regression has, run and run and run - and I have finally killed the R Studio session after 10 - 15 minutes.</p>
+
+<p>We have just seen an example where some of R&rsquo;s limitations are causing problems. In an enterprise scenario the above may cause issues, especially when we - in the enterprise - more and more are analyzing <em>Big Data</em>. In the example above it was 10 million rows of data, not really <em>Big Data</em> - but what do we do in these scenarios? Well, there are enterprise software vendors who have their own offering of <em>enterprise R</em> (obviously for a price), among them are Oracle, Tibco and up until early 2015 Revolution Analytics.</p>
+
+<h2 id="revolution-analytics">Revolution Analytics</h2>
+
+<p>Revolution Analytics is a statistical software company focusing on developing big data, large scale multiprocessor computing, and multi-core functionality version of R: ** Revolution R Enterprise**. Both <a href="http://www.teradata.com/Resources/White-Papers/Teradata-and-Revolution-Analytics-For-the-Big-Data-Era-An-Analytics-Revolution/">Teradata</a> and <a href="http://www-01.ibm.com/common/ssi/cgi-bin/ssialias?infotype=an&amp;subtype=ca&amp;appname=gpateam&amp;supplier=897&amp;letternum=ENUS212-455">IBM</a> partnered with Revolution Analytics to provide analytical platforms for the enterprise.</p>
+
+<p>In January 2015 Microsoft purchased Revolution Analytics and re-branded Revolution R Enterprise as <strong>Microsoft R Server</strong>.</p>
+
+<h2 id="microsoft-r-server">Microsoft R Server</h2>
+
+<p>Microsoft R Server is next generation of Revolution R Enterprise server, and offers an enterprise class server for hosting and managing parallel and distributed workloads of R processes on servers (Linux and Windows) and clusters (Hadoop and Apache Spark). It extends open source R with support for high-performance analytics, statistical analysis, machine learning scenarios, and massively large datasets.</p>
+
+<p>As mentioned above Microsoft R Server can run on both Windows as well as Linux, and in the Windows world, SQL Server is the delivery mechanism for Microsoft R Server.</p>
+
+<p>Some of the key components of Microsoft R Server are:</p>
+
+<ul>
+<li>DeployR - An integration technology for deploying R analytics inside web, desktop, mobile, and dashboard applications as well as backend systems.</li>
+<li>ConnectR - High speed connectors to any data source ranging from simple workstation file systems to complex distributed file systems and MPP databases.</li>
+<li>DistributedR - An adaptable parallel execution framework that includes services for communications, storage integration and memory management.</li>
+<li>R Tools for Visual Studio - Turns Visual Studio into a powerful R development environment, including things like <em>Intellisense</em>!</li>
+<li>ScaleR - Provides algorithms optimized for parallel execution on big data. These algorithms are optimized for transparent distributed execution, eliminate memory limitations and scale from laptops to servers to large clustered systems. Foundation for <strong>RevoScaleR</strong>.</li>
+</ul>
+
+<h3 id="revoscaler">RevoScaleR</h3>
+
+<p>RevoScaleR, is an R package providing both High Performance Computing (HPC) and High Performance Analytics (HPA) capabilities for R.  HPC capabilities allow you to distribute the execution of essentially any R function across cores and nodes, and deliver the results back to the user. HPA adds big data to the challenge.</p>
+
+<p>The data manipulation and analysis functions in RevoScaleR are appropriate for small and large datasets, but are particularly useful in three common situations:</p>
+
+<ol>
+<li>To analyze data sets that are too big to fit in memory.</li>
+<li>To perform computations distributed over several cores, processors, or nodes in a cluster,</li>
+<li>To create scalable data analysis routines that can be developed locally with smaller data sets, then deployed to larger data and/or a cluster of computers.</li>
+</ol>
+
+<p>In the demo code that follows we&rsquo;ll see how RevoScaleR is doing with our mortgage data from above.</p>
+
+<h3 id="demo-code-revoscaler">Demo Code RevoScaleR</h3>
+
+<p>It is worth noting that in the RevoScaleR code, the editor I used is Visual Studio and R Tools for Visual Studio. To use Microsoft R Server and RevoScaleR you do not need to use Visual Studio, you can use any editor you want. Just make sure the editor uses the Microsoft R Server engine.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> To change engine in RStudio, go to <em>Tools | Global Options</em>, and under the <em>R General</em> tab, you change the <em>R version</em> as in <em>Figure 5</em> below.</p>
+</blockquote>
+
+<p><img src="/images/posts/r_engine_r_studio.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Changing R Version in RStudio</em></p>
+
+<p>If you want to follow along in the code, and you are using Visual Studio (with R Tools for Visual Studio), you can open the solution file in the <code>VS\VSMortgage</code> folder from the unzipped file above. If you use RStudio or some other editor then just open the <code>script.R</code> file from the <code>VS\VSMortgage</code> folder,  in your preferred editor. Once again, just make sure that your R engine is Microsoft R Server.</p>
+
+<p>So, what does the code look like:</p>
+
+<pre><code class="language-r"># set up a connection string
+sqlServerConnString &lt;- &quot;Driver=SQL Server;server=server_name;database=MortgageDb;uid=user_id;pwd=secret_password&quot;
+
+# generate a data frame - notice the data won't be read into the frame until it is needed
+mydata &lt;- RxSqlServerData(sqlQuery = &quot;SELECT CreditScore, HouseAge, YearsEmp, CreditCardDebt, Year, DidDefault FROM dbo.tb_MortgageData&quot;, 
+              connectionString = sqlServerConnString,
+              rowsPerRead = 1000000)
+
+# create a histogram
+rxHistogram( ~ CreditScore, data = mydata);
+
+# get some info about the data
+rxGetInfo(mydata, numRows = 5);
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Using RevoScaleR Package</em></p>
+
+<p>The code does not differ that much from the original code. We start with defining a connection string to the database. Then we create a data frame using the <code>RxSqlServerData</code> function. A difference from using <code>sqlQuery</code> in the previous demo is that the data won&rsquo;t be read into the data frame until it is needed.</p>
+
+<p>We then go on to create a histogram by using the <code>rxHistogram</code> function. You will find that most <code>RevoScaleR</code> specific functions are named with a starting <code>rx</code>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Microsoft R Server also contains the CRAN R packages you know and love (at least most of them).</p>
+</blockquote>
+
+<p>When we have our histogram we decide we need some information of the data so we call <code>rxGetInfo</code>, which is more or less the equivalent of CRAN R <code>summary()</code>.</p>
+
+<p>Having come this far, it is time to create a model:</p>
+
+<pre><code class="language-r"># do the logistic regression
+system.time(
+  logit &lt;- rxLogit(DidDefault ~ F(HouseAge) + F(Year) + CreditScore + YearsEmp + CreditCardDebt,
+                  data = mydata, blocksPerRead = 2, reportProgress = 1))
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Logistic Regression using rxLogit</em></p>
+
+<p>Instead of using <code>glm()</code> we use the specialized <code>rxLogit</code> function which is optimized for performance. We factorize <code>HouseAge</code> and <code>Year</code> by using the <code>F</code> function. So, what happens now when we execute it? If you run this yourself, please keep a close eye on the memory consumption in Task Manager.</p>
+
+<p>Nothing much seems to happen with memory:</p>
+
+<p><img src="/images/posts/rxLogit_memory.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Memory Consumption using rxLogit</em></p>
+
+<p>The memory more or less stayed the same during execution, and after 155 seconds (or so) we were done!</p>
+
+<p>So we have seen how Microsoft R Server can help us when analyzing large data sets.</p>
+
+<h2 id="r-and-sql-server">R and SQL Server</h2>
+
+<p>I mentioned above how SQL Server were the delivery mechanism of Microsoft R Server on Windows. SQL Server is not only that, but it also has R embedded, so you can in SQL Server execute R code - somewhat like extended stored procedures. In a future blog-post (or posts), I&rsquo;ll look at how R in SQL Server works, and what you can do with it.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>At the beginning of this post I mentioned how CRAN R have some issues. Through Microsoft R Server some of these issues can be addressed:</p>
+
+<ul>
+<li>Data movement - execute on SQL Server</li>
+<li>Operationalization - execute your R code by using SQL Server stored procedures (once again, more about this in another post)</li>
+<li>Scale / performance - RevoScaleR is offers both High Performance Computing (HPC) and High Performance Analytics (HPA).</li>
+</ul>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/02/19/interesting-stuff---week-7/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 7</span>
+    </a>
+    
+    
+    <a href="/2017/02/26/interesting-stuff---week-8/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 8</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/01/28/interesting-stuff---week-4/">Interesting Stuff - Week 4</a>
+      
+      <time class="pull-right hidden-tablet">Jan 28 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/01/21/interesting-stuff---week-3/">Interesting Stuff - Week 3</a>
+      
+      <time class="pull-right hidden-tablet">Jan 21 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/02/12/interesting-stuff---week-6/">Interesting Stuff - Week 6</a>
+      
+      <time class="pull-right hidden-tablet">Feb 12 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/02/05/interesting-stuff---week-5/">Interesting Stuff - Week 5</a>
+      
+      <time class="pull-right hidden-tablet">Feb 05 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/01/15/interesting-stuff---week-2/">Interesting Stuff - Week 2</a>
+      
+      <time class="pull-right hidden-tablet">Jan 15 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

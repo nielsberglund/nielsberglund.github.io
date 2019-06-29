@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals XVI • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals XVI"/>
+<meta name="twitter:description" content="Binary eXchange Language format,data coming back to SQL Server from SqlSatellite"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals XVI" />
+<meta property="og:description" content="Binary eXchange Language format,data coming back to SQL Server from SqlSatellite" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/" />
+
+
+
+<meta property="article:published_time" content="2017-12-24T08:02:00&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-12-24T08:02:00&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals XVI</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Dec 24, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+           
+      
+          <a class="post__tag" href="/tags/binary-exchange-language">binary exchange language</a>
+           
+      
+          <a class="post__tag" href="/tags/bxl">bxl</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 21 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the 17:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 16:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In the last few posts in this <em>Internals</em> series we have looked at how data is being transported from SQL Server to the SqlSatellite. In this post we&rsquo;ll look at how data is going the other way, from the SqlSatellite to SQL Server.</p>
+
+<p></p>
+
+<p>Before drilling down into the topic of today, let&rsquo;s do a recap of some of the posts that have led up to where we are right now.</p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> we saw how both the external script as well as data from <code>@input_data_1</code> was sent over a TCP/IP connection to the SqlSatellite from SQL Server, and <a href="/2017/10/20/microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> looked at some of the authentication packets sent from SQL Server to the SqlSatellite.</p>
+
+<p><a href="/2017/10/31/microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> looked at from where the script and data packets are sent (what routines), and we determined that the script packet was sent while the <code>sqllang!CSatelliteProxy::PostSetupMessage</code> routine was called, and the data packet(s) was sent during the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. In <a href="/2017/10/31/microsoft-sql-server-r-services---internals-xii/">XII</a> we also explained the two packets with a length of 28 we see in <em>Figure 1</em> (being sent after the two data packets), as end packets. These packets tell SqlSatellite that no more data is coming. We illustrated the internal SQL Server flow like this:</p>
+
+<p><img src="/images/posts/sql_r_services_12_calls.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Flow in SQL Server</em></p>
+
+<p>I was unclear of when the statement in <code>@input_data_1</code> was being executed, and [Internals - XIII] had a look at that and the conclusion we came to was:</p>
+
+<ul>
+<li>Before the SqlSatellite is initialized the statement is compiled.</li>
+<li>After the satellite has been initialized the statement is executed.</li>
+<li>If an error happens after the satellite has been initialized, SQL Server sends an abort message to the satellite in the <code>sqllang!CSQLSatelliteCommunication::SendAbort</code> routine.</li>
+</ul>
+
+<p>Then, after &ldquo;many a false starts&rdquo;, I started talking about the <strong>Binary eXchange Language</strong> (<strong>BXL</strong>) protocol in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>. BXL is a protocol optimized for fast data transfers between SQL Server and external script engines and it moves data in column oriented fashion, and utilizes schema information to optimize how to send the data.</p>
+
+<p>When looking at the data sent, the size of the packages and &ldquo;drilling&rdquo; into the TCP packets we could deduct that: :</p>
+
+<ul>
+<li>Each column has an over-head of 32 bytes (at least for non nullable data)</li>
+<li>The size of the column in one row is the size of the data type for numeric types.</li>
+<li>For <code>decimal</code> and <code>numeric</code> an extra byte is added to each column, where this byte indicates the precision.</li>
+<li>Columns of alpha numeric type all had 2 bytes pre-pended to the bytes, except <code>max</code> types.</li>
+<li>For <code>char</code> and <code>nchar</code> the storage size was 2 bytes plus the size the column was defined as.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes plus the size of the data stored.</li>
+<li>For the <code>varmax</code> data types the number of bytes that were pre-pended varied dependent on the data size.</li>
+</ul>
+
+<p>What happens with nullable columns is a mystery, as we saw column overheads ranging from 7312 bytes (<code>tinyint</code>) to 32 bytes (<code>decimal</code>), and I can&rsquo;t help but think that there is a &ldquo;bug&rdquo; in there somewhere that causes this.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> This nullable &ldquo;issue&rdquo; will raise it&rsquo;s head in this post as well.</p>
+</blockquote>
+
+<p>So, in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw the packet sizes (over-heads etc.) for various data types, and in <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a> we looked at the packet sizes going over the wire. We compared it with TDS and saw how TDS sends multiple smaller packages where max size is by default the network package size (4536 bytes). BXL, on the other hand, tries to send as big packages as possible, where big in this instance is up to 65536 bytes. BXL creates a new package when the size of rows and columns has reached 65536.</p>
+
+<p>We also looked at the code in SQL Server that is being executed when sending the data, and we realized that the <code>sqlmin!CQScanUdx::PushNextChildRow</code> routine was where everything happened (or in sub routines). We were aware of that routine from <a href="/2017/10/31/microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, where we looked at what sent the TCP packets to the SqlSatallite. We saw how <code>PushNextChildRow</code> calls <code>PushRow</code>, which in turns call <code>PostOneRow</code>. Dependent on if it is the first row, <code>PostOneRow</code> calls <code>WritePayloadHeader</code>followed by <code>WriteData</code>. If it is not the first row <code>PostOneRow</code> calls <code>WriteData</code> only. If the packet has reached the size of 65536 and there are more packets, <code>WriteMessageBlockDone</code> is called. If it is the last packet, <code>PushEOS</code> is called and <code>PushEOS</code> calls <code>WriteMessageBlockDone</code>. The figure below illustrates the flow:</p>
+
+<p><img src="/images/posts/sql_r_services_15_bxl_code.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>BXL Code Flow</em></p>
+
+<p>What we have recapped above should help us in this post.</p>
+
+<h2 id="housekeeping">Housekeeping</h2>
+
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+
+<h4 id="helper-tools">Helper Tools</h4>
+
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WireShark</em>:</p>
+
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>I&rsquo;ll use <em>WireShark</em> for network packet sniffing. In previous posts I have used <em>Microsoft Message Analyzer</em> for this, but I am now back to <em>WireShark</em> as I find it gives me more readable output. If you want a refresher about <em>WireShark</em>, we covered the setup etc., in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+
+<h4 id="code">Code</h4>
+
+<p>The code below sets up the database and creates some tables with some data. it is more or less the same as we used in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+SET NOCOUNT ON;
+GO
+
+DROP DATABASE IF EXISTS ResultData;
+GO
+
+CREATE DATABASE ResultData;
+GO
+
+USE ResultData;
+GO
+
+DROP TABLE IF EXISTS dbo.rand_1M
+CREATE TABLE dbo.rand_1M(RowID bigint identity primary key, 
+                          y int NOT NULL, rand1 int NOT NULL,
+              rand2 int NOT NULL, rand3 int NOT NULL, 
+              rand4 int NOT NULL, rand5 int NOT NULL);
+GO
+
+DROP TABLE IF EXISTS dbo.test1;
+CREATE TABLE dbo.test1
+(
+  RowID int identity primary key, colint1 int NOT NULL, colint2 int NULL,
+  colint3 int NULL, colvchar1 varchar(50) NOT NULL,
+  colvchar2 varchar(50) NULL 
+);
+GO
+
+INSERT INTO dbo.test1
+VALUES (1, 2, 5, 'A', 'B'),
+       (3, 4, 6, 'C', 'D');
+   
+INSERT INTO dbo.rand_1M(y, rand1, rand2, rand3, rand4, rand5)
+SELECT TOP(1000000) CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT) 
+  , CAST(ABS(CHECKSUM(NEWID())) % 20 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 25 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 50 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 100 AS INT)
+FROM sys.objects o1
+CROSS JOIN sys.objects o2
+CROSS JOIN sys.objects o3
+CROSS JOIN sys.objects o4;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+
+<p>When you look at the database and the objects in <em>Code Snippet 1</em>, you&rsquo;ll see it is more or less the same as we used in <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>. The code you will execute is also very similar to what we did in <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, and the &ldquo;base&rdquo; code looks like so:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
+
+<p>The major difference between the Code in <em>Code Snippet 2</em> and the code in <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, is that in the R script, we are &ldquo;echoing&rdquo; the incoming data from <code>@input_date_1</code>, to be the output as well: <code>OutputDataSet&lt;-InputDataSet</code>. Let&rsquo;s see this in action.</p>
+
+<h2 id="output-data-from-r">Output Data from R</h2>
+
+<p>We&rsquo;ll start with testing that everything works, as well as seeing the port SQL Server listens on for communication with the SqlSatellite. To get the port we&rsquo;ll use <em>Process Monitor</em>, and look at the <code>Path</code> column for the port.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> We need the path later on to set display filters in <em>WireShark</em>.</p>
+</blockquote>
+
+<p>So this is what we&rsquo;ll do:</p>
+
+<ul>
+<li>Run <em>Process Monitor</em> as admin.</li>
+<li>Set a filer to capture <code>TCP Receive</code> in the process <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ul>
+
+<p>After you executed the statement you should see in <em>Process Monitor</em> the - by now - familiar data packets being sent. Amongst them there is a packet with a length of 36 bytes, and - as we know - this is the packet with the actual data.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When you see the output from <em>Process Monitor</em>, don&rsquo;t forget to see (and remember) what the port number on the SQL Server side is, you get it from the <code>Path</code> column.</p>
+</blockquote>
+
+<p>As the script now says <code>OutputDataSet&lt;-InputDataSet</code>, whatever we send to the SqlSatllite is &ldquo;echoed&rdquo; back and sure enough, in <em>SSMS</em> we should see something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_16_echo1.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Output Dataset</em></p>
+
+<p>The reason why we in <em>Figure 3</em>, don&rsquo;t see a column name is because we have not told SQL Server what it is supposed to be (we&rsquo;ll cover that in a future post).</p>
+
+<p>As everything seems to be in order, let&rsquo;s look at what is being sent back to SQL Server. To do this we first of all need a new filter in <em>Process Monitor</em>, where we can see packets sent from <code>BxlServer.exe</code> in addition to the packets that are sent to it. The easiest way to accomplish this is just to add a new operation: <code>TCP Send</code> to the existing filter:</p>
+
+<p><img src="/images/posts/sql_r_services_16_send_receive_filter.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Send and Receive Filter</em></p>
+
+<p>In <em>Figure 4</em> you see what the filer should look like, and it may be a good idea to save this filter for future use. As we are interested in what is being sent back to SQL Server after SQL has sent the data, let&rsquo;s change the code in <em>Code Snippet 2</em> slightly, and introduce a <code>Sys.sleep</code>. That will allow us to more easily see when (and what) data comes back:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'Sys.sleep(20)
+                             OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Code with Sleep</em></p>
+
+<p>When you execute the code in <em>Code Snippet 3</em>, <em>Process Monitor</em> will output something like so (followed by a pause):</p>
+
+<p><img src="/images/posts/sql_r_services_16_send_receive1.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Sending and Receiving - I</em></p>
+
+<p><em>Figure 5</em> shows the data being sent from SQL Server and received by SQL Server, and we see how:</p>
+
+<ul>
+<li>SqlSatellite receives the script is (length 252), followed by</li>
+<li>the actual data (length 36 - as was discussed in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>), followed by</li>
+<li>the two &ldquo;end&rdquo; packages (length 28).</li>
+</ul>
+
+<p>Then, the highlighted data in <em>Figure 5</em>, SqlSatellite sends a packet with a length of 28. This packet is an ack packet, and is for this discussion not interesting. At this stage, the code is now pausing. After ~20 seconds <em>Process Monitor</em> outputs the &ldquo;rest&rdquo; (outlined in blue):</p>
+
+<p><img src="/images/posts/sql_r_services_16_send_receive2.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Sending and Receiving - II</em></p>
+
+<p>The really interesting part of <em>Figure 6</em> is what is outlined in red; two packets with a length of 51, and 2051 respectively. Why do I say they are interesting? Well, change the <code>@input_data_1</code> parameter to be <code>SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M</code> and execute. This results in two packets with lengths of 69 and 4074, which indicates that these packets have something to do with the data being returned from the SqlSatellite.</p>
+
+<p>So, let&rsquo;s see if we can prove that these two are related to the data being sent back from the SqlSatellite. Oh, and there are also some questions related to these packets:</p>
+
+<ul>
+<li>Why two packets, when we are sending only one data packet?</li>
+<li>Which packet contains the data?</li>
+<li>Why is one of the packets so big?</li>
+</ul>
+
+<p>What we will do in order to try to figure out this is to execute the code in <em>Code Snippet 3</em> with different  <code>@input_data_1</code> statements. The statements will return different number of columns and rows, and from seeing the sizes coming out of that we may be able to deduct how things work. The statements we&rsquo;ll execute are these:</p>
+
+<pre><code class="language-sql">-- one row, one column
+SELECT TOP(1) rand1 FROM dbo.rand_1M
+
+-- two rows, one column
+SELECT TOP(2) rand1 FROM dbo.rand_1M
+
+-- one row, two columns
+SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M
+
+-- two rows, two columns
+SELECT TOP(2) rand1, rand2 FROM dbo.rand_1M
+
+-- one row, three columns
+SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Different @input_data_1 Statements</em></p>
+
+<p>After executing the code with the statements in <em>Code Snippet 4</em> we see following sizes (R stands for row, C for column):</p>
+
+<table>
+<thead>
+<tr>
+<th>Packet</th>
+<th align="center">1R, 1C</th>
+<th align="center">2R, 1C</th>
+<th align="center">1R, 2C</th>
+<th align="center">2R, 2C</th>
+<th align="center">1R, 3C</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>small pkt.</td>
+<td align="center">51</td>
+<td align="center">51</td>
+<td align="center">69</td>
+<td align="center">69</td>
+<td align="center">87</td>
+</tr>
+
+<tr>
+<td>large pkt.</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td align="center">4074</td>
+<td align="center">4082</td>
+<td align="center">6097</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 1:</strong> <em>Packet Sizes</em></p>
+
+<p>From what we see in <em>Table 1</em> we can say that the &ldquo;small&rdquo; packet probably does not contain any data, seeing that when comparing the size for one column, one row with two rows one column, it has the same size (51 bytes). However, it definitely looks like the number of columns has an impact: 1 column 51 bytes, 2 columns 69 bytes, and finally three columns 87 bytes, which also tells us that each column adds 18 bytes to the size. So, it look like the &ldquo;small&rdquo; packet has something to do with the columns coming back. We&rsquo;ll leave this packet for now and come back to it in next post.</p>
+
+<p>The &ldquo;big packet&rdquo; definitely looks like it has something to do with the data coming back: one row, one column has a size of 2051, and two rows one column 2055. That&rsquo;s 4 bytes more, the same size as an <code>int</code>. But, once again why such a big packet, this is like what we saw  in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals XIV</a> when data is sent to the SqlSatellite originating from nullable columns?</p>
+
+<p>That is the answer, when returning numeric data from the SqlSatellite, the data is treated as it would originate from nullable columns. Character based data has the same behavior as when sending data to the SqlSatelllite - so not the big overhead when coming from nullable columns. There are though some differences between character data sent to SqlSatellite and character data coming back, and I&rsquo;ll point out some of it below.</p>
+
+<p>So, numeric data sent back from the SqlSatellite looks almost like nullable numeric data sent to the SqlSatellite. One difference though is the size for the first column; if you look in <em>Table 1</em> you see the size for one row, one column be 2051. When we look in <em>Table 2</em> in [Internals - XIV], the size for an <code>int</code> is 2023, so it seems there is a 28 bytes extra somewhere. Incidentally, 2023 is the difference between returning one row, one column and one row two columns. So it looks like that the 28 bytes overhead only occurs once.</p>
+
+<p>Perhaps we can figure out what happens by doing some <em>WireShark</em> &ldquo;sniffing&rdquo;. If you look at the table <code>dbo.test1</code> you see it has two nullable <code>int</code> columns: <code>colint2</code> and <code>colint3</code>, and it is these two columns we&rsquo;ll use when trying to figure out what happens. Before we involve <em>WireShark</em>, we&rsquo;ll:</p>
+
+<ul>
+<li>Change the <code>@input_data_1</code> parameter to be: <code>SELECT TOP(1) colint2 FROM dbo.test1</code>.</li>
+<li>Execute and check the packet sizes in <em>Process Monitor</em>.</li>
+<li>Check the port number in the <code>Path</code> column in <em>Process Monitor</em>.</li>
+</ul>
+
+<p>In the output from <em>Process Monitor</em> we should now see one packet being sent to the SqlSatellite with a length of 2023, and a packet being sent to the SQL Server with a length of 2051. The assumption we&rsquo;re making is that those packets are identical, except for the 28 bytes overhead. Now it&rsquo;s time for <em>WireShark</em>:</p>
+
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on. In this case we want to sniff outgoing as well as incoming packets, so the filter should be: <code>tcp.port==xyz</code>.</li>
+<li>Apply the filter.</li>
+</ul>
+
+<p>After you execute the code what you&rsquo;ll see in <em>WireShark</em> is quite a few packets being sent from and to the SQL Server port:</p>
+
+<p><img src="/images/posts/sql_r_services_16_wireshark_packets1.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>WireShark Packets</em></p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When packets are sent over the network they are sent in chunks. <em>WireShark</em> captures each chunk individually, whereas <em>Process Monitor</em> shows the full package. That&rsquo;s why you see multiple packages in <em>WireShark</em>, but only one in <em>Process Monitor</em>.</p>
+</blockquote>
+
+<p>In <em>Figure 7</em> we see - outlined in blue - two packets with a size of 1460 and 563. That&rsquo;s the data packet sent to SQL Server, reported in <em>Process Monitor</em> as one packet with a length of 2023. Outlined in red we see the two packets containing the actual data going back to SQL Server from the SqlSatellite, with lengths of 1460 and 591 (2051 total). Let&rsquo;s now compare the packet sent to the SqlSatallite with what is coming back, and we&rsquo;ll start with the first 64 bytes of the two packets:</p>
+
+<pre><code class="language-c++">//packet sent to SqlSatellite
+01 00 07 80 e7 07 00 00  04 c1 82 01 79 63 a7 48   ........ ....yc.H
+a0 c8 c0 ab d8 cb 27 61  00 00 07 3e 00 00 00 00   ......'a ...&gt;....
+01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+
+//packet received from SqlSatellite
+01 00 07 80 e7 07 00 00  04 c1 82 01 79 63 a7 48   ........ ....yc.H
+a0 c8 c0 ab d8 cb 27 61  00 00 07 3e 00 00 00 00   ......'a ...&gt;....
+01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Packets Sent to and Received from SqlSatellite</em></p>
+
+<p>Remember how we in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> said that the BXL protocol has a column overhead of 32 bytes, but that we don&rsquo;t really know what it contains. In <em>Code Snippet 5</em>, we see the first 32 bytes of the two packets are exactly the same, e.g. a column header - so it is probably safe to say that the BXL protocol is used also when returning data from the SqlSatellite. The remainder of the two packets looks also identical - up until the end:</p>
+
+<pre><code class="language-c++">//packet sent to SqlSatellite
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 02   ........ ........
+00 00 00
+
+//packet received from SqlSatellite
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ........ ........
+00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 02   ........ ........
+00 00 00 01 00 06 80 1c  00 00 00 04 c1 82 01 79   ........ .......y
+63 a7 48 a0 c8 c0 ab d8  cb 27 61 01 00 00 00      c.H..... .'a....
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>End Part of Packets</em></p>
+
+<p>When looking at <em>Code Snippet 6</em> we see that the last 4 bytes of the first packet represents the value of the column: 2 which in hex is <code>02 00 00 00</code>. But looking at the packet coming back from the SqlSatellite we see that there are more data after the value. In fact - when we look at it, it turns out to be 28 bytes. Those 28 bytes look very much the same as the starting bytes, but not totally identical. If we change the statement for <code>@input_data_1</code> to be: <code>SELECT TOP(1) colint2, colint3 FROM dbo.test1</code> and execute, we&rsquo;ll see how the 28 bytes extra appears at the end of the packet, almost like a separate row. Thinking back to the TDS discussion in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, this feels like an end sequence, and we&rsquo;ll revisit this in next post.</p>
+
+<p>So out of the three question was asked above (why two packets, etc.) we have answered two - or rather we assume that the first packet is there for something column related, and we have seen how the second packet contains the actual data. The third question then, why is the packet containing the data so big? The answer to that (as far as I can tell) is that the data originating in the R engine, is always considered being nullable. Then the &ldquo;bug&rdquo;/feature that we spoke about in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> raises its head, whereby &ldquo;nullable&rdquo; data gets a quite big overhead.</p>
+
+<h4 id="numeric-types">Numeric Types</h4>
+
+<p>Let&rsquo;s look at numeric types and see what it gives us in terms of overhead. In the case of an int, coming back from SqlSatelite - the actual overhead is 1987 bytes excluding any data, end sequence, column overhead, etc. (1987, plus 4 bytes for the value, plus 32 bytes for the column, plus 28 bytes for the &ldquo;end-sequence&rdquo; gives us 2051). So do we then have the same behavior for all nullable numeric data types that we saw in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
+
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th align="center">1 Row</th>
+<th align="center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>tinyint</td>
+<td align="center">7313</td>
+<td align="center">7314</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>smallint</td>
+<td align="center">3889</td>
+<td align="center">3891</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>int</td>
+<td align="center">2023</td>
+<td align="center">2027</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>real</td>
+<td align="center">2023</td>
+<td align="center">2027</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>float</td>
+<td align="center">2023 | 1050</td>
+<td align="center">2027 | 1058</td>
+<td>Based on storage size 4 or 8 bytes</td>
+</tr>
+
+<tr>
+<td>bigint</td>
+<td align="center">1050</td>
+<td align="center">1058</td>
+<td></td>
+</tr>
+
+<tr>
+<td>money</td>
+<td align="center">1050</td>
+<td align="center">1058</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 2:</strong> <em>Nullable Packet Sizes to SqlSatellite</em></p>
+
+<p>In <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw the table above, and it listed the data sizes of packets sent to the SqlSatellite from SQL Server, where the data originates from nullable columns (the sizes above include the data size, and the 32 bytes column header). When looking at data coming back from the SqlSatellite you&rsquo;d think that you&rsquo;d see the sames sizes (plus the 28 bytes end-sequence), but that is not the case:</p>
+
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th align="center">1 Row</th>
+<th align="center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>tinyint</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>smallint</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>int</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>real</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>float</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+
+<tr>
+<td>bigint</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td></td>
+</tr>
+
+<tr>
+<td>money</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td></td>
+</tr>
+
+<tr>
+<td>decimal</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 3:</strong> <em>Packet Sizes from SqlSatellite</em></p>
+
+<p>Notice in <em>Table 3</em>, how - when data comes back from SqlSatellite - there are only two packet sizes (2051, 1078) regardless of data type. In addition we see <code>decimal</code> in the table, whereas when sending to SqlSatellite, there were no overhead for nullable <code>decimal</code>. The reason for only two sizes coming back is that whereas
+SQL Server supports quite a few data types, R has a limited number of scalar data types. So, whenever you use data from SQL Server in R scripts, the data might be implicitly converted to a compatible data type.</p>
+
+<p>What is interesting in the paragraph above, or rather what the paragraph above implies; is that when data goes to the SqlSatellite - somewhere in the packet it contains type information, and that is most likely in the 32 bytes column &ldquo;header&rdquo;. Also interesting is that if you send the value 1 as an int, and the value 1 as a <code>bigint</code> you get different packet sizes returning - event though they are treated as nullable.</p>
+
+<h4 id="alpha-numeric">Alpha Numeric</h4>
+
+<p>What about alpha-numeric data types? Alpha numeric data has actually the same behavior when coming back from SqlSatellite as it does when sending data to SqlSatellite. With that I mean that nullable column data has no impact - no extra overhead is added to the data coming back. There are however some differences; remember what we said in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and also in the <em>Recap</em> above, about sending alpha numeric to SqlSatellite:</p>
+
+<ul>
+<li>There is the &ldquo;usual&rdquo; 32 bytes column overhead.</li>
+<li>Columns of alpha numeric type all have 2 bytes pre-pended to the bytes, except <code>max</code> types.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes (the 2 bytes mentioned above) plus the size of the data stored (single byte <code>varchar</code>, double byte <code>nvarchar</code>).</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> I am not covering <code>max</code> types here, as I do not think there will be that many instances of <code>max</code> types being returned to SQL Server from SqlSatellite.</p>
+</blockquote>
+
+<p>When alpha numeric data comes back from the SqlSatellite however</p>
+
+<ul>
+<li>There is the &ldquo;usual&rdquo; 32 bytes column overhead as before, plus the 28 bytes end-sequence.</li>
+<li>Instead of 2 bytes pre-pended, each column has 4 bytes pre-pended.</li>
+<li>The data coming back is always in double-byte format, so one character comes back as 2 bytes.</li>
+</ul>
+
+<p>An example of this is, in the table <code>dbo.Test1</code> there is a column <code>colvchar1</code>, and the first row has the value of <code>A</code>, the second a value of <code>B</code>. When executing the code in <em>Code Snippet 2</em> with the <code>@input_data_1</code> statement being: <code>SELECT TOP(1) colvchar1 FROM dbo.Test1</code>, the sizes are:</p>
+
+<ul>
+<li>Going to SqlSatellite: 35 bytes (32 bytes column header + 2 bytes per column + 1 byte for the value).</li>
+<li>Back from SqlSatellite: 66 bytes (32 bytes column header + 28 bytes end sequence + 4 bytes per column + 2 bytes for the value).</li>
+</ul>
+
+<p>When selecting <code>TOP(2)</code> the sizes are:</p>
+
+<ul>
+<li>Going to SqlSatellite: 38 bytes (35 from 1 row + 2 bytes per column + 1 byte for the value).</li>
+<li>Back from SqlSatellite: 72 bytes (66 bytes from one row + 4 bytes per column + 2 bytes for the value).</li>
+</ul>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post we looked at data being returned from the SqlSatellite to SQL Server. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
+
+<ul>
+<li>The smaller packet had something to do with column meta-data.</li>
+<li>The bigger packet held the actual data.</li>
+</ul>
+
+<p>For numeric data types coming back:</p>
+
+<ul>
+<li>The data was treated as originating from nullable columns (with a large overhead).</li>
+<li>The data packet contained a 28 bytes end sequence.</li>
+</ul>
+
+<p>Due to R not supporting all data types that SQL Server supports, the data was casted to compatible R types.</p>
+
+<p>In next post we&rsquo;ll look at the code involved in SQL Server as well as the launchpad service, when data comes back. Doing that we&rsquo;ll also hope to be able to understand more about the smaller packet coming back, as well as the end sequence.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/12/17/interesting-stuff---week-50#58-year-end/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 50&amp;#58; Year End!</span>
+    </a>
+    
+    
+    <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/" class="post--navigation-next">
+      <span class="navigation-tittle">Microsoft SQL Server R Services - Internals XVII</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>
+      
+      <time class="pull-right hidden-tablet">Nov 25 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Microsoft SQL Server R Services - Internals XV</a>
+      
+      <time class="pull-right hidden-tablet">Dec 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/11/11/microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>
+      
+      <time class="pull-right hidden-tablet">Nov 11 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Microsoft SQL Server R Services - Internals X</a>
+      
+      <time class="pull-right hidden-tablet">Aug 29 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/18/microsoft-sql-server-r-services---internals-ix/">Microsoft SQL Server R Services - Internals IX</a>
+      
+      <time class="pull-right hidden-tablet">Aug 18 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

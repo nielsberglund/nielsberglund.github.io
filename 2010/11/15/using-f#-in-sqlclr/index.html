@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Using F# in SQLCLR • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Using F# in SQLCLR"/>
+<meta name="twitter:description" content="Recently I have become very interested in F# and I am at the moment trying to get to grips with it. It is definitely a different beast than C#, but so far I like it - a lot!
+
+Anyway, I am a SQL nerd, and many moons ago I was very heavily involved in SQLCLR (for you who don&rsquo;t know what that is; it is the ability to run .NET code inside the SQL Server engine. It was first introduced with SQL Server 2005). So I thought it would be a &ldquo;giggle&rdquo; to see if I could get some F# code running inside SQL Server.
+
+"/>
+
+<meta property="og:title" content="Using F# in SQLCLR" />
+<meta property="og:description" content="Recently I have become very interested in F# and I am at the moment trying to get to grips with it. It is definitely a different beast than C#, but so far I like it - a lot!
+
+Anyway, I am a SQL nerd, and many moons ago I was very heavily involved in SQLCLR (for you who don&rsquo;t know what that is; it is the ability to run .NET code inside the SQL Server engine. It was first introduced with SQL Server 2005). So I thought it would be a &ldquo;giggle&rdquo; to see if I could get some F# code running inside SQL Server.
+
+" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2010/11/15/using-f#-in-sqlclr/" />
+
+
+
+<meta property="article:published_time" content="2010-11-15T09:27:56&#43;02:00"/>
+
+<meta property="article:modified_time" content="2010-11-15T09:27:56&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Using F# in SQLCLR</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Nov 15, 2010
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/.net">.NET</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/f">f#</a>
+           
+      
+          <a class="post__tag" href="/tags/sqlclr">sqlclr</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 4 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>Recently I have become very interested in F# and I am at the moment trying to get to grips with it. It is definitely a different beast than C#, but so far I like it - a lot!</p>
+
+<p>Anyway, I am a SQL nerd, and many moons ago I was very heavily involved in SQLCLR (for you who don&rsquo;t know what that is; it is the ability to run .NET code inside the SQL Server engine. It was first introduced with SQL Server 2005). So I thought it would be a &ldquo;giggle&rdquo; to see if I could get some F# code running inside SQL Server.</p>
+
+<p></p>
+
+<p>I created the simplest of the simple F# dll&rsquo;s. SQLCLR requires you have a public class and your publicly exposed SQLCLR methods to be static, so my F# code looked like so:</p>
+
+<pre><code class="language-fsharp">namespace ManagedData.Samples.FSharp
+  type SqlClr =
+    static member Adder a b = a + b
+    static member Factorial n =
+      match n with
+      | 0 -&gt;; 1
+      | _ -&gt; n * (SqlClr.Factorial( n - 1))
+</code></pre>
+
+<p>As you can see my class is extremely advanced (not); it has two methods:</p>
+
+<ul>
+<li>The canonical <code>Adder</code> method (every SQLCLR dll has to have an <code>Adder</code> method, it&rsquo;s the law - nah, I&rsquo;m just kidding), which takes two integers and returns an integer.</li>
+<li>A factorial method, which takes an integer and calculates the factorial from that.</li>
+</ul>
+
+<p>By the way, any pointers about how to write efficient F# code are very welcome .</p>
+
+<p>Having written and compiled the code, it was time to deploy! When running .NET code in SQL Server, you need to deploy your assembly to the database you want to execute your code in, and SQL Server will actually load the assembly from the database. In fact most assemblies are loaded from the database, even quite a few of Microsoft&rsquo;s own system assemblies which normally are loaded from the GAC. There are only about 13 system assemblies that are allowed to be loaded from the GAC these are known as the &ldquo;blessed list&rdquo;. You also need to create T-SQL wrapper objects (procedures, functions, triggers, etc.) around the methods you want to publicly expose.</p>
+
+<p>In my SQL Server 2008R2 instance I created a database in which I wanted my F# assembly to, and then it was time to deploy. You can deploy in several ways, the easiest is something like this (in the database you want to use):</p>
+
+<pre><code class="language-sql">CREATE ASSEMBLY fsasm
+FROM 'c:\\repos\\F#\\testcode\\fssqlclr\\fslib\bin\\debug\\fslib.dll'
+WITH permission_set = SAFE;
+GO
+</code></pre>
+
+<p>The problem with the code above is that F# projects have a dependency on the assembly <code>FSharp.Core.dll</code>, so when I tried to deploy my assembly as per above, I got an exception. What I had to do was to deploy <code>FSharp.Core.dll</code> to my database first:</p>
+
+<pre><code class="language-sql">CREATE ASSEMBLY fsasm
+FROM 'C:\\path to ...\\FSharp.Core.dll'
+WITH permission_set = UNSAFE;
+GO
+</code></pre>
+
+<p>Notice the use of <code>permission_set = UNSAFE</code>, this is to tell SQL Server that I know what I am doing and SQL Server should keep from doing a lot if validation. When I had catalogued the <code>FSharp.Core.dll</code> assembly I had no problems deploying my assembly to the database.</p>
+
+<p>All there remained to do now was to create the T-SQL wrapper object(s) around my F# methods. This is done with &ldquo;normal&rdquo; <code>CREATE ...</code> syntax. The code for my factorial looks like so:</p>
+
+<pre><code class="language-sql">CREATE FUNCTION FsFactorial(@x int)
+RETURNS int
+EXTERNAL NAME fsasm.[ManagedData.Samples.FSharp.SqlClr].Factorial;
+GO
+</code></pre>
+
+<p>This also went without problems, so now it is &ldquo;crunch-time&rdquo;. Can I execute a F# method in SQLCLR?</p>
+
+<pre><code class="language-sql">SELECT dbo.FsFactorial(4);
+</code></pre>
+
+<p>Lo and behold, it executed and I received 24 back! I had just now executed F# running inside SQL Server!!</p>
+
+<p>So, what does this prove? Nothing really, it was just an exercise from me to see if it could be done. However, F# is really suitable for quite a few tasks you would want to use SQLCLR for, so it now gives a database developer another tool in his tool-belt.</p>
+
+<p>If anyone is interested in the full code for this, please drop me a comment and I&rsquo;ll email it to you.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2010/11/14/sql-server-denali-ctp-1-sux/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">SQL Server Denali CTP 1 SUX</span>
+    </a>
+    
+    
+    <a href="/2010/11/18/tpl-dataflow-axum-v.next/" class="post--navigation-next">
+      <span class="navigation-tittle">TPL Dataflow, Axum v.NEXT?</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2010/11/14/sql-server-denali-ctp-1-sux/">SQL Server Denali CTP 1 SUX</a>
+      
+      <time class="pull-right hidden-tablet">Nov 14 &#39;10</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2010/11/13/beginners-f#-resources/">Beginners F# Resources</a>
+      
+      <time class="pull-right hidden-tablet">Nov 13 &#39;10</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2010/11/07/what-new-programmability-features-will-there-be-in-sql-11/">What New Programmability Features Will There Be in SQL 11?</a>
+      
+      <time class="pull-right hidden-tablet">Nov 07 &#39;10</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

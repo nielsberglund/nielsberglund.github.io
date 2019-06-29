@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals XVII • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals XVII"/>
+<meta name="twitter:description" content="Using WinDbg to find out what happens inside SQL Server when data is returned from SqlSatellite"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals XVII" />
+<meta property="og:description" content="Using WinDbg to find out what happens inside SQL Server when data is returned from SqlSatellite" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/" />
+
+
+
+<meta property="article:published_time" content="2018-01-03T09:57:38&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-01-03T09:57:38&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals XVII</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Jan 3, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+           
+      
+          <a class="post__tag" href="/tags/bxl">bxl</a>
+           
+      
+          <a class="post__tag" href="/tags/process-monitor">process monitor</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 15 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the 18:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 17:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>The last <em>Internals</em> posts have discussed the transport of data between SQL Server and the SqlSatellite. In <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at how data came back from the SqlSatellite, and what the data looked like.</p>
+
+<p></p>
+
+<p>This post is a continuation of that post, and here we&rsquo;ll look at what happens inside SQL Server when data is returned from the SqlSatellite and the R engine.</p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at the packets being sent back to SQL Server from the SqlSatellite when a dataset is returned. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
+
+<ul>
+<li>The smaller packet had something to do with column meta-data. We&rsquo;ll try and see what we can find out about this packet in this post.</li>
+<li>The bigger packet held the actual data.</li>
+</ul>
+
+<p>The reason why the second package was bigger was due to the data being treated as originating from nullable columns, so quite an overhead was put onto the various columns:</p>
+
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th align="center">1 Row</th>
+<th align="center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>tinyint</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>smallint</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>int</td>
+<td align="center">2051</td>
+<td align="center">2055</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>real</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>-</td>
+</tr>
+
+<tr>
+<td>float</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+
+<tr>
+<td>bigint</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td></td>
+</tr>
+
+<tr>
+<td>money</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td></td>
+</tr>
+
+<tr>
+<td>decimal</td>
+<td align="center">1078</td>
+<td align="center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 1:</strong> <em>Packet Sizes from SqlSatellite</em></p>
+
+<p>Part of the overhead is the 32 bytes column overhead as we discussed in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and a 28 bytes end-sequence, where the end-sequence appears once per data-set, and is not per column. It is somewhat like a row in the data-set. Part of this post is trying to figure out what goes on with this end-sequence.</p>
+
+<p>When looking at the various sizes coming back, we see it is a lot less than what we saw in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, sending data to SqlSatellite. This is due to R supporting a lot less data-types than SQL Server, and therefore the data might be implicitly converted to a compatible data type.</p>
+
+<h2 id="housekeeping">Housekeeping</h2>
+
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+
+<h4 id="helper-tools">Helper Tools</h4>
+
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WinDbg</em>:</p>
+
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+</ul>
+
+<h4 id="code">Code</h4>
+
+<p>The code below sets up the database and creates some tables with some data. It is more or less the same as we&rsquo;ve used in the last posts:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+SET NOCOUNT ON;
+GO
+
+DROP DATABASE IF EXISTS ResultData;
+GO
+
+CREATE DATABASE ResultData;
+GO
+
+USE ResultData;
+GO
+
+DROP TABLE IF EXISTS dbo.rand_1M
+CREATE TABLE dbo.rand_1M(RowID bigint identity primary key, 
+                          y int NOT NULL, rand1 int NOT NULL,
+              rand2 int NOT NULL, rand3 int NOT NULL, 
+              rand4 int NOT NULL, rand5 int NOT NULL);
+GO
+
+INSERT INTO dbo.rand_1M(y, rand1, rand2, rand3, rand4, rand5)
+SELECT TOP(1000000) CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT) 
+  , CAST(ABS(CHECKSUM(NEWID())) % 20 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 25 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 50 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 100 AS INT)
+FROM sys.objects o1
+CROSS JOIN sys.objects o2
+CROSS JOIN sys.objects o3
+CROSS JOIN sys.objects o4;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+
+<p>The code we&rsquo;ll use should by now look very familiar:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                 @language = N'R' ,
+                 @script = N'Sys.sleep(10)
+                             OutputDataSet&lt;-InputDataSet'
+               , @input_data_1 = N'SELECT TOP(1) rand1 FROM dbo.rand_1M'
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
+
+<p>The reason there is a <code>Sys.sleep</code> in the code in <em>Code Snippet 2</em>, is so we can more easily determine at about what time data should be coming back from the SqlSatellite.</p>
+
+<h2 id="windbg-debugging">WinDbg Debugging</h2>
+
+<p>In <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we used <em>WinDbg</em>, and we saw the routines involved when sending data to the SqlSatellite:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::PushRow
+sqllang!CServerCargoContext::PostOneRow
+sqllang!CSQLSatelliteMessageDataChunk::WritePayloadHeader
+sqllang!CSQLSatelliteMessageDataChunk::WriteData
+sqllang!CUDXR_ExternalScript::PushEOS
+sqllang!CSQLSatelliteMessageDataChunk::WriteMessageBlockDone
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Routines Used when Sending Data</em></p>
+
+<p>Now we&rsquo;ll aim to do the same thing here, and we&rsquo;ll start with trying to find routines being used when receiving data, and we&rsquo;ll start with trying to find the &ldquo;main&rdquo; routine for receiving results. Remember in <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we saw how <code>sqllang!CUDXR_ExternalScript::PushRow</code> where were things &ldquo;started&rdquo;, when sending data. Perhaps there is something similar in the <code>CUDXR_ExternalScript</code> when receiving? So:</p>
+
+<ul>
+<li>Start up <em>WinDbg</em> as admin.</li>
+<li>Attach to the SQL Server process.</li>
+</ul>
+
+<p>After having attached to the process, execute in the <em>WinDbg</em> console: <code>x sqllang!CUDXR_ExternalScript*</code>. That returns quite a few routines, from which we can see if anyone looks promising. When I ran it I found a couple that caught my interest:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::PullRow
+sqllang!CUDXR_ExternalScript::ProcessResultRows
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Interesting sqllang!CUDXR_ExternalScript Routines</em></p>
+
+<p>Let&rsquo;s now set breakpoints at the two routines above, plus a breakpoint at <code>sqllang!CSatelliteCargoContext::SendPackets</code>. The reason for the breakpoint at <code>SendPackets</code> is that it is there to indicate where we are, as <code>PullRow</code> can be called based on processing inside SQL Server, not only as result of data coming back from the SqlSatellite. Now execute the code in <em>Code Snippet 2</em>, and you&rsquo;ll see how:</p>
+
+<ul>
+<li><code>PullRow</code> is called once before <code>SendPackets</code> - that&rsquo;s not interesting to us.</li>
+<li><code>SendPackets</code> is called.</li>
+<li><code>PullRow</code> is called.</li>
+<li>A pause followed by <code>ProcessResultRows</code> being called twice.</li>
+</ul>
+
+<p>A couple of questions comes up after having seen the above:</p>
+
+<ul>
+<li>Why is the second <code>PullRow</code> called immediately after <code>SendPackets</code>?</li>
+<li>Why are there two <code>ProcessResultRows</code>, when only one row is returned?</li>
+</ul>
+
+<p>Just to confirm the last bullet point; change the <code>TOP</code> clause in <em>Code Snippet 2</em> to 5 instead of one and execute again. The breakpoint at <code>ProcessResultRows</code> is now hit 6 times. So <code>ProcessResultRows</code> is definitely related to number of rows returned, but also something else. Let&rsquo;s see if we can figure out what happens here:</p>
+
+<ul>
+<li>Disable all breakpoints except for the <code>ProcessResultRows</code> breakpoint.</li>
+<li>Clear the <em>WinDbg</em> command window by <code>.cls</code>.</li>
+<li>Change the <code>TOP</code> clause in <em>Code Snippet 2</em> to be 3.</li>
+<li>Execute the code.</li>
+<li>Each time the <code>ProcessResultRows</code> breakpoint do a <code>wt -l4</code> (trace and watch 4 levels deep).</li>
+<li>After each &ldquo;trace and watch&rdquo;, copy the output to new files and name them <code>wt1.txt</code>, <code>wt2.txt</code>, etc.</li>
+</ul>
+
+<p>There should, after completing the execution, be four files, let&rsquo;s compare these four files.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you haven&rsquo;t done the <code>wt</code> as above, you can download the four files, plus a couple of others from <a href="/downloads/misc/sql_r_services_internal17.zip">here</a>.</p>
+</blockquote>
+
+<p>What we see is that the first file is bigger than the others, it has ~165 lines whereas the others are between 65 - 70 lines. The last third part of the first file (from about line 104), looks very much like the second and third files. We can also see that the fourth file is not similar to the other tree.</p>
+
+<p>Now what we&rsquo;ll do is to look at the similarities between the three first files and try to understand what is happening. In the files we see some interesting routines:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CServerCargoContext::ReadOneRow
+   ...
+    sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage
+  sqllang!CServerCargoContext::ReadOneRow
+    sqllang!CSQLSatelliteMessageDataChunk::ReadData
+     ...
+      MSVCR120!memcpy_s
+        MSVCR120!memcpy
+        MSVCR120!MoveSmall
+      MSVCR120!memcpy_s
+    ...
+sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CUDXR_ExternalScript::OutputRow
+    sqllang!CTds74::SendRowImpl
+      sqllang!CColMetaData::CCols
+    ...
+  sqllang!CUDXR_ExternalScript::OutputRow
+sqllang!CUDXR_ExternalScript::ProcessResultRows
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Routines from sqllang!CUDXR_ExternalScript::ProcessResultRows</em></p>
+
+<p>By now we understand that <code>ProcessResultRows</code> is doing what it says on the packet; it takes the rows coming back from the SqlSatellite, processes it, and then outputs it through <code>sqllang!CUDXR_ExternalScript::OutputRow</code>. From what we see in <em>Code Snippet 5</em>, it looks like the rows being outputted is outputted in the <em>TDS</em> format - look at the calls to <code>sqllang!CTds74::SendRowImpl</code>. This would make sense since clients etc., do not &ldquo;speak&rdquo; <em>BXL</em>, and from what we&rsquo;ve seen - <em>BXL</em> is what is coming back from the SqlSatellite.</p>
+
+<blockquote>
+<p><strong>EDITED:</strong> The following section down to <code>PullRow</code> has been slightly changed, to make it more readable.</p>
+</blockquote>
+
+<p>So the similar code in the three files (<code>wt1</code>, <code>wt2</code>, and <code>wt3</code>) processes the rows coming back, and outputs them as TDS, cool! So what about the first part of the first <code>ProcessResultRows</code>, what does that do? Let&rsquo;s have a look at the trace file for the first <code>ProcessResultRows</code>:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CServerCargoContext::ReadOneRow
+    ...
+    sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage
+  sqllang!CServerCargoContext::ReadOneRow
+    ...
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+      ...
+      sqllang!CSQLSatelliteMessageDataChunk::BindBufferForRead
+        sqllang!CSQLSatelliteMessageDataChunk::ReadPayloadHeader
+      sqllang!CSQLSatelliteMessageDataChunk::BindBufferForRead
+    ...
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+      sqllang!CSQLSatelliteCommunication::SendAckMessage
+        ...
+      sqllang!CSQLSatelliteCommunication::SendAckMessage
+        sqllang!CSQLSatelliteConnection::PostWriteRequest
+        sqllang!CSQLSatelliteConnection::WriteMessage
+      sqllang!CSQLSatelliteCommunication::SendAckMessage
+        sqllang!CSQLSatelliteConnection::WaitWriteDone
+      sqllang!CSQLSatelliteCommunication::SendAckMessage
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+     ...
+  sqllang!CServerCargoContext::ReadOneRow
+    sqllang!CSQLSatelliteMessageDataChunk::BindBufferForRead
+      sqllang!CSQLSatelliteMessage::BindBufferForRead
+    ...
+      sqllang!CSQLSatelliteMessageDataChunk::ReadPayloadHeader
+    sqllang!CSQLSatelliteMessageDataChunk::BindBufferForRead
+  ...
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Routines from First ProcessResultRows</em></p>
+
+<p>In <em>Code Snippet 6</em> we see various parts of the first <sup>2</sup>&frasl;<sub>3</sub> of the first call to <code>ProcessResultRows</code>. What is interesting is the <code>sqllang!CServerCargoContext::ReceiveOneDataChunk</code>, <code>sqllang!CSQLSatelliteMessageDataChunk::ReadPayloadHeader</code> and the <code>sqllang!CSQLSatelliteCommunication::SendAckMessage</code> calls.</p>
+
+<p>From what I gather, the <code>ReceiveOneDataChunk</code> routine reads in data that has been received from a socket, the <code>ReadPayloadHeader</code> reads the column header for each column in the result-set being returned, in order to determine data types etc. The <code>SendAckMessage</code>, sends a message back to the SqlSatellite, most likely indicating that SQL Server has received the two packages being sent from the SqlSatellite. We can confirm the &ldquo;sending message back&rdquo; part by:</p>
+
+<ul>
+<li>Disabling all break-point in <em>WinDbg</em> except for the breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
+<li>Set a breakpoint at <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>, but disable it.</li>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+</ul>
+
+<p>Execute the code in <em>Code Snippet 2</em>, and when you hit the <code>ProcessResultRows</code> breakpoint, look at the output from <em>Process Monitor</em>. You should see something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_17_procmon1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Output Before WriteMessage</em></p>
+
+<p>We see in <em>Figure 1</em> how the two data packets have been sent to SQL Server, but nothing else has happened. Enable the <code>WriteMessage</code> break-point and continue the execution. We&rsquo;ll now break at <code>WriteMessage</code>, but nothing has happened in <em>Process Monitor</em> (no more packages have been sent or received). However, when we now continue the execution we&rsquo;ll see in *Process Monitor how a packet is sent to the SqlSatellite (<code>BxlServer.exe</code>) with a length of 28 bytes, and then two packets are returned back from the SQlSatellite:</p>
+
+<p><img src="/images/posts/sql_r_services_17_procmon2.png" alt="" /></p>
+
+<p><strong>Figure 2</strong> <em>Output After WriteMessage</em></p>
+
+<p>We see the ack message sent to the SqlSatellite outlined in red in <em>Figure 2</em>, and the two packets coming back outlined in blue. Further down in this post as well as in an upcoming post we&rsquo;ll see if we can determine what the two packets coming back from the SqlSatellite do.</p>
+
+<p>Now we&rsquo;ve seen how the first <code>ProcessResultRows</code> is doing both schema &ldquo;stuff&rdquo; as well as processing the first row, and how the second and third <code>ProcessResultRows</code>, handle the remaining rows. What about the fourth file, the last <code>ProcessResultRows</code> - what does that one do? Let&rsquo;s have a look at some of the calls that happens:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CServerCargoContext::ReadOneRow
+    ...
+    sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage
+  sqllang!CServerCargoContext::ReadOneRow
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+      ...
+sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CUDXR_ExternalScript::EndOutput
+    KERNEL32!TlsGetValueStub
+    KERNEL32!TlsGetValue
+  sqllang!CUDXR_ExternalScript::EndOutput
+    sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl
+      sqllang!SendDoneWarnings
+    sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl
+  sqllang!CUDXR_ExternalScript::EndOutput
+sqllang!CUDXR_ExternalScript::ProcessResultRows
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Routines from Last ProcessResultRows</em></p>
+
+<p>From the code in <em>Code Snippet 7</em> we see how there is a <code>ReceiveOneDataChunk</code> call, which indicates data is being read after having  been received from a socket. It also looks like that this last <code>ProcessResultRows</code> indicates that there are no more data: <code>sqllang!CUDXR_ExternalScript::EndOutput</code>, <code>sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl</code> and <code>sqllang!SendDoneWarnings</code>. The question is what indicates this in the packets SQL Server receives from the SqlSatellite? This is now some speculation from my side, but I strongly suspect this originates from one of the 28 byte packets coming back from SqlSatellite after SQL Server sent the ack message above. I also think that the end-sequence that we mentioned in <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> as well as in the <em>Recap</em> above, has something to do with this.</p>
+
+<p>Now we should be able to answer the question above about why there are one more <code>ProcessResultRows</code> than rows returned, and we should also have a fairly good grasp of what happens when processing rows returned from the SqlSatellite:</p>
+
+<ul>
+<li>Rows are processed by <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
+<li>During the first <code>ProcessResultRows</code> the column header(s) are processed, followed by the first row.</li>
+<li>Subsequent rows are processed by <code>ProcessResultRows</code>.</li>
+<li>A final <code>ProcessResultRows</code> processes one of the packets received back from SqlSatellite after ack message has been sent.</li>
+</ul>
+
+<p>So, what about the first question we had above; why is there a <code>PullRow</code> called straight after <code>SendPackets</code>, e.g. the <code>PullRow</code> happens before data is returned from the SqlSatellite? To try to figure this out, let&rsquo;s disable all breakpoints, except for the breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>, and execute <em>Code Snippet 2</em> again (you can take out the <code>Sys.sleep</code> if you want). When you execute and hit the breakpoint <code>ProcessResultRows</code> for the first time, look at the call-stack: <code>k</code>:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessResultRows
+sqllang!CUDXR_ExternalScript::PullRow+0xf4
+sqlmin!CQScanUdx::GetRow+0x196
+sqlmin!CQueryScan::GetRow+0x81
+sqllang!CXStmtQuery::ErsqExecuteQuery+0x4dc
+sqllang!CXStmtSelect::XretExecute+0x322
+sqllang!CMsqlExecContext::ExecuteStmts&lt;1,1&gt;+0x40d
+sqllang!CMsqlExecContext::FExecute+0xa9e
+sqllang!CSQLSource::Execute+0x983
+sqllang!SpExecuteExternalScript+0x140e
+...
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Call Stack at First ProcessResultRows</em></p>
+
+<p>What we see in <em>Code Snippet 8</em>  is the important part of the call-stack and we can see how <code>ProcessResultRows</code> is called from within <code>PullRow</code>. Interesting, <code>PullRow</code> is called right after <code>SendPackets</code>, before the result has come back, and still <code>ProcessResultRows</code> is called from within <code>PullRow</code>, after the result is back? Let&rsquo;s see if we can figure out what&rsquo;s happening:</p>
+
+<ul>
+<li>Disable all breakpoints.</li>
+<li>Set a breakpoint at <code>sqllang!CUDXR_ExternalScript::PullRow</code>.</li>
+<li>Change the <code>Sys.sleep(10)</code> in <em>Code Snippet 2</em>, to <code>Sys.sleep(60)</code>.</li>
+<li>Execute the code.</li>
+<li>Continue past the first <code>PullRow</code>.</li>
+</ul>
+
+<p>When you hit the <code>PullRow</code> for the second time, do a <code>wt</code>. You&rsquo;ll see how the code continues, up until the execution starts in the R engine, and the code hits <code>Sys.sleep</code>. At this stage, copy out the output from <code>wt</code> into a new file (call it <code>pull_row_1.txt</code>).</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The trace files for <code>PullRow</code> are also part of the download mentioned above.</p>
+</blockquote>
+
+<p>At some stage the execution continues, and after the full <code>wt</code>, copy the whole trace into a second file <code>pull_row_full.txt</code>. Now open the <code>pull_row_1.txt</code> file, and look at the last 11 lines (for me it starts at around line 888):</p>
+
+<pre><code class="language-c++">sqldk!SOS_Scheduler::Switch
+  KERNEL32!QueryPerformanceCounter
+  ntdll!RtlQueryPerformanceCounter
+sqldk!SOS_Scheduler::Switch
+  KERNEL32!SignalObjectAndWaitStub
+  KERNELBASE!SignalObjectAndWait
+    KERNELBASE!memset
+    ntdll!memset
+  KERNELBASE!SignalObjectAndWait
+    KERNELBASE!BaseFormatTimeOut
+  KERNELBASE!SignalObjectAndWait
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Call Stack at End of First PullRow</em></p>
+
+<p>It seems from the code in <em>Code Snippet 9</em>, that we wait to be signaled, so the execution can continue, and when we open the &ldquo;full&rdquo; file (<code>pull_row_full.txt</code>), we can see that, that is indeed what happens:</p>
+
+<pre><code class="language-c++">sqldk!SOS_Scheduler::Switch
+    KERNEL32!SignalObjectAndWaitStub
+    KERNELBASE!SignalObjectAndWait
+      KERNELBASE!memset
+      ntdll!memset
+    KERNELBASE!SignalObjectAndWait
+      KERNELBASE!BaseFormatTimeOut
+    KERNELBASE!SignalObjectAndWait
+
+// above was the last lines in the first file
+
+      ntdll!NtSignalAndWaitForSingleObject
+    KERNELBASE!SignalObjectAndWait
+  sqldk!SOS_Scheduler::Switch
+    KERNEL32!QueryPerformanceCounterStub
+    ntdll!RtlQueryPerformanceCounter
+  sqldk!SOS_Scheduler::Switch
+    sqldk!SOS_Scheduler::TaskTransition
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>PullRow Being Signaled</em></p>
+
+<p>From <em>Code Snippet 10</em>, we see how <code>Pull</code> is signaled, and continues on with a <code>Switch</code> and a <code>TaskTransition</code>. The signal happens when SQL Server receives data from the SqlSatellite. There is an internal method <code>sqllang!CSQLSatelliteConnection::ReadCallBackInternal</code> which is being called when data is received, and part of <code>ReadCallBackInternal</code> is a signal call <code>sqllang!EventInternal&lt;SuspendQueueSLock&gt;::SignalAll</code>.</p>
+
+<p>Having briefly discussed signaling, let&rsquo;s go back to <code>pull_row_full.txt</code> and look further down in the file, where we see our first <code>ProcessResultRows</code>:</p>
+
+<pre><code class="language-c++">sqllang!CUDXR_ExternalScript::ProcessResultRows
+  sqllang!CServerCargoContext::ReadOneRow
+    sqldk!CMemProc::Alloc
+  sqllang!CServerCargoContext::ReadOneRow
+    sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage
+  sqllang!CServerCargoContext::ReadOneRow
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+      sqllang!CSQLSatelliteCommunication::CSQLSatelliteCommunication
+    sqllang!CServerCargoContext::ReceiveOneDataChunk
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>ProcessResultRows Called in PullRow</em></p>
+
+<p>We see how the code in <em>Code Snippet 11</em> is the same as the first lines of the file <code>wt1.txt</code>.</p>
+
+<p>Now we should be able to answer the first question we had; why <code>PullRow</code> is called directly after <code>SendPackets</code>: it is being called to wait for a call-back and continue handling receiving of data. But what else goes on in <code>PullRow</code>, we see the first <code>ProcessResultRows</code> at around line 3342, so there must be other &ldquo;stuff&rdquo; happening as well?</p>
+
+<p>In fact, if we look a couple of lines above where we found <code>ProcessResultRows</code> in <code>pull_row_full.txt</code> we&rsquo;ll see something like so:</p>
+
+<pre><code class="language-c++">    sqllang!CUDXR_ExternalScript::BeginOutput
+  sqllang!CUDXR_ExternalScript::ProcessOutputSchema
+sqllang!CUDXR_ExternalScript::PullRow
+
+// here is the first ProcessResultRows
+  sqllang!CUDXR_ExternalScript::ProcessResultRows
+    sqllang!CServerCargoContext::ReadOneRow
+</code></pre>
+
+<p><strong>Code Snippet 12:</strong> <em>End of ProcessOutputSchema</em></p>
+
+<p>What we see in <em>Code Snippet 12</em> is how, above the first call to <code>ProcessResultRows</code>, we are in a routine named <code>ProcessOutputSchema</code>, and if we go upwards we see how there are at least three more routines dealing with schema:</p>
+
+<ul>
+<li><code>sqllang!CUDXR_ExternalScript::GetOutputSchema</code></li>
+<li><code>sqllang!CServerCargoContext::ReadSchemaInternal</code></li>
+<li><code>sqllang!CServerCargoContext::ReadSchemaFromPackets</code></li>
+</ul>
+
+<p>If we were to set breakpoints at those routines together with <code>PullRow</code> and <code>ProcessResultRows</code>, the flow (highly simplified) when executing would be something like this:</p>
+
+<pre><code class="language-c++">sqllang!CSatelliteCargoContext::SendPackets
+sqllang!CUDXR_ExternalScript::PullRow
+  sqllang!CUDXR_ExternalScript::ProcessOutputSchema
+    sqllang!CUDXR_ExternalScript::GetOutputSchema
+      sqllang!CServerCargoContext::ReadSchemaInternal
+        sqllang!CServerCargoContext::ReadSchemaFromPackets
+  sqllang!CUDXR_ExternalScript::ProcessResultRows
+</code></pre>
+
+<p><strong>Code Snippet 13:</strong> <em>Code Flow Handling Schema</em></p>
+
+<p>So what SQL Server is doing is that before it start processing the returning rows, it determines what the schema is for the result-set. As far as I can tell, SQL Server uses both the initial &ldquo;small&rdquo; packet from the SqlSatellite as well as the packet containing the actual result-set data.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>This post tried to determine what SQL Server is doing when data is being returned from the SqlSatellite. We saw how, after the data packet(s) were sent to the SqlSatellite:</p>
+
+<ul>
+<li>Immediately <code>sqllang!CUDXR_ExternalScript::PullRow</code> was called, and waited to be signaled when data was returned.</li>
+<li>The schema of the returning data was determined by calls to <code>sqllang!CUDXR_ExternalScript::ProcessOutputSchema</code>, <code>sqllang!CUDXR_ExternalScript::GetOutputSchema</code>, <code>sqllang!CServerCargoContext::ReadSchemaInternal</code>, and <code>sqllang!CServerCargoContext::ReadSchemaFromPacket</code>.</li>
+<li>The result rows were processed, and turned into <em>TDS</em> packets, by calls to <code>ProcessResultRows</code> (one <code>ProcessResultRows</code> per row).</li>
+<li>A final <code>ProcessResultRows</code> was called to indicate that no more rows are coming.</li>
+</ul>
+
+<p>The figure below illustrates the flow:</p>
+
+<p><img src="/images/posts/sql_r_services_17_flow.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Code Flow Receiving Data from SqlSatellite</em></p>
+
+<p>If you have read <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, you see how <em>Figure 3</em> is similar. I have however &ldquo;compacted&rdquo; the sending data to SqlSatellite somewhat. The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens:</p>
+
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent together with two end packets.</li>
+<li>Packet are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled.</li>
+<li>Execution continues to process meta-data as well as result rows.</li>
+</ol>
+
+<p>There are still a couple of things to discuss about data coming back to SQL Server, as well a how errors are handled, and we&rsquo;ll do that in a future post.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Microsoft SQL Server R Services - Internals XVI</span>
+    </a>
+    
+    
+    <a href="/2018/01/07/interesting-stuff---christmas-new-year-week-1/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Christmas, New Year, Week 1</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/12/24/microsoft-sql-server-r-services---internals-xvi/">Microsoft SQL Server R Services - Internals XVI</a>
+      
+      <time class="pull-right hidden-tablet">Dec 24 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/12/02/microsoft-sql-server-r-services---internals-xv/">Microsoft SQL Server R Services - Internals XV</a>
+      
+      <time class="pull-right hidden-tablet">Dec 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>
+      
+      <time class="pull-right hidden-tablet">Nov 25 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/07/11/microsoft-sql-server-r-services---internals-vii/">Microsoft SQL Server R Services - Internals VII</a>
+      
+      <time class="pull-right hidden-tablet">Jul 11 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/11/11/microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>
+      
+      <time class="pull-right hidden-tablet">Nov 11 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals VI • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals VI"/>
+<meta name="twitter:description" content="This post looks at the directories created by the launchpad service in SQL Server R Services when executing an external script."/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals VI" />
+<meta property="og:description" content="This post looks at the directories created by the launchpad service in SQL Server R Services when executing an external script." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/05/16/microsoft-sql-server-r-services---internals-vi/" />
+
+
+
+<meta property="article:published_time" content="2017-05-16T19:38:41&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-05-16T19:38:41&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals VI</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> May 16, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 10 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the seventh post in a series about <strong>Microsoft SQL Server R Services</strong>, and the sixth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In this post we will look at the directories that are created when we execute <code>sp_execute_external_script</code>.</p>
+
+<p></p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we spoke about how Windows user accounts are created during installation, and together with the user account; directories named as the individual Windows accounts are created in the <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. These directories act as storage for files, results, objects, etc., during execution of an external script.</p>
+
+<p>When a user executes an external script in SQL Server, that account is being mapped to one of the 20 Windows account created, and it is under that Windows account the external part of the script is executed. Subsequently the files, etc., mentioned above, ends up in a sub-directory of the user account directory.</p>
+
+<p>During execution the launchpad service creates working directories (the sub-folders above) and processes. The sub-directories are created with a <code>Guid</code> as name, and the processes will get the same name as the sub-directory. In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we saw an excerpt from a log- showing among other things the creation of directories and processes. Below in <em>Code Snippet 1</em> you see a part of that file:</p>
+
+<pre><code>WorkingDirectory(C:\...\MSSQLSERVER01\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF) created (1)
+WorkingDirectory(C:\...\MSSQLSERVER01\E7AB7781-A8C7-421F-BAA0-074075B41082) created (1)
+
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save
+    -e &quot;library(RevoScaleR);
+    sessionDirectory &lt;- 'C:\...\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF';
+    sessionId &lt;- '5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF';
+  
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save 
+    -e &quot;library(RevoScaleR); 
+    sessionDirectory &lt;- 'C:\...\E7AB7781-A8C7-421F-BAA0-074075B41082';
+    sessionId &lt;- 'E7AB7781-A8C7-421F-BAA0-074075B41082';
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Excerpt from Creation of Processes and Directories</em></p>
+
+<p>Notice how, in <em>Code Snippet 1</em>, the working directories are created first, followed by the processes. In the example above, two directories are created first followed by two processes. This happens for the two first directories and processes. After the two first ones, one directory will be created followed by one process, and so on, and so on. You can also see from the log how the name of the directory is used when creating the processes.</p>
+
+<h2 id="directories">Directories</h2>
+
+<p>So, what is the purpose of the working directories? Well, we said in the beginning it was to store files etc., during execution of external scripts. So let us see what happens, when executing. The code we&rsquo;ll use in this post is similar to the code in the other posts in the series:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script  
+             @language =N'R',
+             @script=N'
+             pid &lt;- Sys.getpid()
+             d &lt;- getwd()
+             cat(paste0(&quot;WorkDir: &quot;, d))
+             cat(&quot;\n&quot;)
+             OutputDataSet&lt;-data.frame(ProcessId=pid,WorkingDir=d)'
+WITH RESULT SETS ((ProcessID int, [WorkingDir] nvarchar(1024) not null));
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> Code to Execute*</p>
+
+<p>As you see in <em>Code Snippet 2</em>, we retrieve both the process id, as well as the working directory, and these two variables are output in the result set. The working directory is further more printed out, in the <code>cat</code> function.</p>
+
+<p>Let&rsquo;s execute the code in <em>Code Snippet 2</em>, but before you do that:</p>
+
+<ol>
+<li>Stop the launchpad service if it is running.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Start the launchpad service again.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ol>
+
+<p>The result of the execution looks something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_6_dir1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Resultset from Code Execution</em></p>
+
+<p>In <em>Figure 1</em> we see that we executed in a process with an id of: 9092, and that the reported working directory is <code>E0A85B09-65C6-BD28-71A6B14917E9</code>. So let us then go to the account - MSSQLSERVER01 - and see what it looks like:</p>
+
+<p><img src="/images/posts/sql_r_services_6_dir2.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Content of Account Directory After Execution</em></p>
+
+<p>Strange, we see 6 different directories, but not the directory that is reported to be the working directory. So let us try to figure out what happens:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Open the <code>rlauncher.config</code> file in a text editor and change the value of <code>JOB_CLEANUP_ON_EXIT</code> to 0, and save the file (you need to this as admin).</li>
+<li>Restart the launchpad service.</li>
+</ol>
+
+<blockquote>
+<p><strong>NOTE:</strong> By setting the <code>JOB_CLEANUP_ON_EXIT</code> to 0 we tell the launchpad service to not delete any directories etc., after we have executed (the executing process will still be torn down though). By doing this we hope that we&rsquo;ll be able to see something that will cast some light on this.</p>
+</blockquote>
+
+<p>Execute the code in <em>Code Snippet 2</em> and see what is returned as working directory, and compare that with the directories under the user account directory under <code>ExtensibilityData</code>. When I executed the code on my box, the working directory name returned in the result was <code>5DA4E521-5A5D-4E14-B3FC-769F994A7AD3</code>, and the directory structure looked like so:</p>
+
+<p><img src="/images/posts/sql_r_services_6_dir3.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Directory Structure Including Working Directory</em></p>
+
+<p>So, there is a directory, but if you look at the contents you will see it is empty. The other directories though have content, and looks similar to:</p>
+
+<p><img src="/images/posts/sql_r_services_6_dir_content.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Content</em></p>
+
+<p>If you browse through the directories you will see that the content in all of them except for one (and the working directory), looks like what we see in <em>Figure 4</em>. The one where it is different looks something like what we have in <em>Figure 5</em>:</p>
+
+<p><img src="/images/posts/sql_r_services_6_dir_content_rscript.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Directory with Different Content</em></p>
+
+<p>In <em>Figure 5</em> we see how there is a file <code>&lt;Guid-Value&gt;.R, and how the</code>stdout.txt` file has a 1kb size. In another post we&rsquo;ll look at the content of the directories, and what it means.</p>
+
+<p>However, we still haven&rsquo;t really figured out about the working directory, and how it is created. If you remember from <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">IV</a>, how we said that the launchpad service creates a number of directories (5+1 as default) as well as processes when an external script is executed, and after execution one process and directory is torn down. So why have I seven directories when the default settings has not changed on the SQL instance I run this on, I really should have six?</p>
+
+<p>We actually saw the answer to that in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, when we at one stage looked at the <code>rlauncher.log</code> file and saw what is logged when executing an external script with a <code>TRACE_LEVEL</code> of 4. Instead of going back to that post, let us repeat it here:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Open the <code>rlauncher.config</code> file in a text editor and change the value of <code>TRACE_LEVEL</code> to 4, and save the file (you need to this as admin). Oh, and keep the setting of <code>JOB_CLEANUP_ON_EXIT</code> at 0, as per above.</li>
+<li>Delete the log files in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\Log\ExtensibilityLog</code></li>
+<li>Restart the launchpad service.</li>
+<li>Execute the code again.</li>
+</ol>
+
+<p>On my box, the working directory came back as <code>67F7F651-8465-4F6B-B90E-0571DD84677D</code>, and that directory also existed in the directory structure for the used user account, exactly as above. Then drilling down into the <code>rlauncher.log</code> file, around the time we executed, we see this (this is heavily redacted, to make it readable):</p>
+
+<pre><code>Session(67F7F651-8465-4F6B-B90E-0571DD84677D) [SqlSatellite] created.
+Session(67F7F651-8465-4F6B-B90E-0571DD84677D) 
+    CleanupOnExit=0, Settings.JobCleanupOnExit=0
+Session 67F7F651-8465-4F6B-B90E-0571DD84677D assigned to MSSQLSERVER01 user
+
+ProcessPool(MSSQLSERVER01-ss-2) with minimum processes 5 created
+ProcessPool(MSSQLSERVER01-ss-2) 
+    started GrowAsyncWorker() thread 11744 [00002DE0].
+
+WorkingDirectory(C:\...\MSSQLSERVER01\C23EA5B2-620C-473A-99F5-8BB37CCDA0B7) 
+    created (0)
+WorkingDirectory(C:\...\MSSQLSERVER01\3AEBD29C-E024-46F6-A25E-27E680AF9729) 
+    created (0)
+
+CreateProces(
+    C:\...\R_SERVICES\bin\x64\rterm.exe  --slave --no-restore --no-save 
+    -e &quot;library(RevoScaleR); sessionDirectory &lt;- 
+    'C:\...\\MSSQLSERVER01\\C23EA5B2-620C-473A-99F5-8BB37CCDA0B7';
+    sessionId &lt;- 'C23EA5B2-620C-473A-99F5-8BB37CCDA0B7';
+    ...
+
+CreateProces(
+    C:\...\R_SERVICES\bin\x64\rterm.exe  --slave --no-restore --no-save 
+    -e &quot;library(RevoScaleR); sessionDirectory &lt;- 
+    'C:\...\\MSSQLSERVER01\\3AEBD29C-E024-46F6-A25E-27E680AF9729';
+    sessionId &lt;- '3AEBD29C-E024-46F6-A25E-27E680AF9729';
+ 
+ ...
+
+Session[67F7F651-8465-4F6B-B90E-0571DD84677D] 
+    attached to pooled processes [3AEBD29C-E024-46F6-A25E-27E680AF9729]
+
+...
+
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Partial Log from Executing</em></p>
+
+<p>From <em>Code Snippet 3</em> we see what we also saw in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>:</p>
+
+<ul>
+<li>A session is created.</li>
+<li>A process pool is created.</li>
+<li>Working directories are created.</li>
+<li>Processes are created pointing to the working directories.</li>
+<li>The session created initially is being attached to one of the pooled processes.</li>
+</ul>
+
+<p>But, when looking at the session it has the same &ldquo;name&rdquo; as the working directory, and we see how the session is attached to one of the processes. So it seems that the creation of a session also creates a directory. The process that the session is attached to becomes the process the external script is executed under, and the directory created together with the session becomes the working directory.</p>
+
+<p>Is there any way we can see if the theory of a session-directory being created?</p>
+
+<p>Seeing that we haven&rsquo;t used WinDbg for a while, let&rsquo;s try and see if we can confirm what is happening. In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we looked at the call chain when executing an external script, and it looked something bit like so:</p>
+
+<pre><code class="language-cpp">1. launchpad!CLaunchContext::LaunchServTask
+2.  launchpad!SatelliteSessionManager::ConstructSatelliteSession
+2.    launchpad!SatelliteJobObject::CreateSatelliteJobObject
+2.      launchpad!SatelliteSessionManager::CreateNewSessionObject
+3.        launchpad!CLaunchContext::Launch
+4.          Rlauncher!&quot;MiscCalls&quot;
+4.            launchpad!SQLSatellite_LaunchProcess
+4.              launchpad!CreateProcessForSatelliteSession
+4.                launchpad!PhysicalUserContext::LaunchProcess
+4.                  KERNELBASE!CreateProcessInternalW
+4.          Rlauncher!&quot;MiscCalls&quot;
+4.            launchpad!SQLSatellite_LaunchProcess
+4.              launchpad!CreateProcessForSatelliteSession
+4.                launchpad!PhysicalUserContext::LaunchProcess
+4.                  KERNELBASE!CreateProcessInternalW
+4.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+4.                launchpad!Satellite_ResourceManager::AssociateProcessToJobObject
+4.                  launchpad!SatelliteJobObject::AssociateProcess
+4.                  launchpad!SatelliteJobObject::AssociateProcess
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>High Level Call Chain</em></p>
+
+<ol>
+<li>Initially a call to <code>LaunchServTask</code> happens.</li>
+<li>We then create a satellite session, a job object and a session object.</li>
+<li>We then come into the code path were we launch the launcher and create the RTerm processes: <code>launchpad!CLaunchContext::Launch</code>.</li>
+<li>In there we do multiple calls to the launcher dll (<code>Rlauncher!&quot;MiscCalls&quot;</code>), create the actual processes and assigns that to the job object. We initially create two processes, and one of the processes will be mapped to the session (as we saw from the log-file). This is then repeated multiple times.</li>
+</ol>
+
+<p>So, somewhere in the call chain in <em>Code Snippet 4</em>, our directories are created. To try and figure out what happens, let&rsquo;s:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Restart the launchpad service.</li>
+<li>Open WinDbg and attach to the launchpad service (you need to run WinDbg as admin).</li>
+</ol>
+
+<blockquote>
+<p><strong>NOTE:</strong> The <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach to a process, and what commands to use.</p>
+</blockquote>
+
+<p>Now, let&rsquo;s set some break points at:</p>
+
+<ol>
+<li><code>bp launchpad!SatelliteSessionManager::CreateNewSessionObject</code></li>
+<li><code>bp KERNELBASE!CreateDirectoryW</code></li>
+<li><code>bp launchpad!SQLSatellite_LaunchProcess</code></li>
+</ol>
+
+<p>So what we try to do is to establish in what order things happen, and how many times the <code>KERNELBASE!CreateDirectoryW</code> is called. While we execute we should also, in file explorer, see what directories are created in the user account directory. Let&rsquo;s run the code now.</p>
+
+<p>The output from the debugger looked for me like this:</p>
+
+<pre><code class="language-cpp">Breakpoint 0 hit
+launchpad!SatelliteSessionManager::CreateNewSessionObject:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+Breakpoint 1 hit
+KERNELBASE!CreateDirectoryW:
+
+Breakpoint 2 hit
+launchpad!SQLSatellite_LaunchProcess:
+
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Creation of Directories and Processes</em></p>
+
+<p>In <em>Code Snippet 5</em> we see how:</p>
+
+<ul>
+<li>Three directories are created initially, the first one being the directory for the session.</li>
+<li>Then two processes, which will use the second and third directory.</li>
+<li>Then one directory followed by one process, until we&rsquo;re done.</li>
+</ul>
+
+<p><strong>UPDATE &amp; EDIT:</strong> The following is somewhat edited, and I have added a couple of pictures to make things more understandable. I have added <em>Figure 6</em>, and <em>Figure 7</em> and rearranged (and added) some text.</p>
+
+<p>The above is in line what we discussed in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, as well as <em>Code Snippet 1</em> where we saw how two directories are created initially, followed by two processes. However, it is not two directories, but three - where the first directory will become the working directory, and the rest of the directories will be backing directories for the R processes.</p>
+
+<p>In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we had a figure like below, in order to show what happens:</p>
+
+<p><img src="/images/posts/sql-launchpad_processes_post.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Launchpad, Directories and Processes</em></p>
+
+<p>We now see that that <em>Figure 6</em> is not entirely correct, as it leaves out the creation of the working directory. The following figure (where some of the internal callas are taken out) should be more accurate:</p>
+
+<p><img src="/images/posts/sql_r_services_6_launchpad_working_dir.png" alt="" />
+<strong>Figure 7:</strong> <em>Launchpad, Directories and Processes</em></p>
+
+<p>So, that&rsquo;s fine - we now &ldquo;kind of&rdquo; understands how the working directory is created. Now, when you look at <em>Figure 4</em>, you see that inside one of the created directories are some files, and a sub-directory. When we ran the code after having set the break points, as above, we did not see any <code>KERNELBASE!CreateDirectoryW</code> calls which would have created the sub directories. What&rsquo;s up with that, and where do the files in the directories come from, and what do they do? Questions, questions, so many questions. Hopefully we&rsquo;ll get some answers in subsequent posts!</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>When we execute an external script, processes are created with backing directories. The script is executed in a session, and that session do have a backing directory as well. That directory becomes the working directory for the R process the script execute in.</p>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/05/14/interesting-stuff---week-19/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 19</span>
+    </a>
+    
+    
+    <a href="/2017/05/20/facebook-prophet-and-microsoft-r-server/" class="post--navigation-next">
+      <span class="navigation-tittle">Facebook Prophet and Microsoft R Server</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/05/01/microsoft-sql-server-r-services---internals-v/">Microsoft SQL Server R Services - Internals V</a>
+      
+      <time class="pull-right hidden-tablet">May 01 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Microsoft SQL Server R Services - Internals IV</a>
+      
+      <time class="pull-right hidden-tablet">Apr 23 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Microsoft SQL Server R Services - Internals III</a>
+      
+      <time class="pull-right hidden-tablet">Apr 13 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a>
+      
+      <time class="pull-right hidden-tablet">Apr 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>
+      
+      <time class="pull-right hidden-tablet">Mar 18 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

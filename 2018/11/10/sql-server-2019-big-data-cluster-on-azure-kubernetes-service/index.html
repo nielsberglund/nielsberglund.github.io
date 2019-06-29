@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>SQL Server 2019 Big Data Cluster on Azure Kubernetes Service • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="SQL Server 2019 Big Data Cluster on Azure Kubernetes Service"/>
+<meta name="twitter:description" content="A look at how to install SQL Server 2019 Big Data Cluster on Azure Kubernetes Service"/>
+
+<meta property="og:title" content="SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+<meta property="og:description" content="A look at how to install SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/11/10/sql-server-2019-big-data-cluster-on-azure-kubernetes-service/" />
+
+
+
+<meta property="article:published_time" content="2018-11-10T07:58:09&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-11-10T07:58:09&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>SQL Server 2019 Big Data Cluster on Azure Kubernetes Service</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Nov 10, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2019">SQL SERVER 2019</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2019-big-data-cluster">SQL SERVER 2019 BIG DATA CLUSTER</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-2019-big-data-cluster">sql server 2019 big data cluster</a>
+           
+      
+          <a class="post__tag" href="/tags/kubernetes">kubernetes</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-kubernetes-service">azure kubernetes service</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 15 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>At the <a href="https://www.microsoft.com/en-us/ignite/agenda"><strong>Microsoft Ignite 2018</strong></a> conference back in September Microsoft released <strong>SQL Server 2019</strong> for public preview, and I wrote two short blog posts about it:</p>
+
+<ul>
+<li><a href="/2018/09/24/what-is-new-in-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a>.</li>
+<li><a href="/2018/09/29/sql-server-2019-for-linux-in-docker-on-windows/">SQL Server 2019 for Linux in Docker on Windows</a>.</li>
+</ul>
+
+<p>What Microsoft also announced was <strong>SQL Server 2019 Big Data Clusters</strong>, which combines the SQL Server database engine, Spark, and HDFS into a unified data platform! Yes, you read that right: SQL Server, Spark, and Hadoop right out of the box. Seeing that both Spark and Hadoop are mainly Linux based, what makes the Big Data Cluster possible is <strong>SQL Server on Linux</strong>. When you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>, you deploy it as containers on <strong>Kubernetes</strong>, where the Kubernetes cluster can be in the cloud, such as <a href="https://azure.microsoft.com/en-us/services/kubernetes-service/"><strong>Azure Kubernetes Service</strong></a>, or on-prem like <a href="https://www.openshift.com/learn/topics/kubernetes/"><strong>Red Hat OpenShift</strong></a> or even on a local dev-box/laptop using <a href="https://kubernetes.io/docs/setup/minikube/"><strong>Minikube</strong></a>.</p>
+
+<p>Initially, this post was about <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube, but after quite a few failed installation attempts I realised I did not have enough memory on my development box, so I decided to try it on <strong>Azure Kubernetes Service</strong> (AKS) instead.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you want to run <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube it is suggested that your host machine (Minikube is essentially a VM) has at least 32Gb of memory, and you allocate at least 22Gb to the Minikube VM.</p>
+</blockquote>
+
+<p>Since I am a complete novice when it comes to Kubernetes, this post covers both how I set up AKS as well as the deployment of <strong>SQL Server 2019 Big Data Clusters</strong> to AKS, and the post is somewhat a summary of the official <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/big-data-cluster-overview?view=sqlallproducts-allversions">documentation</a>.</p>
+
+<p></p>
+
+<blockquote>
+<p><strong>NOTE:</strong> SQL Server 2019 is in public preview, but the preview does not contain the Big Data Cluster parts. To deploy <strong>SQL Server 2019 Big Data Clusters</strong> you need to be part of the SQL Server 2019 Early Adoption Program, for which you can sign up for <a href="https://sqlservervnexteap.azurewebsites.net/">here</a>.</p>
+</blockquote>
+
+<h2 id="pre-reqs">Pre-reqs</h2>
+
+<p>Apart from having an Azure subscription and being enrolled in the SQL Server 2019 EAP, there are a couple of other pre-reqs needed.</p>
+
+<h4 id="python">Python</h4>
+
+<p>If you, like me, are a SQL Server guy, you are probably quite familiar with installing SQL Server instances by mounting an ISO file, and running setup. Well, you can forget all that when you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>. The setup is all done via Python utilities, and various Docker images pulled from a private repository. So, you need Python3. On my box I have Python 3.5, and - according to Microsoft - version 3.7 also works. Make you that you have your Python installation on the path.</p>
+
+<p>When you deploy you use a Python utility: <code>mssqlctl</code>. To download <code>mssqlctl</code>, you need Python&rsquo;s package management system <code>pip</code> installed. During installation you also need a Python HTTP library: <em>Requests</em>. If you do not have it you need to install it:</p>
+
+<pre><code class="language-python">python -m pip install requests
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Installing Python Requests</em></p>
+
+<p>Down below we talk some more about how to download the <code>mssqlctl</code> utility.</p>
+
+<h4 id="azure-cli">Azure CLI</h4>
+
+<p>When working with Azure, you can do it in three ways:</p>
+
+<ul>
+<li>Azure Portal</li>
+<li>Cloud Shell from within the portal.</li>
+<li>Azure CLI.</li>
+</ul>
+
+<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. In this post I mainly use the Azure CLI, so if you want to follow along download it from <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?view=azure-cli-latest">here</a>.</p>
+
+<h4 id="kubectl">Kubectl</h4>
+
+<p>The <code>kubernetes-cli</code> (Kubernetes command line tool), gives you an executable <code>kubectl.exe</code> which you use to manage your Kubernetes cluster. Using <code>kubectl</code>, you can inspect cluster resources; create, delete, and update components; etc.</p>
+
+<p>You can install <code>kubectl</code> in different ways, and I installed it from <a href="https://chocolatey.org/packages/kubernetes-cli">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
+
+<h2 id="azure-kubernetes-cluster">Azure Kubernetes Cluster</h2>
+
+<p>Ok, so having &ldquo;sorted&rdquo; out the pre-reqs, let us start with creating an Azure Kubernetes cluster through the Azure CLI.</p>
+
+<h4 id="login">Login</h4>
+
+<p>I start with open Powershell as administrator and from Powershell I log in to Azure:</p>
+
+<pre><code class="language-bash">az login
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Login to Azure</em></p>
+
+<p>When I execute the code in <em>Code Snippet 2</em> a tab opens in my browser, and I see a dialog that asks me to pick an account to log in to Azure with:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_login.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Azure Login</em></p>
+
+<p>I choose the account from what I see in <em>Figure 1</em>, and after a little while I see in the browser a success message:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_login_success.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Azure Login Success</em></p>
+
+<p>At the same time as the success message in <em>Figure 2</em>, the code in <em>Code Snippet 1</em> returns with information what subscriptions I have access to in Azure:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_login_return.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Azure Login Return</em></p>
+
+<p>As we see in <em>Figure 3</em>, I have access to multiple subscriptions, and before we go any further, I set the subscription I target. I look at the <code>id</code> for the subscription I want and:</p>
+
+<pre><code class="language-bash">az account set -s &lt;my_subscription_id&gt;
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Set Azure Context</em></p>
+
+<p>I have now logged in and indicated, as in <em>Code Snippet 3</em>, what subscription to use.</p>
+
+<h4 id="resource-groups">Resource Groups</h4>
+
+<p>Everything we do in Azure is in the context of a resource group. A resource group is a logical group in which Azure resources are deployed and managed, and it exists in a physical location (Azure data center). So when I create a Kubernetes cluster, I need to define what resource group the cluster should belong to. So let us create a resource group:</p>
+
+<pre><code class="language-bash">az group create --name kubernetes-rg --location westeurope
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Create Resource Group</em></p>
+
+<p>In <em>Code Snippet 4</em> we see how I create a group named <code>kubernetes-rg</code>, and I want it in the West Europe region. After I run the code in <em>Code Snippet 4</em>, I get back a JSON blob:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_create_rg.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Azure Create Group Return</em></p>
+
+<p>The JSON blob, as in <em>Figure 4</em>, contains details about my newly created resource group. If I log in to the Azure Portal:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_portal_resource_group.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Azure Resource Group</em></p>
+
+<p>In the portal, when I click the <em>Resource groups</em> link (outlined in red in <em>Figure 5</em>), I see my newly created resource group outlined in blue.</p>
+
+<h2 id="create-kubernetes-cluster">Create Kubernetes Cluster</h2>
+
+<p>I now have a resource group, and I go on to create the Kubernetes cluster.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> You do not need to create a new resource group as such. When you create the Kubernetes cluster, you can create it in an existing group.</p>
+</blockquote>
+
+<p>To create the Kubernetes cluster I continue to use the Azure CLI, and I use the <code>az aks create</code> command. The command has quite a few parameters, which you can read about <a href="https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az-aks-create">here</a>, but I use only a few of them:</p>
+
+<ul>
+<li><code>--name</code>: name of the cluster.</li>
+<li><code>--resource-group</code>: name of the resource group.</li>
+<li><code>--disable-rbac</code>: disables Kubernetes Role-Based Access Control.</li>
+<li><code>--generate-ssh-keys</code>: if no SSH keys exist, generate both public and private key files.</li>
+<li><code>--node-vm-size</code>: the size of the VM&rsquo;s used for the nodes in the Kubernetes cluster. For a <strong>SQL Server 2019 Big Data Cluster</strong> you need a VM with at least 32Gb of memory. You can see a list of VM sizes and their features in the portal <a href="https://portal.azure.com/#create/microsoft.aks">here</a>. I use &ldquo;Standard E4s_v3&rdquo;.</li>
+<li><code>--node-count</code>: number of nodes in the Kubernetes node pool. I use 3.</li>
+<li><code>--kubernetes-version</code>: the version of Kubernetes to use for creating the cluster. The <strong>SQL Server 2019 Big Data Cluster</strong> requires at minimum the Kubernetes v1.10 version.</li>
+</ul>
+
+<p>Before I create the cluster, let us talk a little bit about <code>--node-vm-size</code> and <code>--node-count</code> as they are somewhat related to each other. In addition to defining how much memory a VM has the <code>--node-vm-size</code> also defines the number of virtual CPU&rsquo;s (VCPUS) for the VM. The number of VCPUS controls how many data disks the VM has, (normally it is 2 disks per VCPU). The number of disks per VM is important as the <strong>SQL Server 2019 Big Data Cluster</strong> mounts quite a lot of storage on individual disks and with too few disks the mount operations fail. To get more disks you either increase the VM size or the node count, and that is the relation between <code>--node-vm-size</code> and <code>--node-count</code>.</p>
+
+<p>For a &ldquo;default&rdquo; <strong>SQL Server 2019 Big Data Cluster</strong> deployment around 20 disks are required. So if I choose the &ldquo;Standard E4s_v3&rdquo; VM as vm size, I want at least 3 nodes. With this in mind the code to create a Kubernetes cluster looks like so:</p>
+
+<pre><code class="language-bash">az aks create --name sqlkubecluster \
+--resource-group kubernetes-rg \
+--disable-rbac \
+--generate-ssh-keys \
+--node-vm-size Standard_E4s_v3 \
+--node-count 3 \
+--kubernetes-version 1.10.8
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Create Kubernetes Cluster</em></p>
+
+<p>In <em>Code Snippet 5</em> we see how:</p>
+
+<ul>
+<li>I want to create a cluster with the name <code>sqlkubecluster</code>.</li>
+<li>I want the cluster in the <code>kubernetes-rg</code> resource group.</li>
+<li>I do not want to use Kubernetes Role-Based Access Control.</li>
+<li>I want SSH keys created.</li>
+<li>I want the VM&rsquo;s to be &ldquo;Standard E4s_v3&rdquo;,</li>
+<li>I want 3 nodes.</li>
+<li>Finally I want the Kubernetes version to be 1.10.8.</li>
+</ul>
+
+<p>When I execute the code I see something like so:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_create_cluster.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Run Create Kubernetes Cluster</em></p>
+
+<p>What we see in <em>Figure 6</em> runs for several minutes and when it completes I receive a JSON blob with information about the cluster.</p>
+
+<p>I mentioned above how <code>kubectl</code> is used to manage your Kubernetes cluster, and now when the cluster is created, we need to configure <code>kubectl</code> to connect to the cluster. To do this, you use the <code>az aks get-credentials</code> command like so:</p>
+
+<pre><code class="language-bash">az aks get-credentials --resource-group=kubernetes-rg --name sqlkubecluster
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Get Credentials</em></p>
+
+<p>We see in <em>Code Snippet 6</em> how I pass in the name of the resource group and cluster as parameters and when I execute:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_credentials.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Get Credentials</em></p>
+
+<p>The <code>config</code> file we see outlined in red in <em>Figure 7</em> holds, among other things, the keys for the Kubernetes cluster. To ensure that I can connect to the cluster I call <code>kubectl get nodes</code>, and I see some information about the cluster nodes.</p>
+
+<h4 id="dashboard-namespaces">Dashboard &amp; Namespaces</h4>
+
+<p>To monitor and manage a Kubernetes cluster you do not have to rely on <code>kubectl</code> solely, as you can also use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>. In Azure you access the Dashboard by the <code>az aks browse</code> command, and - as with <code>get-credentials</code> - you pass in the names of the resource group and cluster: <code>az aks browse --resource-group kubernetes-rg --name sqlkubecluster</code>, and a new tab opens in your browser:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_dashboard.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Kubernetes Dashboard</em></p>
+
+<p>In <em>Figure 8</em> we see the dashboard right after I created the VM and the Kubernetes cluster. Notice <em>namespaces</em>, outlined in red. <em>Namespcaces</em> help different projects, teams, or customers to share a Kubernetes cluster, and when you deploy to Kubernetes, you deploy into a namespace. To see what <em>namespaces</em> exist in a cluster you execute: <code>kubectl get namespaces</code>. When I do it at this stage I see:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_kubectl_namespaces.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Kubernetes Namespaces</em></p>
+
+<p>When we look at <em>Figure 9</em> we see following <em>namespaces</em>:</p>
+
+<ul>
+<li><code>default</code>: A default, (duh), namespace to hold the default set of Pods, Services, and Deployments used by the cluster.</li>
+<li><code>kube-public</code>: A namespace readable by everyone for public <a href="https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/configure-pod-container/configmap/">ConfigMap&rsquo;s</a>.</li>
+<li><code>kube-system</code>: A namespace for objects created by the Kubernetes system.</li>
+</ul>
+
+<p>So, coming back to Dashboard: when we want to monitor a deployment with Dashboard, we monitor a specific namespace. Enough of this, let us deploy!</p>
+
+<h2 id="deploy-sql-server-2019-big-data-cluster">Deploy SQL Server 2019 Big Data Cluster</h2>
+
+<p>I mentioned above that when we deploy a <strong>SQL Server 2019 Big Data Cluster</strong> we deploy using a Python utility: <code>mssqlctl</code>. So what we need to do is to download and install the utility:</p>
+
+<pre><code class="language-bash">pip3 install \
+   --index-url https://private-repo.microsoft.com/python/ctp-2.0 \
+     mssqlctl
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Download and Install mssqlctl</em></p>
+
+<p>We download and install <code>mssqlctl</code> from a Microsoft repository as we see in <em>Code Snippet 7</em>. After download the source is located in <code>&lt;python_path&gt;\lib\site-packages</code> and the executable - <code>mssqlctl.exe</code> - is at: <code>&lt;python_path&gt;\Scripts</code>.</p>
+
+<h4 id="environment-variables">Environment Variables</h4>
+
+<p>When you deploy the <strong>SQL Server 2019 Big Data Cluster</strong> using <code>mssqlctl</code> you customise the cluster configuration via environment variables read by <code>mssqlctl</code>. To see all available environment variables you go <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/deployment-guidance?view=sqlallproducts-allversions">here</a>. Below I list the ones I use:</p>
+
+<ul>
+<li>SET ACCEPT_EULA=Y - to accept the SQL Server license agreement.</li>
+<li>SET CLUSTER_PLATFORM=aks - the Kubernetes platform you deploy to: Azure - <code>aks</code>, Kubernetes - <code>kubernetes</code>, Minikube - <code>minikube</code>.</li>
+<li>SET CONTROLLER_USERNAME=admin - the user name for the cluster administrator. You can set this to anything.</li>
+<li>SET CONTROLLER_PASSWORD=<some_secret_password> - the password for the cluster administrator.</li>
+<li>SET KNOX_PASSWORD=<some_secret_password> - the password for the Knox user. <a href="https://knox.apache.org/">Knox</a> is an application gateway for interacting with the REST API&rsquo;s and UI&rsquo;s of Apache Hadoop deployments.</li>
+<li>SET MSSQL_SA_PASSWORD=<some_secret_password> - the <code>sa</code> password for the master SQL instance. It needs to meet password complexity requirements.</li>
+<li>SET DOCKER_REGISTRY=private-repo.microsoft.com - the registry for the images being pulled.</li>
+<li>SET DOCKER_REPOSITORY=mssql-private-preview - the repository within the registry.</li>
+<li>SET DOCKER_USERNAME=<docker_username> - user name to access the images. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_PASSWORD=<some_secret_password> - the password for the above user. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_EMAIL=<email_for_the_docker_user> - the email associated with the registry. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_PRIVATE_REGISTRY=1 - this has to be set to 1.</li>
+</ul>
+
+<p>Before you deploy the environment variables, need to be set, and if you are on Windows, you need to do it from a command prompt (not Powershell). Instead of having to enter these variables individually, I have a <code>bat</code> file I run before deploying: <code>set_env_variables_aks.bat</code>.</p>
+
+<h4 id="create-cluster">Create Cluster</h4>
+
+<p>After I have set the variables I create the cluster with the <code>mssqlctl</code> command, and I do it from the command prompt (not Powershell):</p>
+
+<pre><code class="language-bash">mssqlctl create cluster sqlbigdata1 -v
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Create Big Data Cluster</em></p>
+
+<p>Looking at <em>Code Snippet 8</em> we see how I call <code>mssqlctl</code> to create a <strong>SQL Server 2019 Big Data Cluster</strong>, and I want to create it in a namespace called <code>sqlbigdata1</code>. I use the <code>-v</code> flag (as in verbose) to get debug output. When I execute the code I see something like so:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_create_cluster.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Create Big Data Cluster</em></p>
+
+<p>What we see in <em>Figure 10</em> is how we have started to create the main controller and its pod. We also see a note (outlined in red) saying that it can take quite a while to create the cluster. To monitor the process you can use Dashboard:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_az_dashboard2.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>Kubernetes Dashboard</em></p>
+
+<p>In <em>Figure 11</em> we see an overview of the <code>sqlbigdata1</code> namespace. You may see errors in the dashboard, but you can ignore them initially. In addition to Dashboard to monitor progress you can use <code>kubectl</code> commands, for example: <code>kubectl get pods -n sqlbigdata1</code>:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_kubectl1.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Pods being Created</em></p>
+
+<p>The <strong>SQL Server 2019 Big Data Cluster</strong> exposes its own dashboard; the <em>Cluster Administration Portal</em>, which we can use to monitor the deployment as well. The portal becomes available as soon as the controller is up, and in a running state. The portal is exposed at the endpoint for the <code>service-proxy-lb</code> (proxy load balancer) service. To find the IP address, you call: <code>kubectl get svc service-proxy-lb -n &lt;name of your cluster&gt;</code>:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_cluster_admin_ip.png" alt="" /></p>
+
+<p><strong>Figure 13:</strong> <em>Endpoint for Cluster Admin</em></p>
+
+<p>In <em>Figure 13</em> we see how <code>svc service-proxy-lb</code> has an external IP of <code>13.94.174.28</code>, and it exposes two ports: <code>30777</code> and <code>31826</code>. The port for the portal is <code>30777</code>, and when I browse there, I first need to log in with the <code>CONTROLLER_USERNAME</code> (admin in my case) and <code>CONTROLLER_PASSWORD</code>. After login, I come to the <em>Overview</em> page. I then click on the <em>Deployment</em> link outlined in red:</p>
+
+<p><img src="/images/posts/sql_2k19_bdc_cluster_admin2.png" alt="" /></p>
+
+<p><strong>Figure 14:</strong> <em>Deployment Progress</em></p>
+
+<p>What we see in <em>Figure 14</em> is the progress of the <strong>SQL Server 2019 Big Data Cluster</strong> deployment, and we see that it is still in progress: yellow triangle by the namespace, (outlined in blue).</p>
+
+<p>Eventually, the deployment finishes, and we know that either: by seeing that the triangle in <em>Figure 14</em> is now a green circle, or by the output from command line:</p>
+
+<pre><code class="language-bash">2018-11-07 09:04:52.0147 UTC | INFO | Data pool is ready...
+2018-11-07 09:04:52.0148 UTC | INFO | Storage pool is ready...
+...
+2018-11-07 09:06:55.0073 UTC | INFO | Compute pool is ready...
+...
+2018-11-07 09:07:36.0155 UTC | INFO | Cluster state: Ready
+2018-11-07 09:07:36.0155 UTC | INFO | Cluster deployed successfully.
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Cluster Deployed Successfully</em></p>
+
+<p>We see in <em>Code Snippet 9</em> how <code>mssqlctl</code> reports that the various pools are ready, followed by successful cluster deployment.</p>
+
+<h4 id="connection-endpoints">Connection Endpoints</h4>
+
+<p>So far, so good - but what do we do now? We know that a <strong>SQL Server 2019 Big Data Cluster</strong> consists both of a SQL Server master instance, as well as Hadoop/Spark, but where do we find them?</p>
+
+<p>As with the portal, the endpoints are service load balancers endpoints. The service load balancer for the SQL Server master instance is: <code>service-master-pool-lb</code> and for Hadoop/Spark it is: <code>service-security-lb</code>. To retrieve the endpoints I call:</p>
+
+<pre><code class="language-bash"># SQL Server master instance
+kubectl get service service-master-pool-lb \
+                 -o=custom-columns=&quot;IP:.status.loadBalancer.\
+                 ingress[0].ip,PORT:.spec.ports[0].port&quot; \
+                 -n sqlbigdata1
+
+# Hadoop/Spark
+kubectl get service service-security-lb \
+                 -o=custom-columns=&quot;IP:.status.loadBalancer.\
+                 ingress[0].ip,PORT:.spec.ports[0].port&quot; \
+                 -n sqlbigdata1
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Get Endpoints</em></p>
+
+<p>In <em>Code Snippet 10</em> we see how I customize what I want to be returned from the <code>get service</code> calls to only to return IP addresses and ports. With these endpoints, I can now connect to my <strong>SQL Server 2019 Big Data Cluster</strong>. Once again, to connect to the SQL Server master instance (databases), you use the <code>service-master-pool-lb</code> endpoint, and to connect to Hadoop/Spark, the <code>service-security-lb</code> endpoint is what you use.</p>
+
+<p>The user names and passwords are:</p>
+
+<ul>
+<li>SQL Server master instance: <code>sa</code> as user name, and <code>MSSQL_SA_PASSWORD</code> as password.</li>
+<li>Hadoop / Spark: <code>root</code> as user name, and <code>KNOX_PASSWORD</code> as password.</li>
+</ul>
+
+<p>In a future post I look at what we can do with <strong>SQL Server 2019 Big Data Cluster</strong>.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post we looked at how to install <strong>SQL Server 2019 Big Data Cluster</strong> on <em>Azure Kubernetes Service</em> (AKS). We saw how to:</p>
+
+<ul>
+<li>Create a new Azure resource group using Azure CLI.</li>
+<li>Create a Kubernetes cluster in that resource group.</li>
+</ul>
+
+<p>We discussed the size requirements for the VM&rsquo;s in the cluster, and mentioned they needed at least 32Gb of RAM. We also need quite a few disks to mount storage on, so the node count is important.</p>
+
+<p>The actual deployment of a <strong>SQL Server 2019 Big Data Cluster</strong> is done using a Python utility <code>mssqlctl</code>. During the deployment process we can monitor the progress via:</p>
+
+<ul>
+<li><code>kubectl</code> commands.</li>
+<li>the Kubernetes dashboard.</li>
+<li>the <strong>SQL Server 2019 Big Data Cluster</strong>&rsquo;s <em>Cluster Administration Portal</em>.</li>
+</ul>
+
+<p>Access to the various services in a <strong>SQL Server 2019 Big Data Cluster</strong> is through service load balancers and their external IP addresses and ports:</p>
+
+<ul>
+<li>Cluster Administration Portal: <code>service-proxy-lb</code>.</li>
+<li>SQL Server master instance: <code>service-master-pool-lb</code>.</li>
+<li>Hadoop/Spark: <code>service-security-lb</code>.</li>
+</ul>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2018/11/04/interesting-stuff---week-44/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 44</span>
+    </a>
+    
+    
+    <a href="/2018/11/11/interesting-stuff---week-45/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 45</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2018/11/04/interesting-stuff---week-44/">Interesting Stuff - Week 44</a>
+      
+      <time class="pull-right hidden-tablet">Nov 04 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/04/08/interesting-stuff---week-14/">Interesting Stuff - Week 14</a>
+      
+      <time class="pull-right hidden-tablet">Apr 08 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/02/11/interesting-stuff---week-6/">Interesting Stuff - Week 6</a>
+      
+      <time class="pull-right hidden-tablet">Feb 11 &#39;18</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

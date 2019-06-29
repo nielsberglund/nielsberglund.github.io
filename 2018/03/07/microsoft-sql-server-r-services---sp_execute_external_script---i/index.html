@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - sp_execute_external_script - I • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - sp_execute_external_script - I"/>
+<meta name="twitter:description" content="A lowdown of sp_execute_external_script and its different parameters, using Process Monitor and WireShark"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - sp_execute_external_script - I" />
+<meta property="og:description" content="A lowdown of sp_execute_external_script and its different parameters, using Process Monitor and WireShark" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/03/07/microsoft-sql-server-r-services---sp_execute_external_script---i/" />
+
+
+
+<meta property="article:published_time" content="2018-03-07T19:37:31&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-03-07T19:37:31&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - sp_execute_external_script - I</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Mar 7, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/process-monitor">process monitor</a>
+           
+      
+          <a class="post__tag" href="/tags/sqlsatellite">sqlsatellite</a>
+           
+      
+          <a class="post__tag" href="/tags/wireshark">wireshark</a>
+           
+      
+          <a class="post__tag" href="/tags/sp_execute_external_script">sp_execute_external_script</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 20 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the 22:nd post in a series about <strong>Microsoft SQL Server R Services</strong>. This journey started about a year ago when I thought it would be a good idea to write a couple of blog posts about, what then went under the name of, Microsoft SQL Server 2016 R Services. Never in my wildest fantasies did I think I would write over 20 posts.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Since the introduction of Microsoft SQL Server R Services, it has been renamed to <strong>Microsoft SQL Server Machine Learning Services</strong>.</p>
+</blockquote>
+
+<p>To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>This series began with a discussion about how to install Microsoft SQL Server R Services and continued with the internals of how it works internally in SQL Server and the launchpad service. Throughout the series, we have used <code>sp_execute_external_script</code> when investigating what goes on. So, I thought that having a couple of posts looking at <code>sp_execute_external_script</code> would be a good way to finish this series off, and this post is the first of three about <code>sp_execute_external_script</code>.</p>
+
+<p></p>
+
+<h2 id="housekeeping">Housekeeping</h2>
+
+<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code and the tools we use today. This section is here for those of who want to follow along in what we are doing in the post.</p>
+
+<h4 id="helper-tools">Helper Tools</h4>
+
+<p>To help us figure out the things we want, we use <em>Process Monitor</em>, and <em>WireShark</em>:</p>
+
+<ul>
+<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+
+<h4 id="code">Code</h4>
+
+<p>The code below sets up the database and creates some tables with some data. The data is based on the <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set"><em>Iris</em></a> dataset:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+DROP DATABASE IF EXISTS IrisTestDb;
+CREATE DATABASE IrisTestDb;
+
+USE IrisTestDb;
+GO
+
+DROP TABLE IF EXISTS dbo.tb_irisdata_full;
+CREATE TABLE dbo.tb_irisdata_full 
+(
+  RowID int identity primary key, SepalLength float not null, 
+  SepalWidth float not null, PetalLength float not null, 
+  PetalWidth float not null, Species varchar(100) null
+);
+GO
+
+DROP TABLE IF EXISTS dbo.tb_irisdata_even;
+CREATE TABLE dbo.tb_irisdata_even 
+(
+  RowID int identity primary key, SepalLength float not null, 
+  SepalWidth float not null, PetalLength float not null, 
+  PetalWidth float not null, Species varchar(100) null
+);
+GO
+
+DROP TABLE IF EXISTS dbo.tb_irisdata_uneven;
+CREATE TABLE dbo.tb_irisdata_uneven 
+(
+  RowID int identity primary key, SepalLength float not null, 
+  SepalWidth float not null, PetalLength float not null, 
+  PetalWidth float not null, Species varchar(100) null
+);
+GO
+
+INSERT INTO dbo.tb_irisdata_full( SepalLength, SepalWidth, 
+                                  PetalLength, PetalWidth, Species)
+EXECUTE sp_execute_external_script
+  @language = N'R'
+  , @script = N'iris_data &lt;- iris;'
+  , @input_data_1 = N''
+  , @output_data_1_name = N'iris_data';
+
+--split up the Iris data
+INSERT INTO dbo.tb_irisdata_even( SepalLength, SepalWidth, 
+                                  PetalLength, PetalWidth, Species)
+SELECT SepalLength, SepalWidth, PetalLength, PetalWidth, Species 
+FROM dbo.tb_irisdata_full
+WHERE RowID % 2 = 0
+
+INSERT INTO dbo.tb_irisdata_uneven( SepalLength, SepalWidth, 
+                                    PetalLength, PetalWidth, Species)
+SELECT SepalLength, SepalWidth, PetalLength, PetalWidth, Species 
+FROM dbo.tb_irisdata_full
+WHERE RowID % 2 = 1
+
+/*
+SELECT * FROM dbo.tb_irisdata_full
+SELECT * FROM dbo.tb_irisdata_even
+SELECT * FROM dbo.tb_irisdata_uneven
+*/
+
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Creating Database Objects and Generating Data</em></p>
+
+<p>The code in <em>Code Snippet 1</em> should be fairly self explanatory. The reason why we split up the full Iris dataset is to later on in this post handle multiple datasets.</p>
+
+<h2 id="sp-execute-external-script">sp_execute_external_script</h2>
+
+<p>The first thing to do is to remind ourselves why we need <code>sp_execute_external_script</code> at all? Well, as opposed to SQLCLR, the external script engine is not embedded in SQL Server, but sits outside of SQL Server and runs in its own process - it is, (wait for it&hellip;), external :). So, if the external engine runs outside of SQL Server there needs to be a bridge between SQL and the engine - and <code>sp_execute_external_script</code> is that bridge.</p>
+
+<p>In most of the blog posts in this series we have used <code>sp_execute_external_script</code> something like so (or with variants thereof):</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script  @language =N'R', 
+                                 @script=N'OutputDataSet&lt;-InputDataSet', 
+                                 @input_data_1 =N'SELECT 42' 
+      WITH RESULT SETS (([TheAnswer] int not null));  
+GO 
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Use of sp_execute_external_script</em></p>
+
+<p>When we compare <em>Code Snippet 2</em> with what the full signature of <code>sp_execute_external_script</code>, as in <em>Code Snippet 3</em>, we see that we have used <code>sp_execute_external_script</code> in a somewhat simplistic way:</p>
+
+<pre><code class="language-sql">sp_execute_external_script 
+             @language = N'language', 
+             @script = N'script', 
+             [ @input_data_1 = ] 'input_data_1' 
+             [ , @input_data_1_name = ] N'input_data_1_name' ] 
+             [ , @output_data_1_name = N'output_data_1_name' ] 
+             [ , @parallel = 0 | 1 ] 
+             [ , @params = ] N'@parameter_name data_type [ OUT | OUTPUT ] [ ,...n ]' 
+             [ , @parameter1 = ] 'value1' [ OUT | OUTPUT ] [ ,...n ] 
+[ WITH &lt;execute_option&gt; ] 
+[;] 
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Full Signature of sp_execute_external_script</em></p>
+
+<p>In a majority of the blog posts, the only parameters used are: <code>@language</code>, <code>@script</code> and sometimes <code>@input_data_1</code>, but as we see in <em>Code Snippet 3</em>, there are more:</p>
+
+<ul>
+<li><code>@language</code></li>
+<li><code>@script</code></li>
+<li><code>@input_data_1</code></li>
+<li><code>@input_data_1_name</code></li>
+<li><code>@output_data_1_name</code></li>
+<li><code>@parallel</code></li>
+<li><code>@params</code></li>
+<li><code>@parameter1</code></li>
+</ul>
+
+<p>So, what are these parameters intended use? Let us find out.</p>
+
+<h2 id="language"><code>@language</code></h2>
+
+<p>By now we should know what the <code>@language</code> parameter is for. It is to tell the launchpad service which launcher dll to initialise, which in turn targets the correct external engine. At the time of writing, there are two external engines which we can use; R and Python, and I would expect Microsoft to add other engines over time. From my side, I would love to see being able to call into .NET - outside of the SQL Engine.</p>
+
+<p><img src="/images/posts/sql_r_services_ect_script1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>External Script and Language</em></p>
+
+<p><em>Figure 1</em> illustrates how the launchpad service chooses which launcher dll to launch based on the <code>@language</code> parameter.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a> covers more about the launchpad service and different types of launchers.</p>
+</blockquote>
+
+<p>The <code>@language</code> parameter is a required parameter.</p>
+
+<h2 id="script"><code>@script</code></h2>
+
+<p>The <code>@script</code> parameter defines the code the external engine executes, and is a required parameter:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                  @language = N'R',
+                  @script = N'
+                    iris_dataset &lt;- iris
+                    setosa &lt;- iris[iris$Species == &quot;setosa&quot;,]
+                    meanSepWidth &lt;- mean(setosa$Sepal.Width)
+                    cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))';
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Example of @script Parameter</em></p>
+
+<p>In <em>Code Snippet 4</em> we use the <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set"><em>Iris</em></a> dataset, and we calculate the mean of the <a href="https://en.wikipedia.org/wiki/Sepal">sepal</a> width for the setosa species. We pass the script as a literal in the <code>@script</code> parameter. Passing the script as a literal is quite common, and you can see it in most examples of <code>sp_execute_external_script</code>. It is however not required to pass the script as a literal; it can be passed as a variable as well as loaded from a source file. Code snippets 5 and 7 show examples of this:</p>
+
+<pre><code class="language-sql">DECLARE @scriptParam nvarchar(max) =  
+                    N'iris_dataset &lt;- iris
+                    setosa &lt;- iris[iris$Species == &quot;setosa&quot;,]
+                    meanSepWidth &lt;- mean(setosa$Sepal.Width)
+                    cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))';
+
+EXEC sp_execute_external_script
+                      @language = N'R',
+                      @script = @scriptParam;
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Script Passed in via a Variable</em></p>
+
+<p>So, in <em>Code Snippet 5</em> we see how the script is passed in as a variable (<code>@scriptParam</code>). A use case for this can be that you have scripts stored in a table in a database, and when you want to execute the script you load the particular script into a variable.</p>
+
+<p>Onto loading a script via a source file; let us assume we have an R source file named <code>iris_r.r</code> with code like so:</p>
+
+<pre><code class="language-r">iris_dataset &lt;- iris
+setosa &lt;- iris[iris$Species == &quot;setosa&quot;,]
+meanSepWidth &lt;- mean(setosa$Sepal.Width)
+cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>R Source File Content</em></p>
+
+<p>The file is at: <code>c:\rscripts</code>. The way to execute <code>sp_execute_external_script</code> based on this looks like so:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+                      @language = N'R',
+                      @script = N'source(&quot;c:/rscripts/iris_r.r&quot;)';
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Script Passed in Through Source File</em></p>
+
+<p>We see in <em>Code Snippet 7</em> how we use the R command <code>source</code> to load the source code. The <code>source</code> command causes R to accept its input from the named file. Input is read and parsed from that file until the end of the file is reached, then the parsed expressions are evaluated sequentially in the chosen environment. When you use the <code>source</code> command, like in <em>Code Snippet 7</em>, the file path needs to be accessible by the external engine.</p>
+
+<p>You may note how, in <em>Code Snippet 7</em>, the file path is defined like you would do in Linux: <code>c:/rscripts/iris_r.r</code>. To do it this way is not required, you can use Windows path definitions, but you have to escape the <code>\</code>, like this: <code>c:\\rscripts\\iris_r.r</code>.</p>
+
+<p>Oh, something to keep in mind is that the values for <code>@language</code>, <code>@script</code>, <code>@input_data_1</code>, <code>@input_data_1_name</code>, <code>@output_data_1_name</code> and <code>@params</code> all have to be explicit <code>nvarchar</code>. What I mean with that is when you assign a value to the particular parameter, it has to be <code>DECLARE</code>:ed as an <code>nvarchar</code>. An example of this is <em>Code Snippet 5</em> and the <code>@scriptParam</code> parameter. If the parameter value is not <code>DECLARE</code>:ed as an <code>nvarchar</code>, it has to prepended with <code>N</code> as we see for example in <em>Code Snippet 7</em>: <code>@language = N'R'</code> and <code>@script = N'source(&quot;c:/rscripts/iris_r.r&quot;)</code>. If you do not <code>DECLARE</code> or prepend with <code>N</code> you get an error like this:</p>
+
+<p><img src="/images/posts/sql_r_services_ext_script_nvarchar_error.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Error non nvarchar Parameter Value</em></p>
+
+<p>One final thing about the <code>@script</code> parameter. Remember how we, back in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>, discussed how SQL Server sends the actual script to the SqlSatellite via a socket connection? When we supply the script through a file name, the data sent is: <code>source(&quot;c:/rscripts/iris_r.r&quot;)</code>. It may be obvious, but I thought I would mention it regardless.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Later on in this post we talk some more about what SQL Server sends to the SqlSatellite.</p>
+</blockquote>
+
+<h2 id="input-data-1"><code>@input_data_1</code></h2>
+
+<p>The <code>@input_data_1</code> parameter, which is optional, specifies the input data used by the external script. You can only use a T-SQL <code>SELECT</code> statement to generate the data; so no stored procedure calls, but <code>SELECT</code> against views or table-valued functions work fine:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+            @language = N'R',
+            @script = N'
+                iris_dataset &lt;- InputDataSet
+                setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+                meanSepWidth &lt;- mean(setosa$SepalWidth)
+                cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))',
+            @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full'
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Using @input_data_1 with straight SELECT</em></p>
+
+<p>In <em>Code Snippet 8</em> wee set how the <code>@input_data_1</code> parameter contains a <code>SELECT</code> statement against the <code>dbo.tb_irisdata_full</code> table, and the statement executes during the <code>sp_execute_external_script</code> execution (in <a href="/2017/11/11/microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we discussed when the statement was executed). The dataset generated by the query is referred to in the script as <code>InputDataSet</code>, and we discuss the naming later in this post. The <code>SELECT</code> does not have to be against a table, it can be, as I mentioned above, against a view or a user-defined function as well.</p>
+
+<p>So this is straight-forward so far, but what about if you need multiple datasets loaded into the external engine? My first thought when I saw <code>sp_execute_external_script</code> and the <code>@input_data_1</code> parameter, was that if there is an <code>@input_data_1</code> parameter, then there surely must be <code>@input_data_2</code>, <code>@input_data_n</code> parameters as well. Well, there are not, bummer, so what do we do?</p>
+
+<p>A thought would be to try and execute multiple statements from the same parameter and then in the script, parse out the different datasets, something like this: `@input_data_1 = N&rsquo;SELECT * FROM dbo.tb_irisdata_even; SELECT * FROM dbo.tb_irisdata_uneven&rsquo;. Good suggestion but no cigar, because when you try - this happens:</p>
+
+<p><img src="/images/posts/sql_r_services_ext_script_multi_error.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Multi Statement Error</em></p>
+
+<p>The error we see in <em>Figure 3</em> is not very descriptive, but what it means is that you cannot have multiple <code>SELECT</code> statements generating <strong>multiple</strong> datasets. What you can do however is to use <code>UNION</code> or <code>UNION ALL</code>:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+            @language = N'R',
+            @script = N'
+                iris_dataset &lt;- InputDataSet
+                setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+                meanSepWidth &lt;- mean(setosa$SepalWidth)
+                cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))',
+            @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_even UNION ALL 
+                              SELECT * FROM dbo.tb_irisdata_uneven';
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>SELECT with UNION ALL</em></p>
+
+<p>The code in <em>Code Snippet 9</em> uses the <code>UNION ALL</code> to combine the results of two or more queries into a single dataset. However, as useful as that is, sometimes that does not work: what if the two queries do not contain the same data types, or if you need two (or more) individual data-sets? In that case, the solution is to retrieve data from inside the script (in addition to the input data from <code>@input_data_1</code>).</p>
+
+<p>To retrieve data from within the external script, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package) or the highly optimized Microsoft <a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler"><strong><code>RevoScaleR</code></strong></a> package. In the following example I use <code>RevoScaleR</code>:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+        @language = N'R',
+        @script = N'
+          # set up connection string       
+          sqlConnString &lt;- &quot;Driver=SQL Server;server=win10-dev;
+                            database=IrisTestDb;uid=&lt;some_uid&gt;;pwd=&lt;some_pwd&gt;&quot;
+          
+          # define the data
+          mydata &lt;- RxSqlServerData(table = NULL, 
+                                    sqlQuery = &quot;SELECT * 
+                                    FROM dbo.tb_irisdata_uneven&quot;, 
+                                    connectionString = sqlConnString)
+
+          # open the dataset
+          rxOpen(mydata)
+
+          # read the data
+          iris_uneven &lt;- rxReadNext(mydata)
+          versicolor &lt;- iris_uneven[iris_uneven$Species == &quot;versicolor&quot;,]
+          meanSepWidthVersi &lt;- mean(versicolor$SepalWidth)
+          
+          # get the data from the input data set
+          iris_dataset &lt;- InputDataSet
+          setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+          meanSepWidth &lt;- mean(setosa$SepalWidth)
+
+          # output the data
+          cat(paste(&quot;Seposa sepal mean width:&quot;, meanSepWidth, &quot;.&quot;, 
+                     &quot;Versicolor sepal mean width:&quot;, meanSepWidthVersi))',
+        @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_even';
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Multiple Data Sets using RevoScaleR</em></p>
+
+<p>The code in <em>Code Snippet 10</em> shows how we read in data within the script by the use of <code>RevoScaleR</code> functionality together with the data from the <code>@input_data_1</code> parameter, and how we subsequently calculate <code>mean</code> on the two data-sets.</p>
+
+<p>Cool, we have now seen how we pass data into the external script via the <code>@input_data_1</code> parameter, and how multiple data-sets can be used by querying data from inside the script. What about returning data to the caller, you know - like we quite often do from stored procedures?</p>
+
+<h2 id="input-data-1-name-output-data-1-name"><code>@input_data_1_name</code> &amp; <code>@output_data_1_name</code></h2>
+
+<p>You may now wonder what this section has to do with returning data to the caller? Don&rsquo;t worry; we get there soon!</p>
+
+<p>So, there are some parameters in <code>sp_execute_external_script</code> that we have not used yet, and <code>@input_data_1_name</code> and <code>@output_data_1_name</code>, which both are optional, are two of them.</p>
+
+<h4 id="input-data-1-name"><code>@input_data_1_name</code></h4>
+
+<p>We use this parameter to explicitly name the variable in the script that contains the data we pass into the external engine. But, hang on, we have not used the <code>@input_data_1_name</code> parameter in the various examples in this post where we pass data to the engine, and it still works? Ah, look in code snippets 8, 9 and 10, and you see a line of code: <code>iris_dataset &lt;- InputDataSet</code>. Here <code>InputDataSet</code> defines the input data, and it so happens that the default value of <code>@input_data_1_name</code> is <code>InputDataSet</code>.</p>
+
+<p>So, let us see what happens if we change some things. Copy the code in <em>Code Snippet 8</em> and change it to this:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+            @language = N'R',
+            @script = N'
+                iris_dataset &lt;- InputDataSet
+                setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+                meanSepWidth &lt;- mean(setosa$SepalWidth)
+                cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))',
+            @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full',
+            @input_data_1_name = N'MyDataSet'
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Invalid Input Name</em></p>
+
+<p>As you see in <em>Code Snippet 11</em> we assign a name to the <code>@input_data_1_name</code> parameter, but in the script we still use <code>InputDataSet</code>. When we execute the following error happens:</p>
+
+<p><img src="/images/posts/sql_r_services_ext_script_input_name_error.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Non Existent Input Data Object</em></p>
+
+<p>So the error is that the script cannot find the <code>InputDataSet</code> object. Change the line: <code>iris_dataset &lt;- InputDataSet</code> to: <code>iris_dataset &lt;- MyDataSet</code>, and execute again. Now all is OK.</p>
+
+<p>How does the script know what the input data is, e.g. how does it know in <em>Code Snippet 11</em> that the data belongs to the <code>MyDataSet</code> variable? Well this comes back to, at least indirectly, what we discussed in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> and how SQL Server sent the script, plus other information, to the SqlSatellite.</p>
+
+<p>Just for fun, let us revisit some of what we did in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a>:</p>
+
+<ul>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> where we filtered for <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 8</em> and look at the output from <em>Process Monitor</em> to see what packets SQL Server sends:</li>
+</ul>
+
+<p><img src="/images/posts/sql_r_services_ext_script_procmon1.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Process Monitor Output</em></p>
+
+<p>The outlined packet in <em>Figure 4</em> is the packet containing the script SQL Server sent to the SqlSatallite. Notice the size of the packet and also make a note of the <code>Path</code> column and the last value (in the figure it is 50887). That value is the port with which SQL Server communicates with the SqlSatellite. We use this now in <em>WireShark</em> to try and see if we can get any more information about what is happening.</p>
+
+<p>So, let us switch over to <em>WireShark</em>:</p>
+
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on (the port you saw in the <code>Path</code> column). In this case, we want to sniff outgoing packets, and - if we used what we saw in <em>Figure 4</em> - the filter should subsequently be: <code>tcp.srcport==50887</code>.</li>
+<li>Apply the filter.</li>
+</ul>
+
+<p>Execute the code in <em>Code Snippet 8</em> again, and look at the output from <em>WireShark</em>. In the output is a packet with the same length as the highlighted packet in <em>Figure 4</em>. This packet is the packet SQL Server sends to the SqlSatellite with the script (as discussed above). When we look at the data part of that packet as a hex dump, the 64 first bytes look like this:</p>
+
+<pre><code class="language-c++">01 00 05 80 48 03 00 00  5c 46 19 98 6a 3f 9a 4f   ....H... \F..j?.O
+9d b6 25 1f 62 7f 8b 50  00 00 06 00 00 00 00 00   ..%.b..P ........
+00 00 00 00 1a 00 49 00  6e 00 70 00 75 00 74 00   ......I. n.p.u.t.
+44 00 61 00 74 00 61 00  53 00 65 00 74 00 00 00   D.a.t.a. S.e.t...
+</code></pre>
+
+<p><strong>Code Snippet 12:</strong> <em>WireShark Output I</em></p>
+
+<p>In <em>Code Snippet 8</em> we did not define a name for the input data set, but in the script, we used <code>InputDataSet</code> as a variable name - as that is the default. When looking at the hex dump in <em>Code Snippet 12</em> we see the name <code>InputDataSet</code> 38 bytes into the packet. So it looks like the name we give the data set is being part of the script data SQL Server sends to the SqlSatellite. We can potentially prove that theory by executing the code in <em>Code Snippet 11</em> (remember to change the code that refers to the data set to: <code>iris_dataset &lt;- MyDataSet</code>) and see what <em>WireShark</em> outputs:</p>
+
+<pre><code class="language-c++">01 00 05 80 3c 03 00 00  82 a4 40 22 b4 3a 05 4b   ....&lt;... ..@&quot;.:.K
+9a d0 03 f2 df 19 96 4f  00 00 06 00 00 00 00 00   .......O ........
+00 00 00 00 14 00 4d 00  79 00 44 00 61 00 74 00   ......M. y.D.a.t.
+61 00 53 00 65 00 74 00  00 00 1c 00 4f 00 75 00   a.S.e.t. ....
+</code></pre>
+
+<p><strong>Code Snippet 13:</strong> <em>WireShark Output II</em></p>
+
+<p>Ok, so when we look at the code in <em>Code Snippet 13</em> we see how the input data set name that we assigned through the <code>@input_data_1_name</code> parameter is part of the packet.</p>
+
+<p>So we can answer the question how the script knows what variable contains input data by pointing to how SQL Server passes the name of the input data variable as part of the script. Worth noticing is how, in the two packets above, at 36 bytes into the packet, the size of the variable name (in double bytes) plus two bytes are defined. In <em>Code Snippet 12</em> it is hex: <code>1a</code> (decimal 26) , and in <em>Code Snippet 13</em> it is hex: <code>14</code> (decimal 20).</p>
+
+<h4 id="output-data-1-name"><code>@output_data_1_name</code></h4>
+
+<p>Finally, we get to how the script knows to return resultsets to the caller. Let us assume that you want to do some calculations on the data passed in through the <code>MyDataSet</code> variable in <em>Code Snippet 11</em> and then return that data. Maybe something like so:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+      @language = N'R',
+      @script = N'
+          iris_dataset &lt;- MyDataSet
+          setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+          meanSepWidth &lt;- mean(setosa$SepalWidth)
+          cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))
+          multiplier &lt;- 5
+          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+          OutputDataSet &lt;- data.frame(iris_dataset$SepalLength)',
+      @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full',
+      @input_data_1_name = N'MyDataSet'
+</code></pre>
+
+<p><strong>Code Snippet 14:</strong> <em>Return a Result Set</em></p>
+
+<p>When you execute the code in <em>Code Snippet 14</em>, part of the resultset looks like this:</p>
+
+<p><img src="/images/posts/sql_r_services_ext_script_output1.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Result Set</em></p>
+
+<p>In <em>Figure 5</em> we see how a resultset comes back, and looking at the code in <em>Code Snippet 14</em>, and knowing about <code>InputDataSet</code>, we assume that the reason a resultset comes back is that of the <code>OutputDataSet</code> variable in the script. It turns out that assumption is correct.</p>
+
+<p>Similar to the input data variable and its default name, the output data variable has a default name: <code>OutputDataSet</code>. You can change this name by setting the <code>@output_data_1_name</code> variable to a name of your choice, and reference that name in the script:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+      @language = N'R',
+      @script = N'
+          iris_dataset &lt;- MyDataSet
+          setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+          meanSepWidth &lt;- mean(setosa$SepalWidth)
+          cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))
+          multiplier &lt;- 5
+          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+          SepalLengthMult &lt;- data.frame(iris_dataset$SepalLength)',
+      @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full',
+      @input_data_1_name = N'MyDataSet',
+      @output_data_1_name = N'SepalLengthMult';
+</code></pre>
+
+<p><strong>Code Snippet 15:</strong> <em>Customised Result Set Name</em></p>
+
+<p>In <em>Code Snippet 15</em> we changed the name of the output data variable to <code>SepalLengthMult</code> and referenced it in the script.</p>
+
+<p>The script engine (and script) knows about the variable name in the same way as it does for the input data variable - it is part of the script packet that SQL Server sends to the SqlSatellite. Below is a partial hex dump of the packet SQL Server sends when we execute the code in <em>Code Snippet 15</em>:</p>
+
+<pre><code class="language-c++">01 00 05 80 66 04 00 00  e5 fe 5a d3 1f e3 7d 4a   ....f... ..Z...}J
+8e 68 95 ee 31 59 75 38  00 00 06 00 00 00 00 00   .h..1Yu8 ........
+00 00 00 00 14 00 4d 00  79 00 44 00 61 00 74 00   ......M. y.D.a.t.
+61 00 53 00 65 00 74 00  00 00 20 00 53 00 65 00   a.S.e.t. .. .S.e.
+70 00 61 00 6c 00 4c 00  65 00 6e 00 67 00 74 00   p.a.l.L. e.n.g.t.
+68 00 4d 00 75 00 6c 00  74 00 00 00 38 01 00 00   h.M.u.l. t...8...
+</code></pre>
+
+<p><strong>Code Snippet 16:</strong> <em>WireShark Output OutputData</em></p>
+
+<p>In the hex dump in <em>Code Snippet 16</em> we see the name of the output dataset variable starting at byte 60. We can also see at byte 58 how the length of the output data variable is defined, plus two bytes: hex <code>20</code>.</p>
+
+<p>So, <code>@output_data_1_name</code> specifies the name of the variable in the external script that contains the data to be returned to SQL Server when the stored procedure completes. There is an implicit expectation of the data type of the output; for R the expectation is a data frame, and for Python, it is a pandas data frame.</p>
+
+<p>Oh, a last thing about the output data. When you look at <em>Figure 5</em> you see that the resultset has no column names. By default <code>sp_execute_external_script</code> returns resultsets with unnamed columns as column names within a script are local. If you want to name columns you use the <code>WITH RESULTS SET</code> clause of the <code>EXECUTE</code>:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+      @language = N'R',
+      @script = N'
+          iris_dataset &lt;- MyDataSet
+          setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+          meanSepWidth &lt;- mean(setosa$SepalWidth)
+          cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))
+          multiplier &lt;- 5
+          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+          SepalLengthMult &lt;- data.frame(iris_dataset$SepalLength)',
+      @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full',
+      @input_data_1_name = N'MyDataSet',
+      @output_data_1_name = N'SepalLengthMult'
+WITH RESULT SETS ((LengthMultiplied float));
+</code></pre>
+
+<p><strong>Code Snippet 17:</strong> <em>Define Column Name</em></p>
+
+<p>In <em>Code Snippet 17</em> we defined the column coming back with a name of <code>LengthMultiplied</code> and that the column should have a data type of <code>float</code>. When we execute the code we see this:</p>
+
+<p><img src="/images/posts/sql_r_services_ext_script_output2.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Result Set</em></p>
+
+<p>Looking at <em>Figure 6</em> we see how we received a result set consisting of one column named <code>LengthMultiplied</code>. <code>WITH RESULT SETS</code> is not something specific for <code>sp_execute_external_script</code> but an option on the <code>EXECUTE</code> statement. If you are interested in what happens when you execute <code>sp_execute_external_script</code> with the <code>WITH RESULT SETS</code> option, I covered it in <a href="/2018/01/10/microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a>.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post we have looked at some of the parameters <code>sp_execute_external_script</code> expects:</p>
+
+<ul>
+<li><code>@language</code> - tells the launchpad service what external engine to use. At the moment R and Python are supported.</li>
+<li><code>@script</code> - defines the script which the external engine executes. The script can be loaded as a literal value, a parameter or through the R <code>source(file_name)</code> command.</li>
+<li><code>@input_data_1</code> - specifies the input data used by the external script in the form of a Transact-SQL query (<code>SELECT</code> only, no procedure calls). The query can only generate one dataset. If more datasets are required, they have to be retrieved from inside the script.</li>
+<li><code>@input_data_1_name</code> - specifies the name of the variable used to represent the query defined by @input_data_1. The parameter is optional, and defaults to <code>InputDataset</code>.</li>
+<li><code>@output_data_1_name</code> - specifies the name of the variable in the external script that contains the data to be returned to SQL Server when the stored procedure completes. The parameter is optional, and defaults to <code>OutputDataSet</code>.</li>
+</ul>
+
+<p>All of the above parameter values have to be of the  <code>NVARCHAR</code> data type.</p>
+
+<p>In next blog post we cover some of the remaining parameters for <code>sp_execute_external_script</code>.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2018/03/04/interesting-stuff---week-9/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 9</span>
+    </a>
+    
+    
+    <a href="/2018/03/11/microsoft-sql-server-r-services---sp_execute_external_script---ii/" class="post--navigation-next">
+      <span class="navigation-tittle">Microsoft SQL Server R Services - sp_execute_external_script - II</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2018/02/02/microsoft-sql-server-r-services---internals-xx/">Microsoft SQL Server R Services - Internals XX</a>
+      
+      <time class="pull-right hidden-tablet">Feb 02 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/01/20/microsoft-sql-server-r-services---internals-xix/">Microsoft SQL Server R Services - Internals XIX</a>
+      
+      <time class="pull-right hidden-tablet">Jan 20 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/01/10/microsoft-sql-server-r-services---internals-xviii/">Microsoft SQL Server R Services - Internals XVIII</a>
+      
+      <time class="pull-right hidden-tablet">Jan 10 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/08/29/microsoft-sql-server-r-services---internals-x/">Microsoft SQL Server R Services - Internals X</a>
+      
+      <time class="pull-right hidden-tablet">Aug 29 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/01/03/microsoft-sql-server-r-services---internals-xvii/">Microsoft SQL Server R Services - Internals XVII</a>
+      
+      <time class="pull-right hidden-tablet">Jan 03 &#39;18</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

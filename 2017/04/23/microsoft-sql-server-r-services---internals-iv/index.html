@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals IV • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals IV"/>
+<meta name="twitter:description" content="Launchpad service, number of processes, process pool. More about process creation in the launchpad service"/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals IV" />
+<meta property="og:description" content="Launchpad service, number of processes, process pool. More about process creation in the launchpad service" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/04/23/microsoft-sql-server-r-services---internals-iv/" />
+
+
+
+<meta property="article:published_time" content="2017-04-23T14:42:01&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-04-23T14:42:01&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals IV</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Apr 23, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 13 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the fifth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fourth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I wrote about how the launchpad service creates multiple processes when executing an external script.</p>
+
+<p>Seeing that some of the conclusions I came to was somewhat educated guesses, I asked you guys to correct me where I was in-correct and/or add more information. After that post - Bob Albright (<a href="https://twitter.com/bob_albright">@bob_albright</a>) - wrote me an email and pointed me to some resources around process creation, as well as some demo code. Thanks Bob!</p>
+
+<p>So today we&rsquo;ll drill even further into the creation of processes, and see how they are used.</p>
+
+<p></p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we talked about how, during installation of an R enabled SQL Server instance, 20 Windows accounts are created. These accounts are created for the purpose to be able to provide isolation between users when executing external scripts.</p>
+
+<p>In addition to the Windows user accounts created during installation, folders named as the individual Windows accounts are also created in the <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> folder. These folders act as storage for files, results, objects, etc., during execution of an external script.</p>
+
+<p>When a user executes an external script in SQL Server, that account is being mapped to one of the 20 Windows account created, and it is under that Windows account the external part of the script is executed. Subsequently the files, etc., mentioned above, ends up in that folder somewhere. I write somewhere, because it is not entirely correct to say that the files, results, etc., are stored directly in the user folder. They are in fact stored in sub-folders of the user folder.</p>
+
+<p>During execution the launchpad service creates working directories (the sub-folders above) and processes, and assigns the working directories and processes the same names (<code>Guid</code> values).</p>
+
+<p><em>Figure 1</em> below shows the flow when executing a script:</p>
+
+<p><img src="/images/posts/sql-launchpad_processes_post.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Flow when Executing a Script</em></p>
+
+<p>As per the figure:</p>
+
+<ul>
+<li>We see backing folders in <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> for the group of user accounts that are mapped to SQL Server users when executing code via <code>sp_execute_external_script</code>.</li>
+<li>When executing, <code>launchpad!CLaunchContext::LaunchServTask</code> is called, and a satellite session and a session object is created.</li>
+<li>Then the working directories (the sub-folders mentioned above), and RTerm processes are created. In the figure the working directories are named <code>WorkingDir1</code> etc., whereas in reality the names are <code>Guid</code> values. The processes are RTerm processes and are assigned the same <code>Guid</code> as the working directory name. So a RTerm process always executes &ldquo;under&rdquo; one user account sub-folder.</li>
+<li>After two initial directories and processes have been created, one of the two processes are assigned to the created session.</li>
+<li>When the process has been assigned to the session, the script is executed via; <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> and <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>. This normally happens while the third process is created.</li>
+<li>Processes and working directories 4 - 6 are created. These processes are available for subsequent executions.</li>
+<li>When the execution has finished the session is torn down together with the process.
+
+<ul>
+<li>At this stage we now have 5 processes running, and 5 working folders.</li>
+</ul></li>
+</ul>
+
+<p>The above is in essence what <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> covered, and if you want all the &ldquo;nitty-gritty&rdquo;, please read that <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">post</a>.</p>
+
+<h2 id="processes">Processes</h2>
+
+<p>In the <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we figured out that, by default, the launchpad service creates 5 processes, plus the process that is used for execution, when executing an external script. In the post I assumed that the reason for creating 5 (well 6 actually), was for performance, and I also wondered where that magic number 5 came from - seeing I couldn&rsquo;t find it in any config files. That&rsquo;s where <a href="https://twitter.com/bob_albright">Bob&rsquo;s</a> email comes in, as he pointed me to a <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">blog-post</a> by the <a href="https://blogs.msdn.microsoft.com/sql_server_team/">SQL Server engineering</a> team, a.k.a TIGER (cool name!).</p>
+
+<p>So, that particular blog-post mentions that the number of processes spun up can be controlled by a setting in the <code>rlauncher.config</code> file: <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>. If not set, it defaults to 5, and in the end, when executing, the setting + 1 processes has been created as per above.</p>
+
+<p>The post also &ldquo;kind of&rdquo; confirms that my assumption about performance being a reason for spinning up multiple processes is correct, considering that a user may execute concurrent requests and it takes around 100 ms to spin up a process. In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> I mentioned how the processes that are created are added to a pool of processes. So, the  assumption on my part is that when there are multiple processes available, a new request will not execute on a newly created process, but will use a process from the pool.</p>
+
+<p>Let us see if we can confirm the points about the config setting as well as performance.</p>
+
+<h3 id="controlling-number-of-processes">Controlling Number of Processes</h3>
+
+<p>Initially we&rsquo;ll begin with looking into the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting and see if it has any effect on the number of processes being created. In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we looked at the number of processes having been spun up while the code was executing and we saw something like so:</p>
+
+<p><img src="/images/posts/sql-launchpad-rterm_processes.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>RTerm Processes</em></p>
+
+<p>So 6 processes alive while the code is executing. After the code has finished, the executing process is torn down, and we have 5 processes in the pool. That was without having changed any settings, so let&rsquo;s change the settings:</p>
+
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Open the <code>rlauncher.config</code> file with your text editor of choice (you need to run the editor as administrator).</li>
+</ol>
+
+<p>The config file looks something like what you see in <em>Figure 3</em>:</p>
+
+<p><img src="/images/posts/sql_r_services_rlauncher_config.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>RLauncher Configuration</em></p>
+
+<p>As you see, there is no <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting. Let us add the setting with a value of 15: <code>PROCESS_POOL_SQLSATELLITE_GROWTH=15</code> and see what happens.</p>
+
+<ol>
+<li>Save the config file after you have added the setting as per above.</li>
+<li>Restart the launchpad service.</li>
+</ol>
+
+<p>Well, it looks like the launchpad service started, so the setting is not causing any issues (yet). We&rsquo;ll now execute some code and try and figure out if more processes will be created. We use the same code as we did in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, where the code has a pause statement, so we can easier look at what is happening:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script 
+                    @language =N'R',
+                    @script=N'OutputDataSet&lt;-InputDataSet;
+                              Sys.sleep(120);',
+                    @input_data_1 =N'SELECT 42'
+WITH RESULT SETS (([TheAnswer] int not null));
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Execute with Sys.sleep</em></p>
+
+<p>As in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I use <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><em>Process Explorer</em></a> from <strong>Sysinternals</strong>. So, let&rsquo;s go ahead and see what happens:</p>
+
+<ol>
+<li>Start <em>Process Explorer</em>, order by Process, and scroll down to where you see process names starting with &ldquo;RT&rdquo; (on my box there are none at this stage), or where those processes should be.
+
+<ul>
+<li>If you at this stage see RTerm, restart the launchpad service again and kill those processes.</li>
+</ul></li>
+<li>Execute the code in <em>Code Snippet 1</em>.</li>
+</ol>
+
+<p>While the code is running, take a quick look in <em>Process Explorer</em>, and you should see something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processes15.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>RTerm Processes after Setting Change</em></p>
+
+<p>In <em>Figure 4</em> you can now see 16 <code>RTerm.exe</code> processes running. Once again, the reason for 16 instead of 15 is that the launchpad service spins up the number it is supposed to, plus one more. After the execution has finished, you will see 15 RTerm processes.</p>
+
+<p>So yes, the setting does have impact. If you want, you can now delete the setting from the config file and restart the launchpad service.</p>
+
+<h3 id="process-pool-impact-on-executions-from-the-same-session-concurrent-executions">Process Pool Impact on Executions from the Same Session / Concurrent Executions</h3>
+
+<p>Above I mentioned that I thought that by spinning up these processes, we&rsquo;ll get a performance benefit when executing concurrently or if we are, under the same <code>SPID</code>, doing subsequent executions. After all, as mentioned above, the processes are added to a process pool, and they should then be available for usage. A bit like connection pooling in ADO.NET or thread pooling in the .CLR.</p>
+
+<h4 id="same-session-multiple-execs">Same Session Multiple Execs</h4>
+
+<p>Let us start with looking what happens when doing multiple executions in the same SQL Server session (<code>SPID</code>).</p>
+
+<p>So the way we will do this is to look at the process id of the RTerm processes, and the process id of the executing code. The process id&rsquo;s of the RTerm process we get from <em>Process Explorer</em>, and in <em>Figure 5</em> below you see the process id&rsquo;s in the outlined column furthest to the right:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>RTerm ProcessId&rsquo;s</em></p>
+
+<p><em>Figure 5</em> tells us how we can see the id&rsquo;s of the RTerm processes, but how can we see the process id under which the code executes? It&rsquo;s not like we have <code>@@SPID</code> in the external engine. Fortunately R has a function to get the process id of the process in which the code is executing: <code>Sys.getpid()</code>. So if we change the code to something like in <em>Code Snippet 2</em>, we should be able to see the process id, and then be able to compare what we see from the RTerm processes:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script 
+                    @language =N'R',
+                    @script=N'
+                    pid &lt;- Sys.getpid()
+                    data&lt;-InputDataSet
+                    data$pid &lt;- pid
+                    OutputDataSet&lt;-data;
+                    Sys.sleep(120);',
+                    @input_data_1 =N'SELECT 42'
+WITH RESULT SETS (([TheAnswer] int not null, ProcessID int));
+</code></pre>
+
+<p><strong>Code  Snippet 2:</strong> <em>Get the Process Id</em></p>
+
+<p>Notice how we create and add a new column, <code>pid</code>, to the R data-frame, <code>data</code>, by: <code>data$pid</code> (the names <code>pid</code> and <code>data</code>could be anything). Now, the way we will do this is to, in the same session:</p>
+
+<ul>
+<li>Execute the code</li>
+<li>Capture the process id&rsquo;s of the created RTerm processes, before the code has finished executing.</li>
+<li>Look at the result from executing the code in <em>Code Snippet 2</em> and compare the process id which is part of the result with the process id&rsquo;s we captured from the RTerm processes.</li>
+</ul>
+
+<p>When we have done the steps above we repeat it a second time. If my assumption is correct that during a subsequent execution, a process will be used from the pool that was created at first execution; then the process id that comes back from the result of the second execution, should be found in the process id&rsquo;s that were captured during the first execution.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> It is important that the second run of the code is done immediately after the first. If not, some of the pooled processes may have been torn down.</p>
+</blockquote>
+
+<p>Let&rsquo;s do this:</p>
+
+<ul>
+<li>If you haven&rsquo;t deleted the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting from the config file, go ahead and do that.</li>
+<li>Restart the launchpad service.</li>
+<li>Navigate to the <code>Launchpad.exe</code> process in <em>Process Explorer</em>.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+<li>While the code is executing capture the process id&rsquo;s from the <code>RTerm.exe processes</code>.</li>
+</ul>
+
+<p>The capture of the first execution is shown in <em>Figure 6</em> below:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids_executing.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Process Id&rsquo;s from First Run</em></p>
+
+<p>The result from the code came back with a process id of 16956. If you were to look at the processes directly after the result came back, you would see 5 processes, as process 16956 (the executing process) has been torn down. Now execute the code a second time. The captured processes are now like so:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids_executing2.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Process Id&rsquo;s from Second Run</em></p>
+
+<p>In <em>Figure 7</em> we indeed see that process 16956 is not there any more. When the result comes back the process id is 19028 as in <em>Figure 8</em>:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids_result2.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Result from 2:nd Run</em></p>
+
+<p>So, looking back at <em>Figure 6</em>, we see how process id 19028 is part of the processes initially created, so it seems that the assumptions about how processes are used are correct.</p>
+
+<p>But wait a second when we look at <em>Figure 8</em>, we see a new process id - 19192, and if we were to look at the processes right after the code has finished running, it would look something like so:</p>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids_after_executing2.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>After 2:nd Run</em></p>
+
+<p>In <em>Figure 9</em> we see that the process that we executed under in the second run is gone as expected, but we have a new process running - 19192. So what happens is that, in parallel with R executing the code, the launchpad service is spinning up a new process.</p>
+
+<p>The theory that for executions by the same user and <code>SPID</code> - the launchpad service uses processes from the pool seems to be correct.</p>
+
+<h4 id="concurrent-executions-different-sessions">Concurrent Executions Different Sessions</h4>
+
+<p>To see what happens for concurrent executions, by the same user but from different <code>SPID</code>&rsquo;s, we&rsquo;ll do it in almost the same way as above. Start with restarting the launchpad service, so we don&rsquo;t have any &ldquo;hangers on-ers&rdquo; from previous runs. We copy the code in <em>Code Snippet 2</em> to a new query window in <em>SQL Server Management Studio</em>, (this ensures a new <code>SPID</code>), and then we:</p>
+
+<ol>
+<li>Execute the code in query window 1.</li>
+<li>Capture the RTerm process id&rsquo;s.</li>
+<li>Execute the code in query window 2, while the code in query window 1 still executes.</li>
+<li>Capture the RTerm process id&rsquo;s.</li>
+</ol>
+
+<p>After both queries have finished executing, you will see that executing concurrently from the same user but different sessions will behave the same was as executing multiple times from the same session:</p>
+
+<ol>
+<li>A process will be picked up from the pool and the code will execute under that session.</li>
+<li>The launchpad service creates a new process, and adds it to the pool.</li>
+<li>When the code has finished executing, the process which it executed under is being torn down,</li>
+</ol>
+
+<p>So the theory holds true here as well.</p>
+
+<h4 id="concurrent-executions-different-sessions-different-users">Concurrent Executions Different Sessions Different Users</h4>
+
+<p>So what happens then if there are multiple users executing code concurrently? In this scenario nothing is different from when a single user executes for the first time:</p>
+
+<ul>
+<li>The second user will be mapped to another user account,</li>
+<li>The launchpad service creates it&rsquo;s normal 5 processes, plus one.</li>
+<li>The code is executed.</li>
+</ul>
+
+<p><img src="/images/posts/sql_r_services_rterm_processids_mult_users.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Two Users Executing Concurrently</em></p>
+
+<p><em>Figure 10</em> shows what it looks like in <em>Process Explorer</em> when two different users executes concurrently. I either of these users would then execute another statement, it would be exactly as above where we looked at the single user scenario.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When looking in <em>Process Explorer</em> at the RTerm processes you can actually see what process is active. The active process has a value in the <em>CPU</em> column.</p>
+</blockquote>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this blog-post I set out to prove/disprove two things:</p>
+
+<ol>
+<li>That the setting <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> can be used to control the number of processes being created by the launchpad service.</li>
+<li>Processes that are added to the pool is being picked up and used for subsequent executions for a user.</li>
+</ol>
+
+<p>What we saw was:</p>
+
+<ul>
+<li>When <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> is absent from the <code>rlauncher.config</code> file, the launchpad service creates 5 processes plus 1 by default, and after execution the executing process is torn down. The others are added to the pool.</li>
+<li>When a value has been set for <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>, the launchpad service creates that number of processes plus one, and after execution the executing process is torn down. The others are added to the pool.</li>
+<li>When a user executes subsequent requests, or concurrent requests from different sessions, processes are picked up and used from the pool.
+
+<ul>
+<li>The launchpad service simultaneously creates a new process.</li>
+</ul></li>
+</ul>
+
+<p>So, thanks <a href="https://twitter.com/bob_albright">Bob</a> for sending me the mail with the link the the <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">post</a>. That made me look deeper into how this &ldquo;stuff&rdquo; works! In that email Bob also sent some code, which will be used as a topic for another internals blog-post. That post will be about parallelism and the RTerm processes.</p>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/04/20/sql-server-2017---python-executing-inside-sql-server/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">SQL Server 2017 - Python Executing Inside SQL Server</span>
+    </a>
+    
+    
+    <a href="/2017/04/23/interesting-stuff---week-16/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 16</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Microsoft SQL Server R Services - Internals III</a>
+      
+      <time class="pull-right hidden-tablet">Apr 13 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a>
+      
+      <time class="pull-right hidden-tablet">Apr 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>
+      
+      <time class="pull-right hidden-tablet">Mar 18 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/04/microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a>
+      
+      <time class="pull-right hidden-tablet">Mar 04 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/20/sql-server-2017---python-executing-inside-sql-server/">SQL Server 2017 - Python Executing Inside SQL Server</a>
+      
+      <time class="pull-right hidden-tablet">Apr 20 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

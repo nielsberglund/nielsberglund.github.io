@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Interesting Stuff - Week 12 • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Interesting Stuff - Week 12"/>
+<meta name="twitter:description" content="Resource usage in SQL Server, EventHubs and Spark, Azure Databricks, and a lot of other interesting things!"/>
+
+<meta property="og:title" content="Interesting Stuff - Week 12" />
+<meta property="og:description" content="Resource usage in SQL Server, EventHubs and Spark, Azure Databricks, and a lot of other interesting things!" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/03/25/interesting-stuff---week-12/" />
+
+
+
+<meta property="article:published_time" content="2018-03-25T11:12:17&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-03-25T11:12:17&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Interesting Stuff - Week 12</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Mar 25, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/roundup">ROUNDUP</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/data-science">data science</a>
+           
+      
+          <a class="post__tag" href="/tags/distributed-computing">distributed computing</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server">sql server</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-2017">sql server 2017</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/microsoft-machine-learning-server">microsoft machine learning server</a>
+           
+      
+          <a class="post__tag" href="/tags/kafka">kafka</a>
+           
+      
+          <a class="post__tag" href="/tags/spark">spark</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-databricks">azure databricks</a>
+           
+      
+          <a class="post__tag" href="/tags/eventhubs">eventhubs</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 3 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>Throughout the week, I read a lot of blog-posts, articles, and so forth, that has to do with things that interest me:</p>
+
+<ul>
+<li>data science</li>
+<li>data in general</li>
+<li>distributed computing</li>
+<li>SQL Server</li>
+<li>transactions (both db as well as non db)</li>
+<li>and other &ldquo;stuff&rdquo;</li>
+</ul>
+
+<p>This blog-post is the &ldquo;roundup&rdquo; of the things that have been most interesting to me, for the week just ending.</p>
+
+<p></p>
+
+<h2 id="sql-server">SQL Server</h2>
+
+<ul>
+<li><a href="https://blogs.msdn.microsoft.com/bobsql/2018/03/18/sql-server-2017-improved-resource-usage-on-smaller-machines/">SQL Server 2017 Improved Resource Usage On Smaller Machines</a>. Bob Dorr talks about improvements he did in SQL Server 2017 CU4 to improve resource usage on smaller machines. Some interesting tidbits about SQLCLR and garbage collection!</li>
+<li><a href="https://blogs.technet.microsoft.com/dataplatforminsider/2018/03/20/ssms-17-6-is-now-available-managed-instance-and-many-bug-fixes/">SSMS 17.6 is now available: Managed Instance and many bug fixes</a>. A blog post announcing the release of <strong>SQL Server Management Studio</strong> (SSMS) 17.6. Go and grab it before Microsoft runs out of stock!</li>
+</ul>
+
+<h2 id="net">.NET</h2>
+
+<ul>
+<li><a href="http://mattwarren.org/2018/03/23/Exploring-the-internals-of-the-.NET-Runtime/">Exploring the internals of the .NET Runtime</a>. An excellent blog post by <a href="https://twitter.com/matthewwarren">Matthew</a> how he drills down into and figures out how the .NET runtime works. A bonus to this post is the link to the <a href="https://github.com/dotnet/coreclr/tree/master/Documentation/botr"><strong>Book of the Runtime</strong></a>.</li>
+</ul>
+
+<h2 id="distributed-computing">Distributed Computing</h2>
+
+<ul>
+<li><a href="http://muratbuffalo.blogspot.co.za/2018/03/anatomical-similarities-and-differences.html">Anatomical similarities and differences between Paxos and blockchain consensus protocols</a>. An interesting blog post by <a href="https://twitter.com/muratdemirbas">Murat</a> where he compares the <a href="https://en.wikipedia.org/wiki/Paxos_(computer_science)"><strong>Paxos</strong></a> protocol with blockchain consensus protocols.</li>
+</ul>
+
+<h2 id="streaming">Streaming</h2>
+
+<ul>
+<li><a href="http://www.benstopford.com/2017/05/12/devoxx-london-2017-rethinking-services-stateful-streams/">Devoxx 2017 – Rethinking Services With Stateful Streams</a>. A presentation from <a href="https://en.wikipedia.org/wiki/Devoxx">Devoxx</a> 2017, where <a href="https://twitter.com/benstopford">Ben Stopford</a> talks about microservices and streaming using Kafka. This presentation is a must watch if you do microservices!</li>
+<li><a href="https://azure.microsoft.com/en-us/blog/azure-event-hubs-integration-with-apache-spark-now-generally-available/">Azure Event Hubs integration with Apache Spark now generally available</a>. This post is an announcement from the Microsoft Azure EventHub team that integration between EventHubs and Apache Spark in Azure is now available across regions. The Spark integration is cool, but I would like to see integration with Apache Flink as well.</li>
+<li><a href="https://www.confluent.io/blog/ksql-in-action-enriching-csv-events-with-data-from-rdbms-into-AWS/">KSQL in Action: Enriching CSV Events with Data from RDBMS into AWS</a>. In last weeks <a href="/2018/03/18/interesting-stuff---week-11/">roundup</a> I linked to a <a href="https://www.confluent.io/no-more-silos-how-to-integrate-your-databases-with-apache-kafka-and-cdc">post</a> by <a href="https://twitter.com/rmoff">Robin Moffat</a> where he discussed Apache Kafka integration with relational databases. In this link, <a href="https://twitter.com/rmoff">Robin</a> takes the database integration a step further and shows how we can enrich streaming data with database data in real-time!</li>
+</ul>
+
+<h2 id="data-science">Data Science</h2>
+
+<ul>
+<li><a href="https://azure.microsoft.com/en-us/blog/azure-databricks-industry-leading-analytics-platform-powered-by-apache-spark/">Azure Databricks, industry-leading analytics platform powered by Apache Spark</a>. Another Azure announcement: this is about how <strong>Azure Databricks</strong> - an Apache Spark based analytics platform optimised for Azure - is now available across regions in Azure.</li>
+<li><a href="http://blog.revolutionanalytics.com/2018/03/r-and-docker.html">R and Docker</a>. In the <a href="/2018/03/18/interesting-stuff---week-11/">roundup</a> from last week I linked to a <a href="https://blogs.technet.microsoft.com/machinelearning/2018/03/15/demystifying-docker-for-data-scientists-a-docker-tutorial-for-your-deep-learning-projects/">post</a> about Data Science and Docker, and in this post from <a href="https://twitter.com/revodavid">David</a>, he talks about R and Docker images.</li>
+</ul>
+
+<h2 id="sql-server-r-services">SQL Server R Services</h2>
+
+<p>Over one year and 24 posts later I have finally finished my <strong>Microsoft SQL Server R Services</strong> series, and the last post was:</p>
+
+<ul>
+<li><a href="/2018/03/21/microsoft-sql-server-r-services---sp_execute_external_script---iii/">Microsoft SQL Server R Services: sp_execute_external_script - III</a>. In this post I discussed parallelism when executing <code>sp_execute_external_script</code>. If I may say so myself, I quite liked it!</li>
+</ul>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>That&rsquo;s all for this week. I hope you enjoy what I did put together. If you have ideas for what to cover, please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2018/03/21/microsoft-sql-server-r-services---sp_execute_external_script---iii/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Microsoft SQL Server R Services - sp_execute_external_script - III</span>
+    </a>
+    
+    
+    <a href="/2018/03/31/interesting-stuff---week-13/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 13</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2018/03/18/interesting-stuff---week-11/">Interesting Stuff - Week 11</a>
+      
+      <time class="pull-right hidden-tablet">Mar 18 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/03/11/interesting-stuff---week-10/">Interesting Stuff - Week 10</a>
+      
+      <time class="pull-right hidden-tablet">Mar 11 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/03/04/interesting-stuff---week-9/">Interesting Stuff - Week 9</a>
+      
+      <time class="pull-right hidden-tablet">Mar 04 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/02/25/interesting-stuff---week-8/">Interesting Stuff - Week 8</a>
+      
+      <time class="pull-right hidden-tablet">Feb 25 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/02/18/interesting-stuff---week-7/">Interesting Stuff - Week 7</a>
+      
+      <time class="pull-right hidden-tablet">Feb 18 &#39;18</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

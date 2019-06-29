@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>SQL Server ML Services - Multiple Input Data Sets • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="SQL Server ML Services - Multiple Input Data Sets"/>
+<meta name="twitter:description" content="We look at how to push in multiple datasets to external scripts!"/>
+
+<meta property="og:title" content="SQL Server ML Services - Multiple Input Data Sets" />
+<meta property="og:description" content="We look at how to push in multiple datasets to external scripts!" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2018/12/24/sql-server-ml-services---multiple-input-data-sets/" />
+
+
+
+<meta property="article:published_time" content="2018-12-24T06:51:12&#43;02:00"/>
+
+<meta property="article:modified_time" content="2018-12-24T06:51:12&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>SQL Server ML Services - Multiple Input Data Sets</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Dec 24, 2018
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/python">python</a>
+           
+      
+          <a class="post__tag" href="/tags/data-science">data science</a>
+           
+      
+          <a class="post__tag" href="/tags/machine-learning">machine learning</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 18 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This post came about due to a question on the <a href="https://social.msdn.microsoft.com/Forums/en-US/home?forum=MicrosoftR">Microsoft Machine Learning Server</a> forum. The <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> was if there are any plans by Microsoft to support more the one input dataset (<code>@input_data_1</code>) in <code>sp_execute_external_script</code>. My immediate reaction was that if you want more than one dataset, you can always connect from the script back into the database, and retrieve data.</p>
+
+<p>However, the poster was well aware of that, but due to certain reasons he did not want to do it that way - he wanted to push in the data, fair enough. When I read this, I seemed to remember something from a while ago, where, instead of retrieving data from inside the script, they pushed in the data, serialized it as an output parameter and then used the binary representation as in input parameter (yeah - this sounds confusing, but bear with me). I did some research (read Googling), and found <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">this</a> StackOverflow question, and answer. So for future questions, and for me to remember, I decided to write a blog post about it.</p>
+
+<p></p>
+
+<blockquote>
+<p><strong>DISCLAIMER:</strong> <em>I want to make it perfectly clear that the method outlined in this post is NOT my idea, but - as mentioned above - comes from the StackOverflow <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">answer</a> by <a href="https://twitter.com/@brandonmoretz">Brandon Moretz</a>.</em></p>
+</blockquote>
+
+<h2 id="recap">Recap</h2>
+
+<p>We start with a recap about how we pass/retrieve data for external scripts. In <a href="/2018/03/07/microsoft-sql-server-r-services---sp_execute_external_script---i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> we discussed, among other things, the <code>sp_execute_external_script</code>&rsquo;s <code>@input_data_1</code> parameter and how it specifies the input data used by the external script in the form of a Transact-SQL query:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+            @language = N'R',
+            @script = N'
+                iris_dataset &lt;- InputDataSet
+                setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+                meanSepWidth &lt;- mean(setosa$SepalWidth)
+                cat(paste(&quot;Seposa sepal mean width: &quot;, meanSepWidth))',
+            @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_full'
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Using @input_data_1 with straight SELECT</em></p>
+
+<p>In <em>Code Snippet 1</em> we see how the <code>@input_data_1</code> parameter contains a <code>SELECT</code> statement against a table, and the statement executes during the <code>sp_execute_external_script</code> execution. The dataset generated by the query is referred to in the script as <code>InputDataSet</code>. The query has to be based on a <code>SELECT</code>, but it does not have to be against a table, it can be against a view or a user-defined function as well.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The code in <em>Code Snippet 1</em> above, and <em>Code Snippet 2</em> below, uses tables and data from the <a href="/2018/03/07/microsoft-sql-server-r-services---sp_execute_external_script---i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> post.</p>
+</blockquote>
+
+<p>That is all well and good, but what if you want to push in multiple datasets? Seeing that the parameter we use to define the data ends with a <code>1</code>, it would be logical to think there are <code>@input_data_2</code>, <code>3</code>, and so on - but no, that is not the case. To process more than one dataset in the external script, we have to pull the dataset(s) from inside the script. To do this, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package, in Python <code>pyodbc</code>) or the highly optimized Microsoft <a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler"><strong><code>RevoScaleR</code></strong></a> package (in Python <strong><code>revoscalepy</code></strong>). In the following example I use <code>RevoScaleR</code>:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+        @language = N'R',
+        @script = N'
+          # set up connection string       
+          sqlConnString &lt;- &quot;Driver=SQL Server;server=win10-dev;
+                            database=IrisTestDb;uid=&lt;some_uid&gt;;pwd=&lt;some_pwd&gt;&quot;
+          
+          # define the data
+          mydata &lt;- RxSqlServerData(table = NULL, 
+                                    sqlQuery = &quot;SELECT * 
+                                    FROM dbo.tb_irisdata_uneven&quot;, 
+                                    connectionString = sqlConnString)
+
+          # open the dataset
+          rxOpen(mydata)
+
+          # read the data
+          iris_uneven &lt;- rxReadNext(mydata)
+          versicolor &lt;- iris_uneven[iris_uneven$Species == &quot;versicolor&quot;,]
+          meanSepWidthVersi &lt;- mean(versicolor$SepalWidth)
+          
+          # get the data from the input data set
+          iris_dataset &lt;- InputDataSet
+          setosa &lt;- iris_dataset[iris_dataset$Species == &quot;setosa&quot;,]
+          meanSepWidth &lt;- mean(setosa$SepalWidth)
+
+          # output the data
+          cat(paste(&quot;Seposa sepal mean width:&quot;, meanSepWidth, &quot;.&quot;, 
+                     &quot;Versicolor sepal mean width:&quot;, meanSepWidthVersi))',
+        @input_data_1 = N'SELECT * FROM dbo.tb_irisdata_even';
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Multiple Data Sets using RevoScaleR</em></p>
+
+<p>The code in <em>Code Snippet 2</em> shows how we read in data within the script by the use of <code>RevoScaleR</code> functionality together with the data from the <code>@input_data_1</code> parameter, and how we subsequently calculate <code>mean</code> on the two datasets.</p>
+
+<p>So above we see how we can use multiple datasets, but what if we for some or another do not want to / cannot connect from the script to the database, as per the <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> above? Well, that is what we cover in this post.</p>
+
+<h2 id="multiple-datasets">Multiple Datasets</h2>
+
+<p>What we want to do is to push data from three completely different tables into the external script, and then in the script do something. We use <code>@input_data_1</code> to push one of the datasets, and we look at two different ways to push in the data from the other two tables. The tables we read data from are three system tables, this way we do not need to create separate tables and load data etc.:</p>
+
+<ul>
+<li><code>sys.tables</code>.</li>
+<li><code>sys.databases</code>.</li>
+<li><code>sys.columns</code>.</li>
+</ul>
+
+<p>What we want to do in the script is to use R/Python functionality to print out the number of rows that we push in from the separate tables, so we start with some code like this:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+@language = N'R'
+, @script = N'
+ df &lt;- InputDataSet
+ nmbrRows &lt;- nrow(df)
+ cat(paste(&quot;Number rows @input_data_1: &quot;, nmbrRows))'
+, @input_data_1 = N'SELECT * FROM sys.columns' 
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Pushing Data via @input_data_1 in R</em></p>
+
+<p>There is nothing strange in <em>Code Snippet 3</em>, we see how we do the <code>SELECT</code> in <code>@input_data_1</code>, and how we in the script:</p>
+
+<ul>
+<li>Assign the <code>InputDataSet</code> to a variable: <code>df</code>.</li>
+<li>Use the R function <code>nrow</code> to get the number of rows in the data frame (<code>df</code>).</li>
+<li>Print it out to the console.</li>
+</ul>
+
+<p>When we execute the code in <em>Code Snippet 3</em>, the result is like so:</p>
+
+<p><img src="/images/posts/sql_ml_multidata_input1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Input Data 1 Result</em></p>
+
+<p>From <em>Figure 1</em> we see that the dataset contains 1070 rows.</p>
+
+<p>If we want to do this in Python the code looks like this:</p>
+
+<pre><code class="language-sql">EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+df = InputDataSet
+nmbrRows = len(df.index)
+print(&quot;Number rows @input_data_1: &quot;, nmbrRows)'
+, @input_data_1 = N'SELECT * FROM sys.columns' 
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Pushing Data via @input_data_1 in Python</em></p>
+
+<p>Nothing strange in <em>Code Snippet 4</em> either. The one noteworthy thing is the use of <code>len(df.index)</code>, instead of <code>count()</code> or <code>shape</code>. I use <code>len(df.index)</code> as &ldquo;people in the know&rdquo; says it performs better. When we execute the code in <em>Code Snippet 4</em>, we get the same result as we see in <em>Figure 1</em>.</p>
+
+<p>Ok, so the code in the two code snippets above, (3 and 4), is the base code for what we want to do. Now we need to figure out how to push two more datasets into the scripts, and there are two ways to do that:</p>
+
+<ul>
+<li>JSON.</li>
+<li>Binary serialization.</li>
+</ul>
+
+<p>Before we look at those two ways, let us discuss briefly a requirement for us to be able to do what we want, and that is the use of the <code>@params</code> parameter in <code>sp_execute_external_script</code>.</p>
+
+<h4 id="params">@params</h4>
+
+<p>The <code>@params</code> parameter is an optional parameter, and when defined it contains a comma separated list of the definitions of all parameters embedded in the values for the <code>@input_data_1</code> and the <code>@script</code> parameters. The string must be either a Unicode constant or a Unicode variable. Each parameter definition consists of a parameter name and a data type. The parameters defined in the <code>@params</code> list need to be added as named parameters to the stored procedure, and in the case of parameters for the external script; the script references the parameters by name but without the <code>@</code> sign.</p>
+
+<p>So, when we push data into the script, either by using JSON or binary serialization we define a parameter for the data which we then reference in the script.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you want to get the inner workings of the <code>@params</code> parameter, have a look at my blog post: <a href="/2018/03/11/microsoft-sql-server-r-services---sp_execute_external_script---ii/">Microsoft SQL Server R Services - sp_execute_external_script - II</a>.</p>
+</blockquote>
+
+<p>Enough of this preamble, let us get going.</p>
+
+<h4 id="json">JSON</h4>
+
+<p>With the release of SQL Server 2016, Microsoft added support for JSON text processing. Microsoft added JSON functions to SQL Server, which enable you to analyze and query JSON data, transform JSON to relational format, and export SQL query results as JSON text. A typical query producing JSON text can look like this:</p>
+
+<pre><code class="language-sql">SELECT name, object_id, schema_id 
+FROM sys.tables
+FOR JSON AUTO; 
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Retrieve JSON Data</em></p>
+
+<p>We see how I use the <code>FOR JSON AUTO</code> syntax in <em>Code Snippet 5</em> to indicate to SQL Server I want JSON formatted data as the resultset. You do not necessarily need to use <code>AUTO</code>, as there are other options. To see more of this look here: <a href="https://docs.microsoft.com/en-us/sql/relational-databases/json/format-query-results-as-json-with-for-json-sql-server?view=sql-server-2016">Format Query Results as JSON with FOR JSON (SQL Server)</a>.</p>
+
+<p>I limit the columns I select to get a more readable output. When I execute and click on the result I see:</p>
+
+<p><img src="/images/posts/sql_ml_multidata_simple_json.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>JSON Result</em></p>
+
+<p>So in <em>Figure 2</em> we see how my <code>SELECT</code> query results in JSON data.</p>
+
+<p>To solve our problem how to push in multiple datasets, we can now use the JSON formatted data together with the <code>@params</code> parameter to define two parameters containing JSON. For example, <code>@sysTables</code> and <code>@sysDatabases</code>:</p>
+
+<pre><code class="language-sql">DECLARE @sysTabs nvarchar(max) = (SELECT * FROM sys.tables FOR JSON AUTO);
+DECLARE @sysDbs nvarchar(max) = (SELECT * FROM sys.databases FOR JSON AUTO);
+
+EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+df = InputDataSet
+nmbrRows = len(df.index)
+print(&quot;Number rows @input_data_1: &quot;, nmbrRows)'
+, @input_data_1 = N'SELECT * FROM sys.columns'
+, @params = N'@sysTables nvarchar(max), @sysDatabases nvarchar(max)'
+, @sysTables = @sysTabs
+, @sysDatabases = @sysDbs;
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Python Push JSON</em></p>
+
+<p>In <em>Code Snippet 6</em> we see how we:</p>
+
+<ul>
+<li>Declare two variables: <code>@sysTabs</code> and <code>@sysDbs</code>, both of type <code>nvarchar(max)</code>, and how we load data into them.</li>
+<li>Declare two parameters in the <code>@params</code> parameter list: <code>@sysTables</code> and <code>@sysDatabases</code>.</li>
+<li>Define the two parameters and assign <code>@sysTabs</code> and <code>@sysDbs</code> to them.</li>
+</ul>
+
+<p>If we were to execute, all would work - but we have not done anything with the parameters in the script. What we need to do is to parse the incoming JSON text into a data frame somehow. To do this in Python, we use the <code>pandas</code> package as it has various functions for parsing JSON.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The <code>pandas</code> package makes it easy to work with relational data. To find out more about it, go to <a href="https://pandas.pydata.org/pandas-docs/stable/">here</a>.</p>
+</blockquote>
+
+<p>Anyway, the function from the <code>pandas</code> package we use is <code>read_json</code>:</p>
+
+<pre><code class="language-sql">DECLARE @sysTabs nvarchar(max) = (SELECT * FROM sys.tables FOR JSON AUTO);
+DECLARE @sysDbs nvarchar(max) = (SELECT * FROM sys.databases FOR JSON AUTO);
+EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+
+import pandas as pd
+
+df= InputDataSet
+sysTab = pd.read_json(sysTables)
+sysDb = pd.read_json(sysDatabases)
+
+print(&quot;Number rows @input_data_1: &quot;, len(df.index))
+print(&quot;Number rows @sysTables: &quot;, len(sysTab.index))
+print(&quot;Number rows @sysDatabases: &quot;, len(sysDb.index))'
+, @input_data_1 = N'SELECT * FROM sys.columns'
+, @params = N'@sysTables nvarchar(max), @sysDatabases nvarchar(max)'
+, @sysTables = @sysTabs
+, @sysDatabases = @sysDbs;
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Python Parse JSON</em></p>
+
+<p>The code in <em>Code Snippet 7</em> shows how we:</p>
+
+<ul>
+<li>Import the <code>pandas</code> package and give it an alias: <code>pd</code>.</li>
+<li>Assign the <code>InputDataSet</code> parameter to the <code>df</code> variable as before.</li>
+</ul>
+
+<p>We then do the &ldquo;heavy lifting&rdquo; (or rather <code>pandas</code> does), where we transform the JSON text to data frames, by the use of <code>read_json</code>. From the three data frames, we finally print out the number of rows per table. The result when we execute looks like so:</p>
+
+<p><img src="/images/posts/sql_ml_multidata_python_parse_json.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Result Python read_json</em></p>
+
+<p>It all works! Oh, it just so happens that I am on an almost new SQL Server instance, and that is why the number of rows in <code>sys.tables</code> and <code>sys.databases</code> is the same.</p>
+
+<p>If R is your &ldquo;poison of choice&rdquo;, then we can, for example, use the <code>jsonlite</code> package. You can read more about it <a href="https://cran.r-project.org/web/packages/jsonlite/jsonlite.pdf">here</a>. What we use from <code>jsonlite</code> is the <code>fromJSON</code> function:</p>
+
+<pre><code class="language-sql">DECLARE @sysTabs nvarchar(max) = (SELECT * FROM sys.tables FOR JSON AUTO);
+DECLARE @sysDbs nvarchar(max) = (SELECT * FROM sys.databases FOR JSON AUTO);
+EXEC sp_execute_external_script
+  @language = N'R'
+, @script = N'
+    require(jsonlite)
+    library(jsonlite)
+
+    df &lt;- InputDataSet
+    sysTab &lt;- as.data.frame(fromJSON(sysTables))
+    sysDb &lt;- as.data.frame(fromJSON(sysDatabases))
+
+    cat(paste(&quot;Number rows @input_data_1: &quot;, nrow(df)))
+    cat(paste(&quot;\nNumber rows @sysTables: &quot;, nrow(sysTab)))
+    cat(paste(&quot;\nNumber rows @sysDatabases: &quot;, nrow(sysDb)))'
+, @input_data_1 = N'SELECT * FROM sys.columns'
+, @params = N'@sysTables nvarchar(max), @sysDatabases nvarchar(max)'
+, @sysTables = @sysTabs
+, @sysDatabases = @sysDbs;
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Parse JSON in R</em></p>
+
+<p>The code in <em>Code Snippet 8</em>, looks very similar to what is in <em>Code Snippet 7</em>, and in <em>Code Snippet 8</em> we:</p>
+
+<ul>
+<li>Load the <code>jsonlite</code> package.</li>
+<li>Assign the <code>InputDataSet</code> parameter to the <code>df</code> variable as before.</li>
+<li>Parse the JSON  into data frames using <code>fromJSON</code>.</li>
+</ul>
+
+<p>We have now seen how we, both in Python as well as R, can use JSON to push multiple datasets into external scripts, and - as I mentioned above - JSON is one way of doing it. Now onto the next.</p>
+
+<h4 id="binary-serialization">Binary Serialization</h4>
+
+<p>When we use the binary serialization method of pushing multiple datasets, we use R and Python&rsquo;s built-in functionality for serialization and deserialization. In Python, it is with the help of the <code>pickle</code> module, and in R the <code>serialize</code> and <code>unserialize</code> methods.</p>
+
+<p>Initially, binary serialization looks somewhat more complicated than JSON (and it might be), especially since the deserialization happens against a binary parameter serialized with R or Python. In other words, we need to make a roundtrip to R/Python to get the binary representation of the data, so having a helper procedure to do this sounds like a good idea to me:</p>
+
+<pre><code class="language-sql">CREATE PROCEDURE dbo.pr_SerializeHelperR 
+                       @query nvarchar(max)
+                     , @serializedResult varbinary(max) OUT
+AS
+
+EXEC sp_execute_external_script
+  @language = N'R'
+, @script = N'
+  serRes &lt;- serialize(InputDataSet, NULL)'
+, @input_data_1 = @query
+, @params = N'@serRes varbinary(max) OUT'  
+, @serRes = @serializedResult OUT;
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>R Serialization Helper</em></p>
+
+<p>In <em>Code Snippet 9</em> we see an R serialization helper procedure:</p>
+
+<ul>
+<li>It takes a query as an input parameter (<code>query</code>).</li>
+<li>It has an output parameter which is the serialized result set.</li>
+</ul>
+
+<p>The body of the procedure is a call to <code>sp_execute_external_script</code>, where the <code>@query</code> parameter acts as <code>@input_data_1</code>, and we have a defined output parameter <code>@serRes</code>. In the script, we call the R <code>serialize</code> function on the pushed in dataset, and assigns it to the output parameter. The flow:</p>
+
+<ul>
+<li>We pass in a query statement.</li>
+<li>During the call to <code>sp_execute_external_script</code> the query is run, and the resulting data set passed into the external script.</li>
+<li>The external script serializes the dataset and passes it back out as an output parameter.</li>
+</ul>
+
+<p>The equivalent Python serialization helper looks like so:</p>
+
+<pre><code class="language-sql">CREATE PROCEDURE dbo.pr_SerializeHelperPy  
+                          @query nvarchar(max)
+                        , @serializedResult varbinary(max) OUT
+AS
+
+EXEC sp_execute_external_script
+  @language = N'Python'
+, @script = N'
+import pickle as p 
+serRes = p.dumps(InputDataSet)'
+, @input_data_1 = @query
+, @params = N'@serRes varbinary(max) OUT'  
+, @serRes = @serializedResult OUT;
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Python Serialization Helper</em></p>
+
+<p>We see in <em>Code Snippet 10</em> how we bring in the <code>pickle</code> module, and then serialize the dataset with the <code>dumps</code> function.</p>
+
+<p>The equivalent of <em>Code Snippet 7</em> using the Python serialization helper looks like so:</p>
+
+<pre><code class="language-sql">-- declare the variables for queries as well 
+-- as serialized binary representation
+DECLARE @sysTabs nvarchar(max) = 
+            'SELECT name, object_id, schema_id 
+             FROM sys.tables';
+DECLARE @sysDbs nvarchar(max) = 
+            'SELECT name, database_id, source_database_id 
+             FROM sys.databases';
+DECLARE @sysTabsBin varbinary(max);
+DECLARE @sysDbsBin varbinary(max);
+
+-- get the serialized result of @sysTabs
+EXEC dbo.pr_SerializeHelperPy   @query = @sysTabs
+                              , @serializedResult = @sysTabsBin OUT
+
+-- get the serialized result of @sysDbs
+EXEC dbo.pr_SerializeHelperPy   @query = @sysDbs
+                              , @serializedResult = @sysDbsBin OUT
+
+-- do the &quot;real&quot; stuff
+EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+import pandas as pd
+import pickle as p 
+
+df = InputDataSet
+# this deserializes the sys.tables result
+sysTab = p.loads(sysTables)
+# this deserializes the sys.databases result
+sysDb = p.loads(sysDatabases)
+print(&quot;Number rows @input_data_1: &quot;, len(df.index))
+print(&quot;Number rows @sysTables: &quot;, len(sysTab.index))
+print(&quot;Number rows @sysDatabases: &quot;, len(sysDb.index))'
+, @input_data_1 = N'SELECT * FROM sys.columns'
+, @params = N'@sysTables varbinary(max), @sysDatabases varbinary(max)'
+, @sysTables = @sysTabsBin
+, @sysDatabases = @sysDbsBin;
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Implementation of Python Serialization</em></p>
+
+<p>In <em>Code Snippet 11</em> we see how we:</p>
+
+<ul>
+<li>Declare the variables for the queries as well as the serialized results of the queries.</li>
+<li>Execute the helper procedure for the two queries we want the results serialized for.</li>
+<li>Have defined two <code>varbinary(max)</code> parameters in the <code>@params</code> parameter of <code>sp_execute_external_script</code>.</li>
+<li>Assign the serialized values to those two parameters.</li>
+<li>Execute <code>sp_execute_external_script</code> and send in the two serialized results as well as <code>@input_data_1</code>.</li>
+<li>In <code>sp_execute_external_script</code> we deserialize the results using <code>pickle.loads</code>, or rather <code>p.loads</code> where <code>p</code> is the alias for <code>pickle</code>.</li>
+</ul>
+
+<p>The code for an R implementation looks almost the same except that we call the R <code>unserialize</code> function instead of <code>pickle.loads</code>, as per the code below:</p>
+
+<pre><code class="language-sql">-- declare the variables for the querie as well 
+-- as serialized binary representation
+DECLARE @sysTabs nvarchar(max) = 'SELECT name, object_id, schema_id FROM sys.tables';
+DECLARE @sysTabsBin varbinary(max);
+
+-- get the serialized result of @sysTabs
+EXEC dbo.pr_SerializeHelperR   @query = @sysTabs
+                              , @serializedResult = @sysTabsBin OUT
+
+-- do the &quot;real&quot; stuff
+EXEC sp_execute_external_script
+@language = N'R'
+, @script = N'
+
+sysTab = unserialize(sysTables)
+cat(paste(&quot;Number rows @sysTables: &quot;, nrow(sysTab)))'
+, @params = N'@sysTables varbinary(max)'
+, @sysTables = @sysTabsBin;
+</code></pre>
+
+<p><strong>Code Snippet 12:</strong> <em>Implementation of R Serialization</em></p>
+
+<p>We see in <em>Code Snippet 12</em> how we push in one resultset, and we do not use <code>@input_data_1</code>. Instead, we serialize the resultset from the query with the R helper procedure and then deserialize with the <code>unserialize</code> function.</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>So, we have now seen two ways of pushing in datasets to an external script: JSON and Binary Serialization. Which should you choose - I mean, JSON seems a lot easier? The answer comes down to performance.</p>
+
+<p>To look at performance let us create a database, a table and some data:</p>
+
+<pre><code class="language-sql">DROP DATABASE IF EXISTS MultiDataSetDB;
+GO
+CREATE DATABASE MultiDataSetDB;
+GO
+
+USE MultiDataSetDB
+GO 
+
+SET NOCOUNT ON;
+GO
+
+DROP TABLE IF EXISTS dbo.tb_Rand1M ;
+CREATE TABLE dbo.tb_Rand1M
+(
+  RowID bigint identity,
+  y int NOT NULL, 
+  rand1 int NOT NULL, 
+  rand2 int NOT NULL, 
+  rand3 int NOT NULL, 
+  rand4 int NOT NULL, 
+  rand5 int NOT NULL,
+  CONSTRAINT [pk_Rand1M] PRIMARY KEY (RowID)
+)
+GO
+INSERT INTO dbo.tb_Rand1M(y, rand1, rand2, rand3, rand4, rand5)
+SELECT TOP(1000000) CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT) 
+  , CAST(ABS(CHECKSUM(NEWID())) % 20 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 25 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 50 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 100 AS INT)
+FROM sys.objects o1
+CROSS JOIN sys.objects o2
+CROSS JOIN sys.objects o3
+CROSS JOIN sys.objects o4;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 13:</strong> <em>Database with Table and Data</em></p>
+
+<p>We see above, in <em>Code Snippet 13</em>, how we create a database, with a table and we load one million records into the table. The data is entirely random and fairly useless, but it serves its purposes.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you code along and use the code above, please also create <code>dbo.pr_SerializeHelperPy</code>, which you see in <em>Code Snippet 10</em>, in the <code>MultiDataSetDB</code> database.</p>
+</blockquote>
+
+<p>Having created the database and the objects, let us look at the code we use to compare performance. The code below is for JSON:</p>
+
+<pre><code class="language-sql">--this is for JSON
+DECLARE @start datetime2 = SYSUTCDATETIME();
+DECLARE @rand1M nvarchar(max) = (SELECT TOP(100) * 
+                           FROM dbo.tb_Rand1M FOR JSON AUTO);
+EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+import pandas as pd
+
+df = pd.read_json(randTab)
+print(&quot;Number rows @randTab: &quot;, len(df.index))'
+, @params = N'@randTab nvarchar(max)'
+, @randTab = @rand1M;
+SELECT DATEDIFF(ms, @start, SYSUTCDATETIME()) AS JSONTime; 
+GO
+</code></pre>
+
+<p><strong>Code Snippet 14:</strong> <em>JSON Performance Code</em></p>
+
+<p>And here is the binary serialization code:</p>
+
+<pre><code class="language-sql">--this is binary
+-- declare the variables for queries as well 
+--as serialized binary representation
+DECLARE @start datetime2 = SYSUTCDATETIME();
+DECLARE @rand1M nvarchar(max) = 'SELECT TOP(100) * 
+                                FROM dbo.tb_Rand1M';
+DECLARE @rand1MBin varbinary(max);
+-- get the serialized result of @sysTabs
+EXEC dbo.pr_SerializeHelperPy   @query = @rand1M
+                              , @serializedResult = @rand1MBin OUT
+
+-- do the &quot;real&quot; stuff
+EXEC sp_execute_external_script
+@language = N'Python'
+, @script = N'
+import pandas as pd
+import pickle as p 
+
+sysTab = p.loads(randTab)
+
+print(&quot;Number rows @sysTables: &quot;, len(sysTab.index))'
+, @params = N'@randTab varbinary(max)'
+, @randTab = @rand1MBin
+SELECT DATEDIFF(ms, @start, SYSUTCDATETIME()) AS BinaryTime;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 15:</strong> <em>Binary Serialization Performance Code</em></p>
+
+<p>The code in snippets 14, and 15 is a variant of what we have seen so far. In these two snippets, we only push in one table, and we look at the time it takes to do it. We see how we <code>SELECT</code> from <code>dbo.tb_Rand1M</code>, and initially, we do a <code>TOP(100)</code>.</p>
+
+<p>When I highlight both code snippets and run them a couple of times to not incur &ldquo;startup&rdquo; costs the results are:</p>
+
+<p><img src="/images/posts/sql_ml_multidata_perf1.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Performance 100 Rows</em></p>
+
+<p>That&rsquo;s quite interesting; we see in <em>Figure 4</em> how JSON serialization is around twice as fast as binary serialization. Ok, what if we did it on 1000 rows? With 1000 rows JSON is still about twice as fast. However, when we tun it against the full table (one million rows), the results are different:</p>
+
+<p><img src="/images/posts/sql_ml_multidata_perf2.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Performance a Million Rows</em></p>
+
+<p>In <em>Figure 5</em> we see how with a million rows, the binary serialization is about 3.5 times faster than JSON. There are a couple of reasons why binary serialization performs better that JSON with larger datasets:</p>
+
+<ul>
+<li>Binary serialization is more compact, less data to transfer.</li>
+<li>By using the <code>@input_data_1</code> parameter to push in the data to the serialization we get a better performing transport. Read more about it in my post: <a href="/2017/11/25/microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>.</li>
+</ul>
+
+<p>So, for very small datasets, use the JSON method, but for larger datasets, the binary serialization is always preferred. Another thing to keep in mind is if you use both <code>@input_data_1</code> as well as pushing in serialized data (like in all our code snippets where we used three tables), try to use <code>@input_data_1</code> for the biggest dataset. That way you get the better performing transport and also, potentially, parallel execution of the query.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>We have now seen how we can push in multiple datasets to an external script, without having to connect from the script back to the database. We can use two methods:</p>
+
+<ul>
+<li>JSON.</li>
+<li>Binary serialization.</li>
+</ul>
+
+<p>When we use JSON we utilize SQL Server&rsquo;s JSON capabilities to execute a query and receive the result as JSON formatted text: <code>SELECT ... FROM ... FOR JSON AUTO</code>. In the external script we then deserialize the JSON using:</p>
+
+<ul>
+<li>In R the <code>fromJSON</code> function in the <code>jsonlite</code> package.</li>
+<li>In Python the <code>read_json</code> function in the <code>pandas</code> package.</li>
+</ul>
+
+<p>When we do binary serialization we use R/Python&rsquo;s capabilities to both serialize as well as deserialize data. This means we need to do a roundtrip to R/Python to serialize the data. The tools we use:</p>
+
+<ul>
+<li>In R we call <code>serialize</code> and <code>unserialize</code>.</li>
+<li>In Python we use functions from the <code>pickle</code> package. To serialize we call <code>dumps</code> and to deserialize we use <code>loads</code>.</li>
+</ul>
+
+<p>What method to use (JSON or binary serialization) comes down to, in my mind, performance. For very small datasets JSON is faster, but as soon as the dataset gets bigger binary serialization outperforms JSON by order of magnitude.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2018/12/19/sql-server-2019-extensibility-framework--java---null-values/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">SQL Server 2019 Extensibility Framework &amp; Java - Null Values</span>
+    </a>
+    
+    
+    <a href="/2018/12/30/sql-server-2019-extensibility-framework--java---misc.-stuff/" class="post--navigation-next">
+      <span class="navigation-tittle">SQL Server 2019 Extensibility Framework &amp; Java - Misc. &#39;Stuff&#39;</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2018/09/29/sql-server-2019-for-linux-in-docker-on-windows/">SQL Server 2019 for Linux in Docker on Windows</a>
+      
+      <time class="pull-right hidden-tablet">Sep 29 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/09/24/what-is-new-in-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a>
+      
+      <time class="pull-right hidden-tablet">Sep 24 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/08/04/sp_execute_external_script-and-sql-compute-context---iii/">sp_execute_external_script and SQL Compute Context - III</a>
+      
+      <time class="pull-right hidden-tablet">Aug 04 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/07/29/interesting-stuff---week-30/">Interesting Stuff - Week 30</a>
+      
+      <time class="pull-right hidden-tablet">Jul 29 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/07/22/interesting-stuff---week-29/">Interesting Stuff - Week 29</a>
+      
+      <time class="pull-right hidden-tablet">Jul 22 &#39;18</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

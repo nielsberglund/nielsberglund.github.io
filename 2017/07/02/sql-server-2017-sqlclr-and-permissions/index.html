@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>SQL Server 2017, SQLCLR and Permissions • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="SQL Server 2017, SQLCLR and Permissions"/>
+<meta name="twitter:description" content="Investigation SQL Server 2017 &#34;clr strict security&#34; and its impact on SQLCLR"/>
+
+<meta property="og:title" content="SQL Server 2017, SQLCLR and Permissions" />
+<meta property="og:description" content="Investigation SQL Server 2017 &#34;clr strict security&#34; and its impact on SQLCLR" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/07/02/sql-server-2017-sqlclr-and-permissions/" />
+
+
+
+<meta property="article:published_time" content="2017-07-02T08:18:48&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-07-02T08:18:48&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>SQL Server 2017, SQLCLR and Permissions</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Jul 2, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2017">SQL SERVER 2017</a>
+              •
+          
+              <a class="post__category" href="/categories/sqlclr">SQLCLR</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server">sql server</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-2017">sql server 2017</a>
+           
+      
+          <a class="post__tag" href="/tags/sqlclr">sqlclr</a>
+           
+      
+          <a class="post__tag" href="/tags/permissions">permissions</a>
+           
+      
+          <a class="post__tag" href="/tags/clr-strict-security">clr strict security</a>
+           
+      
+          <a class="post__tag" href="/tags/certificates">certificates</a>
+           
+      
+          <a class="post__tag" href="/tags/trustworthy">trustworthy</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 11 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>While I was writing the post about <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a>, I came across some strange behavior when I accidentally ran my code on an SQL Server 2017 instance. I quickly connected back to my SQL Server 2016 instance and continued. However, afterwards I started to look into the differences between SQLCLR in SQL Server 2017 and SQL Server 2016, and this post is the result of me <del>playing around</del> investigating the changes.</p>
+
+<p></p>
+
+<p><strong>UPDATE</strong> 2017-07-23. This post has a <a href="/2017/07/23/sql-server-2017-sqlclr---whitelisting-assemblies/">follow up post</a> based on changes in SQL Server 2017 RC1.</p>
+
+<p>Let&rsquo;s start with a recap and an example</p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In all versions of SQL Server from 2005 (where SQLCLR was introduced) up to 2016; when you deploy assemblies to the database and you want the assemblies to be able to execute outside of the database it is deployed to, you assign a permission set to the assembly. There are three permission sets available, ranging from not allowing you to shoot yourself in the foot to blow your head off:</p>
+
+<ul>
+<li><code>SAFE</code> - the code is not doing anything that you cannot do in T-SQL. You cannot shoot yourself in the foot any more than what you can do with T-SQL. This is the default.</li>
+<li><code>EXTERNAL_ACCESS</code> - you can get outside of the local database, but only via &ldquo;approved&rdquo; assemblies, such as <code>ADO.NET</code>, etc. You can definitely shoot yourself in the foot.</li>
+<li><code>UNSAFE</code> - You can do pretty much what you want. You are free to blow your head off.</li>
+</ul>
+
+<p>The permission set is assigned when you create the assembly:</p>
+
+<pre><code class="language-sql">CREATE ASSEMBLY &lt;some_name&gt; 
+FROM 'F:\some_path\somedll.dll'
+WITH PERMISSION_SET = SAFE | EXTERNAL_ACCESS | UNSAFE;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Creating an Assembly from Absolute Path</em></p>
+
+<p>In order to create an assembly with anything else than <code>SAFE</code>, the database or assembly need to have additional authorizations, and that was what my <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a> post covered.</p>
+
+<p>To see what has changed in SQL Server 2017, let&rsquo;s look at some sample code. In <em>Code Snippet 1</em> you see some C# code that we want to deploy to a SQL Server 2017 database:</p>
+
+<pre><code class="language-c#">namespace Sql2k17SqlClr
+{
+  public class Functions
+  {
+    public static int fn_clr_Adder(int x, int y)
+    {
+      return x + y;
+    }
+  }
+}
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Safe Code to be Deployed</em></p>
+
+<p>After having built the project with the code in <em>Code Snippet 1</em>, you would deploy it to a specific database in your SQL Server instance like so (the dll is named <code>Sql2k17SqlClr1.dll</code>):</p>
+
+<pre><code class="language-sql">CREATE ASSEMBLY Sql2k17SqlClr
+FROM 'W:\&lt;path_to_dll&gt;\Sql2k17SqlClr1.dll'
+GO
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Create Safe Assembly</em></p>
+
+<p>The assembly we want to create in the database is definitely a safe assembly, as it is just doing some internal calculation, and in SQL Server (pre 2017), this would deploy just fine. In SQL Server 2017 however things are different. When you run the code in <em>Code Snippet 2</em>, you will get following error:</p>
+
+<p><img src="/images/posts/sql2k17_safe.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Error Deploying Safe Assembly</em></p>
+
+<p>The error you see is more or less the same you&rsquo;d receive if you - in SQL Server pre 2017 - tried to deploy an assembly as <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>. You can read more about that particular issue in my <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a> post.</p>
+
+<p>One difference in the error message you see in <em>Figure 1</em>, and what you would have received in pre SQL Server 2017 versions, is: &ldquo;<em>the &lsquo;clr strict security&rsquo; option of sp_configure is set to 1</em>&rdquo;. You may think; &ldquo;what is this, I have never seen that in other SQL Server versions&rdquo;. You are absolutely correct, so let&rsquo;s look at that  - and we&rsquo;ll start with <strong>Code Access Security</strong> (<strong>CAS</strong>)</p>
+
+<h2 id="code-access-security">Code Access Security</h2>
+
+<p>CAS is a security technology developed to provide the ability to protect system resources when a .NET assembly is executed. Such system resources could be: local files, files on a remote file system, registry keys, databases, printers and so on. CAS, in essence, was used to enforce security boundaries based on code origination or other identity aspects, and SQL Server&rsquo;s <code>PERMISSION_SET</code> relied on the CAS security boundaries. That was how SQLCLR assemblies which only performed &ldquo;safe&rdquo; operations did not need any further authorizations.</p>
+
+<p>In recent versions of the .NET framework (around version 4.5), Microsoft has changed the relation between CAS and security boundaries, and CAS is no longer supported as a boundary! From a SQLCLR perspective that is a real &ldquo;bummer&rdquo;, as theoretically there is no control over what an assembly can and cannot do (whereas before <code>PERMISSION_SET</code> controlled the abilities).</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The above statement about no control what an assembly can and cannot do is not entirely correct as we will see further down.</p>
+</blockquote>
+
+<h3 id="clr-strict-security"><code>clr strict security</code></h3>
+
+<p>With the changes of the implications of CAS, and in order to enhance the security of CLR assemblies, Microsoft has in SQL Server 2017 introduced an <code>sp_configure</code> option called <code>clr strict security</code>, which by default is set to 1 (on). When the setting is on, SQL Server treats all assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) as if they were marked <code>UNSAFE</code>. The implication of this is that you must either:</p>
+
+<ul>
+<li>Set the database to be <code>TRUSTWORTHY</code>, <em>OR</em></li>
+<li>Sign the assembly with a certificate that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission, <em>OR</em></li>
+<li>Sign the assembly with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
+</ul>
+
+<p>If you changed the <code>clr strict security</code> option to 0, the code in <em>Code Snippet 2</em>, would work just fine. Likewise, if you didn&rsquo;t change the option, but instead set <code>TRUSTWORTHY ON</code> on the database, it would also work.</p>
+
+<h2 id="assembly-authorization">Assembly Authorization</h2>
+
+<p>So, where are we? In order to create a safe assembly we now need to authorize it as we would an <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>, so let&rsquo;s do that to the assembly that the code in <em>Code Snippet 2</em> represents. We could do it by setting <code>TRUSTWORTHY</code> to <code>ON</code> for the database, and you who read my <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a> post know that I do not think that setting <code>TRUSTWORTHY</code> to <code>ON</code> is like &ldquo;opening the gates to hell&rdquo;, so I would not have an issue with doing that - even on a production database. That is however a discussion for another day, so let us do it by using a certificate.</p>
+
+<p>To recap from the <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a> post, to use a certificate you&rsquo;d:</p>
+
+<ul>
+<li>Create a certificate, if you don&rsquo;t already have one.</li>
+<li>Create a <code>.pfx</code> file from the certificate. Pfx stands for Personal Information Exchange, and we&rsquo;ll use it to sign your assembly.</li>
+<li>Sign the dll with the <code>.pfx</code> file.</li>
+<li>In the database create a SQL Server certificate from the original certificate.</li>
+<li>In the database create login from the certificate.</li>
+<li>Grant the login <code>UNSAFE ASSEMBLY</code>.</li>
+<li>Create the dll in the database.</li>
+</ul>
+
+<p>I already have a certificate and a <code>.pfx</code> file created from when I wrote the <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a> post, so I&rsquo;ll re-use those and go ahead and sign the assembly with the <code>.pfx</code> file:</p>
+
+<pre><code class="language-cpp">signtool sign /f NielsTestPfx.pfx 
+              /p testPwd Sql2k17SqlClr1.dll
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Sign the dll Using signtool.exe</em></p>
+
+<p>The <code>/p</code> flag in <em>Code Snippet 3</em> defines the password of your <code>.pfx</code> file. After having signed the dll, I create the SQL Server certificate, from the original certificate:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+CREATE CERTIFICATE NielsTestCert
+FROM FILE = 'W:\&lt;path_to_cert&gt;\NielsTestCert.cer';
+GO
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Create a SQL Server Certificate</em></p>
+
+<p>When the certificate is created we can create a login from the certificate, and <code>GRANT</code> the login <code>UNSAFE</code> assembly permissions:</p>
+
+<pre><code class="language-sql">CREATE LOGIN login_NielsTestCert 
+FROM CERTIFICATE NielsTestCert
+GO
+
+GRANT UNSAFE ASSEMBLY TO login_NielsTestCert;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Create a SQL Server Login and Grant Permissions</em></p>
+
+<p>After the login has been created and the <code>UNSAFE ASSEMBLY</code> permission granted to the login, the code in <em>Code Snippet 2</em>, should just work. Oh, don&rsquo;t forget to switch back from <code>master</code> to the database where you want to create the assembly.</p>
+
+<p>We can then finally create a T-SQL wrapper function against the <code>fn_clr_Adder</code> method:</p>
+
+<pre><code class="language-sql">CREATE FUNCTION dbo.fn_clr_Adder(@x int, @y int)
+RETURNS int
+EXTERNAL NAME Sql2k17SqlClr.[Sql2k17SqlClr.Functions].fn_clr_Adder
+GO
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Create T-SQL Wrapper Function</em></p>
+
+<p>To check that it all works, run: <code>SELECT dbo.fn_clr_Adder(21,21)</code> and the <a href="https://en.wikipedia.org/wiki/42_(number)"><em>Answer to the Ultimate Question of Life, the Universe, and Everything</em></a> should be returned to you.</p>
+
+<p>So far this does not seem too bad, OK - so for a <code>SAFE</code> assembly we need to sign the assembly and have a login with <code>UNSAFE ASSEMBLY</code> permissions granted (or have <code>TRUSTWORTHY</code> on).</p>
+
+<h2 id="confusion-about-safe-assemblies">Confusion About <code>SAFE</code> Assemblies</h2>
+
+<p>Since the introduction of <code>clr strict security</code> there has been some confusion about how <code>SAFE</code> assemblies will behave, and part of this confusion can be attributed to the <a href="https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/clr-strict-security">documentation</a> around <code>clr strict security</code>. Specifically this statement: <em>A CLR assembly created with PERMISSION_SET = SAFE may be able to access external system resources, call unmanaged code, and acquire sysadmin privileges.</em>. When reading that statement, my understanding is that if I create an assembly as <code>SAFE</code> I could potentially do <code>UNSAFE</code> operations.</p>
+
+<p>Let us test this out, and create a second dll <code>Sql2k17SqlClr2.dll</code>, where the code looks like so:</p>
+
+<pre><code class="language-c#">using System.Threading;
+using System.Threading.Tasks;
+
+namespace Sql2k17SqlClr
+{
+  public class Functions
+  {
+    public static int fn_clr_Adder(int x, int y)
+    {
+      return x + y;
+    }
+
+    public static int fn_clr_LongRunningAdder(int x, int y)
+    {
+
+      var t = Task.Factory.StartNew(() =&gt; LongRunning(x, y));
+      return t.Result;
+    }
+
+    static int LongRunning(int x, int y)
+    {
+      var wait = (x + y) * 100;
+      Thread.Sleep(wait);
+      return x + y;
+
+    }
+  }
+}
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Safe and Unsafe Behavior</em></p>
+
+<p>As you see in <em>Code Snippet 7</em>, we have our trusted <code>fn_clr_Adder</code> method, which is as safe as you can get. But, we also have the <code>fn_clr_LongRunningAdder</code> method which uses a <code>Task</code> for calling into another method and this is definitely <code>UNSAFE</code>. So what will happen here if we, after having built and signed the dll, create the assembly as <code>SAFE</code>:</p>
+
+<pre><code class="language-sql">CREATE ASSEMBLY Sql2k17SqlClr2
+FROM 'W:\\&lt;path_to_dll&gt;\\Sql2k17SqlClr2.dll'
+WITH PERMISSION_SET = SAFE;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Create Safe Assembly with Unsafe Method</em></p>
+
+<p>Running the code in <em>Code Snippet 8</em> should work, and it would also have worked in previous versions of SQL Server. We can now create a T-SQL wrapper function around the <code>fn_clr_LongRunningAdder</code> method (the method using <code>UNSAFE</code> resources):</p>
+
+<pre><code class="language-sql">CREATE FUNCTION dbo.fn_clr_LongRunningAdder(@x int, @y int)
+RETURNS int
+EXTERNAL NAME Sql2k17SqlClr2.[Sql2k17SqlClr.Functions].fn_clr_LongRunningAdder
+GO
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Create an Unsafe T-SQL Wrapper Function</em></p>
+
+<p>When I execute <code>SELECT dbo.fn_clr_LongRunningAdder(21, 21)</code> I would expect - having read the statement above - that this would work. However, on my SQL Server 2017 instance (CTP 2.1), I receive an error:</p>
+
+<p><img src="/images/posts/sql2k17_safe_unsafe.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Error Executing UNSAFE Function in SAFE Assembly</em></p>
+
+<p>So, <code>HostProtection</code> kicks in and says that I do not have necessary permissions to do the operation. In previous SQL Server versions this would happen if you hadn&rsquo;t assigned the correct <code>PERMISSION_SET</code> to the assembly when it was created. So, let us drop the function and the assembly, and recreate the assembly with <code>PERMISSION_SET = UNSAFE</code>, and recreate the wrapper function:</p>
+
+<pre><code class="language-sql">DROP FUNCTION dbo.fn_clr_LongRunningAdder
+DROP ASSEMBLY Sql2k17SqlClr2
+GO
+
+CREATE ASSEMBLY Sql2k17SqlClr2
+FROM 'W:\\&lt;path_to_dll&gt;\\Sql2k17SqlClr2.dll'
+WITH PERMISSION_SET = UNSAFE;
+GO
+
+CREATE FUNCTION dbo.fn_clr_LongRunningAdder(@x int, @y int)
+RETURNS int
+EXTERNAL NAME Sql2k17SqlClr2.[Sql2k17SqlClr.Functions].fn_clr_LongRunningAdder
+GO
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Create the Assembly as UNSAFE</em></p>
+
+<p>Now when I execute <code>SELECT dbo.fn_clr_LongRunningAdder(21, 21)</code>, it all works as expected. So it seems that <code>PERMISSION_SET</code> still has a role to play, at least in this scenario.</p>
+
+<h3 id="referenced-assemblies">Referenced Assemblies</h3>
+
+<p>So what about if I have a <code>SAFE</code> assembly which references an <code>UNSAFE</code> assembly, and calls into an <code>UNSAFE</code> method?</p>
+
+<p>I created a third dll: <code>Sql2k17SqlClr3.dll</code>, which has a method that calls into the <code>fn_clr_LongRunningAdder</code> method in the <code>UNSAFE</code> assembly <code>Sql2k17SqlClr2.dll</code>:</p>
+
+<pre><code class="language-c#">namespace Sql2k17SqlClr3
+{
+  public class Functions
+  {
+    public static int fn_clr_Adder(int x, int y)
+    {
+      return Sql2k17SqlClr.Functions.fn_clr_LongRunningAdder(x, y);
+    }
+  }
+}
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Method Calling Into UNSAFE Method</em></p>
+
+<p>After having built and signed the dll, I deployed it to the database with <code>PERMISSION_SET = SAFE</code>, and created a T-SQL wrapper function around the <code>fn_clr_Adder</code> method. This is what was returned when executing the function:</p>
+
+<p><img src="/images/posts/sql2k17_safe_unsafe.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Error Calling Into UNSAFE Assembly From SAFE</em></p>
+
+<p>Also in the case of referenced assemblies, it seems that <code>PERMISSION_SET</code> plays a role. This was confirmed when I dropped and recreated the <code>Sql2k17SqlClr3.dll</code> with <code>PERMISSION_SET = UNSAFE</code>. When I at that stage executed the wrapper function, all worked OK!</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In SQL Server 2017, Microsoft now by default requires that all type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) are authorized for <code>UNSAFE</code> access, by:</p>
+
+<ul>
+<li>The database is set to be <code>TRUSTWORTHY</code>, <em>OR</em></li>
+<li>The assembly is signed with a certificate that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission, <em>OR</em></li>
+<li>The assembly is signed with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
+</ul>
+
+<p>The above requirement is handled by a new configure option: <code>clr strict security</code>. The documentation around this option is, at least at the moment, somewhat mis-leading as it implies that <code>PERMISSION_SET</code> no longer has an impact on the behavior of an assembly.</p>
+
+<p>The tests above shows however that if you want to do an <code>UNSAFE</code> operation, the assembly has to be created with <code>PERMISSION_SET = UNSAFE</code>. So what I wrote in the beginning of this post: <em>&ldquo;From a SQLCLR perspective that is a real &ldquo;bummer&rdquo;, as theoretically there is no control over what an assembly can and cannot do (whereas before <code>PERMISSION_SET</code> controlled the abilities).&rdquo;</em>, does not seem to be correct.</p>
+
+<p>Bear in mind that I am running SQL Server 2017 CTP 2.1, and things may change. I&rsquo;ll try and dig in some more in this, and if I find out something I will edit this post.</p>
+
+<p><strong>EDIT:</strong> Things changed in SQL Server 2017 RC1. I have written about the changes in the <a href="/2017/07/23/sql-server-2017-sqlclr---whitelisting-assemblies/">SQL Server 2017 SQLCLR - Whitelisting Assemblies</a> post.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/07/01/sqlclr-and-certificates/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">SQLCLR and Certificates</span>
+    </a>
+    
+    
+    <a href="/2017/07/02/interesting-stuff---week-26/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 26</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/07/01/sqlclr-and-certificates/">SQLCLR and Certificates</a>
+      
+      <time class="pull-right hidden-tablet">Jul 01 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/06/25/interesting-stuff---week-25/">Interesting Stuff - Week 25</a>
+      
+      <time class="pull-right hidden-tablet">Jun 25 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/06/18/interesting-stuff---week-24/">Interesting Stuff - Week 24</a>
+      
+      <time class="pull-right hidden-tablet">Jun 18 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/05/21/interesting-stuff---week-20/">Interesting Stuff - Week 20</a>
+      
+      <time class="pull-right hidden-tablet">May 21 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/23/interesting-stuff---week-16/">Interesting Stuff - Week 16</a>
+      
+      <time class="pull-right hidden-tablet">Apr 23 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

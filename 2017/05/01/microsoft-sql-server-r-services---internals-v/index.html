@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Microsoft SQL Server R Services - Internals V • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Microsoft SQL Server R Services - Internals V"/>
+<meta name="twitter:description" content="More about the launchpad service and RTerm processes in relation to parallelism in SQL Server R Services."/>
+
+<meta property="og:title" content="Microsoft SQL Server R Services - Internals V" />
+<meta property="og:description" content="More about the launchpad service and RTerm processes in relation to parallelism in SQL Server R Services." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/05/01/microsoft-sql-server-r-services---internals-v/" />
+
+
+
+<meta property="article:published_time" content="2017-05-01T15:04:31&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-05-01T15:04:31&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Microsoft SQL Server R Services - Internals V</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> May 1, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-machine-learning-services">SQL SERVER MACHINE LEARNING SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services">SQL SERVER R SERVICES</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-r-services-series">SQL SERVER R SERVICES SERIES</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-machine-learning-services">sql server machine learning services</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/windbg">windbg</a>
+           
+      
+          <a class="post__tag" href="/tags/launchpad">launchpad</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 14 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This is the sixth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fifth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+
+<p>In <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we looked at how the launchpad service creates <strong>RTerm</strong> processes when we execute an external script.</p>
+
+<p>The <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> post came about due to an email from Bob Albright (<a href="https://twitter.com/bob_albright">@bob_albright</a>), pointing me to some resources (a blog-post) regarding the processes the launchpad service creates.</p>
+
+<p>In his email Bob also, kindly enough, attached some code. The code highlighted some behavior when creating the RTerm processes, especially around parallelism. In this blog-post we&rsquo;ll follow up on that and look into the effect parallelism has on process creation.</p>
+
+<p></p>
+
+<h2 id="recap">Recap</h2>
+
+<p>In <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we saw how:</p>
+
+<ul>
+<li>The launchpad service creates by default 6 RTerm processes when an external script is executed by a user. One of the processes will be used for the execution of the script and torn down afterwards. The other 5 is added to the process pool. In essence the launchpad service creates 5 + 1.</li>
+<li>If more (or less) processes than 5 is needed, a setting <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> can be set in <code>rlauncher.config</code>. The value of the setting defines number of processes to create (as with default it will be setting value + 1).</li>
+<li>When a user executes subsequent requests, or concurrent requests from different sessions, processes are picked up and used from the pool.
+
+<ul>
+<li>The launchpad service simultaneously creates a new process.</li>
+</ul></li>
+</ul>
+
+<p>Previously I had the assumption that &ldquo;somehow&rdquo; the number of processes created had to be configurable, and that the reason for creating multiple processes has to do with performance.</p>
+
+<p>In the post we verified that, and this was much due to the <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">blog-post</a> Bob pointed to in his - previously mentioned - email. That particular post also briefly mentioned <code>MAXDOP</code>, and what to think about in terms of pool size. That and Bob&rsquo;s code lead to this blog-post.</p>
+
+<h2 id="code">Code</h2>
+
+<p>Before diving into the &ldquo;stuff&rdquo;, let&rsquo;s look at the code we&rsquo;ll use. The code we have used in previous posts has been very, very minimal. Today we&rsquo;ll be &ldquo;very advanced&rdquo; and select data from a table in a database - talk about cutting edge!! What we want to do is to execute some linear regression functions against data, and see what happens in different scenarios.</p>
+
+<p>In <em>Code Snippet 1</em> below, we set up the database and a table with some data we can use, all in all 30 million records:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+SET NOCOUNT ON;
+GO
+
+DROP DATABASE IF EXISTS TestParallel;
+GO
+
+CREATE DATABASE TestParallel;
+GO
+
+USE TestParallel;
+GO
+
+DROP TABLE IF EXISTS dbo.rand_30M
+CREATE TABLE dbo.rand_30M(RowID bigint identity primary key, y int, 
+                          rand1 int, rand2 int, rand3 int, rand4 int, 
+                          rand5 int);
+
+INSERT INTO dbo.rand_30M(y, rand1, rand2, rand3, rand4, rand5)
+SELECT TOP(30000000) CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT) 
+  , CAST(ABS(CHECKSUM(NEWID())) % 20 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 25 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 14 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 50 AS INT)
+  , CAST(ABS(CHECKSUM(NEWID())) % 100 AS INT)
+FROM sys.objects o1
+CROSS JOIN sys.objects o2
+CROSS JOIN sys.objects o3
+CROSS JOIN sys.objects o4;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Setup of Database, Table and Data</em></p>
+
+<p>The data is completely &ldquo;useless&rdquo;, but it can at least be used for analysis work, it looks something like so (just a few rows):</p>
+
+<p>!{}(/images/posts/sql_r_services_random_data.png)</p>
+
+<p><strong>Figure 1:</strong> <em>10 Rows Random Data</em></p>
+
+<p>What we want to do with the data is to create a linear regression model over it, where - ultimately - we want to predict the value of <code>y</code>, and we believe <code>y</code> is related to <code>rand1</code>, <code>rand2</code>, <code>rand3</code>,  <code>rand4</code> and <code>rand5</code>. In our examples we are not really interested in <code>y</code>, but we want to see what the <strong>intercept</strong> value(s) is. If we used open source R (CRAN R), the code for this would look something like so:</p>
+
+<pre><code class="language-r">r &lt;- lm(y ~ rand1 + rand2 + rand3 + rand4 + rand5, data=&lt;some input data&gt;);
+
+# get the coefficients
+coef &lt;- r$coefficients
+
+# the intercept value is first value in the coefficients vector
+icept &lt;- coef[1];
+
+# return the data
+out_data &lt;- data.frame(intercept=icept);
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Linear Regression Using CRAN R</em></p>
+
+<p>Seeing that this is about SQL Server R Services, we should be using the equivalent RevoScaleR function: <code>rxLinMod</code>: <code>r &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, data=&lt;some input data&gt;);</code>, and we would execute it from <code>sp_execute_external_script</code>:</p>
+
+<pre><code class="language-sql">DECLARE @start datetime2 = SYSUTCDATETIME();
+EXEC sp_execute_external_script
+          @language = N'R'
+        , @script = N'
+             #Sys.sleep(30)
+             pid &lt;- Sys.getpid()
+             r &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, 
+                           data=InputDataSet)
+ 
+             coef &lt;- r$coefficients
+             icept &lt;- coef\[1\];
+              OutputDataSet &lt;- data.frame(pid=pid, nRows=r$nValidObs, 
+                                          intercept=icept)'
+       , @input_data_1 = N'
+              SELECT  y, rand1, rand2, rand3, 
+                      rand4, rand5 
+              FROM dbo.rand_30M'
+WITH RESULT SETS ((pid INT NOT NULL, nRows INT NOT NULL, intercept FLOAT NULL)
+); 
+SELECT DATEDIFF(ms, @start, SYSUTCDATETIME()) AS ElapsedTime;
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Linear Regression in SQL Server</em></p>
+
+<p>So the code in <em>Code Snippet 3</em> is what we will &ldquo;play&rdquo; around with in this post. Some comments:</p>
+
+<ul>
+<li>First line of the script (the <code>@script</code> parameter) is commented out; <code>Sys.sleep(30)</code>. We&rsquo;ll use it at one stage to be able to look a little bit closer at what is happening.</li>
+<li>As we did in <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> we grab the process id of the RTerm process the code executes under.</li>
+<li>In the <code>OutputDataSet</code> variable we output a data-frame consisting of the process id, how many rows we processed and the intercept value.</li>
+<li>The output data is being presented as a result set, by the <code>WITH RESULT SETS ...</code> statement.</li>
+<li>Oh, and for &ldquo;giggles&rdquo; we check how long the execution takes (first line and last line).</li>
+</ul>
+
+<p>In addition to the code above, we&rsquo;ll also use <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><strong>Process Explorer</strong></a>, to see how many processes are created as well as memory consumption etc. If you have read <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, you should be comfortable with <em>Process Explorer</em>.</p>
+
+<h2 id="parallel-execution">Parallel Execution</h2>
+
+<p>So the blog-post is about what impact parallel processing will have on the process creation, but before we go down that &ldquo;rabbit&rdquo; hole, let&rsquo;s see what it looks like during non-parallel execution:</p>
+
+<ul>
+<li>Restart the launchpad service (this is to clean-up any RTerm processes).</li>
+<li>Navigate to the <code>Launchpad.exe</code> process in <em>Process Explorer</em>.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+<li>While the code is executing, look in <em>Process Explorer</em> for RTerm processes.</li>
+</ul>
+
+<p>In <em>Process Explorer</em> you should see something similar to this:</p>
+
+<p>!{}(/images/posts/sql_r_services_lin_reg1.png)</p>
+
+<p><strong>Figure 1:</strong> <em>Processes from Code Execution</em></p>
+
+<p>What you see in <em>Figure 1</em> matches pretty good with what we discussed in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>; while a single user executes <code>sp_execute_external_script</code> 6 RTerm processes are alive, and one of the processes is the process where the script executes under. In this case it was process id 10120, and we determined that from the CPU value (.32) as well as Private Bytes: 1,023,376 K and Working Set 189,268 K respectively.  We can further confirm the process the code executed under by looking at the result coming back:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg1_result.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Result from Code Execution</em></p>
+
+<p>From <em>Figure 2</em> we can indeed see that the process id was 10120, and that we ran the regression model over 30 million rows. The time it took to execute the code was ~16 seconds. The query plan looks like in <em>Figure 3</em>:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg1_result_udx.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Actual Query Plan</em></p>
+
+<p>In <em>Figure 3</em> we see how we do clustered index scan for our rows and then hand it over to the UDX operator. The UDX operator comes normally in play when we do XML related processes, but - as we can see - it also comes into the picture for external scripts. It kind of makes sense as it is an <strong>Extended Operator</strong>.</p>
+
+<p>This is all well and good, but it is not really anything new from what we discussed in <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">IV</a>.</p>
+
+<p>So what about parallel execution? When you read documentation about <strong>SQL Server R Services</strong> it always mentions how efficient it is to execute external scripts as one can utilize SQL&rsquo;s parallelism. How does this work then? In &ldquo;normal&rdquo; SQL Server parallelism, SQL Server decides whether to execute a statement in parallel or not, and the <code>MAXDOP</code> setting defines the number of processors the statement will execute on.</p>
+
+<p>For <strong>SQL Server R Services</strong> it works in a similar way, except that you have to explicitly say that you want to execute in parallel. To specify parallel execution you use a parameter on the <code>sp_execute_external_script</code> procedure: <code>@parallel</code>. The parameter can either be either 0, no parallelism which is default, or 1.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Even if you specify that you want to execute in parallel, SQL may choose not to do it.</p>
+</blockquote>
+
+<p>So in order to enable parallelism, we need to add the parameter to the stored procedure, and in <em>Code Snippet 4</em> below we have inserted the parameter right after <code>@input_data1</code> parameter:</p>
+
+<pre><code class="language-sql">-- preceding code not shown
+, @input_data_1 = N'
+              SELECT  y, rand1, rand2, rand3, 
+                      rand4, rand5 
+              FROM dbo.rand_30M'
+, @parallel=1
+WITH RESULT SETS ((pid INT NOT NULL, nRows INT NOT NULL, intercept FLOAT NULL)
+); 
+SELECT DATEDIFF(ms, @start, SYSUTCDATETIME()) AS ElapsedTime;
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Using the @parallel Parameter</em></p>
+
+<p>So let&rsquo;s see what impact the change we did in <em>Code Snippet 4</em> has. For now we will not look at the RTerm processes, so you can just execute the code with the <code>@parallel = 1</code> parameter set. On my machine which is a 4 core machine with hyper threading (i.e. 8 processors) and <code>MAXDOP</code> is set to 0 (use all processors), I get the following result when I execute:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg2_result.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Result from Parallel Execution</em></p>
+
+<p>In <em>Figure 4</em> we see how the results are returned from 8 RTerm process id&rsquo;s. This is to be expected when SQL uses parallelism and <code>MAXDOP</code> is 0. Oh, and BTW - according to people &ldquo;in the know&rdquo; you should not have <code>MAXDOP</code> set to 0 if you run on an HT box. <a href="https://www.mssqltips.com/sqlservertip/2650/what-maxdop-setting-should-be-used-for-sql-server/">Here</a> is an article about <code>MAXDOP</code> settings.</p>
+
+<p>We also see from <em>Figure 4</em> that we executed in ~8.7 seconds, roughly half the time it took when we didn&rsquo;t use parallelism.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> There is no guarantee that you will improve performance by using parallelism, so it is a good idea to always test against the workloads you are using.</p>
+</blockquote>
+
+<p>The query plan from the execution also shows parallelism:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg2_qp.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Query Plan With Parallelism</em></p>
+
+<p>The interesting part with the query plan, as Bob pointed out to me, is that the UDX operator gets pushed <strong>before</strong> the <em>Parallelism</em> operator.</p>
+
+<p>Let us now get back to what we started this with; how parallelism affects process creation. From what we have seen above, we can be fairly certain that 8 processes have been created, but let&rsquo;s make sure that it really happens:</p>
+
+<ul>
+<li>Un-comment the line in the R script saying <code>Sys.sleep(30)</code>. We&rsquo;ll use this pause to be able to closer see what happens.</li>
+<li>Restart the launchpad service.</li>
+<li>Navigate to the <code>Launchpad.exe</code> process in <em>Process Explorer</em>.</li>
+<li>Execute the code.</li>
+<li>While the code executes look closely at the RTerm processes under the launchpad process in <em>Process Explorer</em>.</li>
+</ul>
+
+<p>On my box the RTerm processes looks like so:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg2_processes.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> RTerm Processes and Parallelism*</p>
+
+<p>From <em>Figure 6</em> we can see how there are 8 executing processes (the outlined rows), and 16 processes altogether. So when executing in parallel, the launchpad service creates two processes for each task, where one of the two processes are used for execution of the R code, and the other is being added to the process pool. The processes that are being used to executed on, are torn down after execution - and left are the ones in the process pool.</p>
+
+<p>However if the level of parallelism (tasks) are less than the number of processes to be created, (5 by default or the value of <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>), then the launchpad service creates as many process as required so that there always is the required number of processes in the pool.</p>
+
+<p>An example of this is if <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> has not been set, and we are working with 5 as default; if the level of parallelism is 4, then 9 processes will be created - 4 for execution, and 5 for the pool.</p>
+
+<p>So why would the level of parallelism be less than the required number of processes? Well, we may execute on a box with few processors, maybe not so likely, or <code>MAXDOP</code> is set (see below).</p>
+
+<h3 id="cran-r-functions">CRAN R Functions</h3>
+
+<p>So far we have used RevoScaleR functions in our script code, what happens if we want to use a CRAN R function instead. Something similar to what is in <em>Code Snippet 2</em>? That works fine as well, multiple RTerm processes will process the data. I will not show the code here, but you can easily try it our yourselves.</p>
+
+<h2 id="max-degree-of-parallelism-maxdop">Max Degree of Parallelism (MAXDOP)</h2>
+
+<p>So <code>MAXDOP</code> is a way to indicate to SQL Server how many processors to execute a piece of code on. Or rather, it is a way to limit SQL Server from running a statement over all processors on the box. As this post is not about <code>MAXDOP</code> as such, I won&rsquo;t go into details about it, but if you want to know more <a href="https://blogs.msdn.microsoft.com/arali/2009/11/25/sql-server-max-degree-of-parallelism-maxdop/">here is an MSDN article</a> covering <code>MAXDOP</code>. Anyway, <code>MAXDOP</code> is set on SQL Server instance level, but can also be used as query hint on individual queries.</p>
+
+<p>Setting <code>MAXDOP</code> for individual statements also work for the statement used in the <code>@input_data_1</code> parameter on the <code>sp_execute_external_script</code> procedure. So in our code example was can change the <code>@input_data_1</code> parameter to look like so:</p>
+
+<pre><code class="language-sql">, @input_data_1 = N'
+              SELECT  y, rand1, rand2, rand3, 
+                      rand4, rand5 
+              FROM dbo.rand_30M OPTION(MAXDOP 4)'
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Using MAXDOP in SELECT</em></p>
+
+<p>The code in <em>Code Snippet 5</em> will now restrict the parallelism to use 4 processors, and results coming back will show 4 different process id&rsquo;s, and - as I mentioned above - during execution there will be 9 RTerm processes created, and when the execution has finished 5 will be in the process pool.</p>
+
+<h2 id="some-unclear-points">Some Unclear Points</h2>
+
+<p>All this seems pretty straight forward, however what is unclear for me is how the interaction between SQL Server and the launchpad service works when executing with parallelism. On the SQL Server side we can see how multiple tasks and workers are invoked when parallelism is in play by executing something like so:</p>
+
+<pre><code class="language-sql">DECLARE @spid int = &lt;spid_from_script_execute&gt;
+SELECT t.session_id, t.scheduler_id, t.task_address, t.worker_address 
+FROM sys.dm_os_tasks t
+WHERE t.session_id = @spid;
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Viewing Tasks and Workers When Executing</em></p>
+
+<p>To see this:</p>
+
+<ol>
+<li>Open a second query window and copy the code from <em>Code Snippet 6</em> into that window.</li>
+<li>Replace the <code>&lt;spid_from_script_execute&gt;</code> with the session id (<code>@@SPID</code>) from where you execute <code>sp_execute_external_script</code>.</li>
+<li>Highlight the <em>Code Snippet 6</em> code in the query window.</li>
+<li>Execute the <code>sp_execute_external_script</code> code, where <code>@parallel</code> is set to 1.</li>
+<li>Quickly change over to the other query window and execute the code.</li>
+</ol>
+
+<p>The result from the query window where you execute the code from <em>Code Snippet 6</em> looks something like what you see in <em>Figure 7</em>:</p>
+
+<p><img src="/images/posts/sql_r_services_lin_reg2_tasks.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> Tasks, Workers and Schedulers*</p>
+
+<p>Ok, we see multiple schedulers, tasks and workers being active when we execute our code, and there is nothing strange in that. Seeing that, I would then have expected that there would be a one-to-one relationship between the tasks and the calls into the launchpad service, but that is not the case.</p>
+
+<p>I verified that by &ldquo;firing up&rdquo; my trusted debugger <strong>WinDbg</strong> and attached it to the launchpad process, similar to what we did in <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Internals - II</a>. I then set a breakpoint at <code>launchpad!CLaunchContext::LaunchServTask</code>, and executed the code. My expectation was that I would see how the breakpoint was hit multiple times when I executed with parallelism.</p>
+
+<p>That did not happen, the breakpoint was hit once, and that was it. That leaves me with the question how SQL Server interacts with the launchpad service when executing with parallelism. My guess is that when SQL Server calls into the launchpad service, (which we discussed at length in <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Internals - I</a> and <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">II</a>), it tells the launchpad service that this call requires parallelism, and the level of it. But as I said, this is just a guess. Maybe someone out there can clarify what goes on.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post I wanted to look at how parallelism affects the creation of RTerm processes in <strong>SQL Server R Services</strong>. The conclusion is that it does:</p>
+
+<ul>
+<li>When executing with no parallelism, the launchpad service creates 6 processes by default (can be altered by <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>), and the code runs on one, the others are added to the process pool. When the code has finished executing, the executing process is torn down.</li>
+<li>When executing under parallelism the launchpad service creates two processes per degree of parallelism. One of the two processes are used to execute on, the other is added to the pool.
+
+<ul>
+<li>If the level of parallelism is lower than default number of process to be created (or <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>) then the launchpad service creates enough processes to satisfy the required level.</li>
+</ul></li>
+<li>Parallelism works with CRAN R functions as well as RevoScaleR.</li>
+<li>The <code>MAXDOP</code> setting has impact on the parallelism.</li>
+</ul>
+
+<p>So that&rsquo;s for now! Thanks once again to <a href="https://twitter.com/bob_albright">Bob</a> for his input and code!! And as I mentioned above, if anyone has input how SQL Server interacts with the launchpad service, when parallelism is in play - I&rsquo;d be more than happy to hear about it.</p>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/04/30/interesting-stuff---week-17/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 17</span>
+    </a>
+    
+    
+    <a href="/2017/05/07/interesting-stuff---week-18/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 18</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Microsoft SQL Server R Services - Internals IV</a>
+      
+      <time class="pull-right hidden-tablet">Apr 23 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Microsoft SQL Server R Services - Internals III</a>
+      
+      <time class="pull-right hidden-tablet">Apr 13 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/02/microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a>
+      
+      <time class="pull-right hidden-tablet">Apr 02 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/18/microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>
+      
+      <time class="pull-right hidden-tablet">Mar 18 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/04/microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a>
+      
+      <time class="pull-right hidden-tablet">Mar 04 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>

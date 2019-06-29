@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Facebook Prophet and Microsoft R Server • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Facebook Prophet and Microsoft R Server"/>
+<meta name="twitter:description" content="How to use Facebook Prophet in Microsoft R Server / SQL Server R Services"/>
+
+<meta property="og:title" content="Facebook Prophet and Microsoft R Server" />
+<meta property="og:description" content="How to use Facebook Prophet in Microsoft R Server / SQL Server R Services" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2017/05/20/facebook-prophet-and-microsoft-r-server/" />
+
+
+
+<meta property="article:published_time" content="2017-05-20T11:31:37&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-05-20T11:31:37&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Facebook Prophet and Microsoft R Server</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> May 20, 2017
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/data-science">DATA SCIENCE</a>
+              •
+          
+              <a class="post__category" href="/categories/microsoft-r-server">MICROSOFT R SERVER</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server">SQL SERVER</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-r-services">sql server r services</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-2017">sql server 2017</a>
+           
+      
+          <a class="post__tag" href="/tags/microsoft-r-server">microsoft r server</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/r-tools-for-visual-studio">r tools for visual studio</a>
+           
+      
+          <a class="post__tag" href="/tags/facebook-prophet">facebook prophet</a>
+           
+      
+          <a class="post__tag" href="/tags/rterm.exe">rterm.exe</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 12 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p><a href="https://en.wikipedia.org/wiki/Time_series">Time series</a> data is being used more and more in all industries, and of course we want to be able to forecast and predict future values. There are however a variety of challenges that come with producing a large number of forecasts across a variety of time series.</p>
+
+<p>The <a href="https://research.fb.com/category/data-science/">Facebook&rsquo;s data science team</a> has worked with time series forecasting for quite a while, and recently they open-sourced an internal tool for this type of forecasting: <a href="https://facebookincubator.github.io/prophet/">Facebook Prophet</a>.</p>
+
+<p>Recently there was a post on the Microsoft R Server forum if it was possible to use Prophet with Microsoft R Server, so I thought I&rsquo;d test it out. This post covers how to use it, both from a standalone Microsoft R Server as well as SQL Server R Services.</p>
+
+<p></p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Prophet requires an R version of 3.2.3 or greater. Unfortunately an installation of SQL Server 2016 R Services, in-database as well as standalone, uses R 3.2.2. So Prophet cannot be run on SQL Server R Services 2016, unless you upgrade the R version. In this post I am running SQL Server R Services 2017, both in-database and standalone.</p>
+</blockquote>
+
+<p>So, in essence Prophet is just an R packet and should be installed as such. However on Windows, Prophet requires a compiler, <a href="http://mc-stan.org/">Stan</a>, which incurs some extra steps when installing Prophet.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The description of Stan from <a href="https://en.wikipedia.org/wiki/Stan_(software)">Wikipedia:</a> <em>Stan is a probabilistic programming language for statistical inference written in C++. The Stan language is used to specify a (Bayesian) statistical model with an imperative program calculating the log probability density function.</em>. So there!</p>
+</blockquote>
+
+<h2 id="stan-dependencies">Stan &amp; Dependencies</h2>
+
+<p>If you are on Windows, regardless if you want to use Prophet in a standalone version of Microsoft R Server or in SQL Server R Services, you need to install Stan, or rather the R version (RStan). There is also a Stan version for Python; PyStan. In addition to RStan there are some dependencies that need to be installed.</p>
+
+<p>There is a very good article about how to install RStan on Windows <a href="https://github.com/stan-dev/rstan/wiki/Installing-RStan-on-Windows">here</a>, and below follows a very short summary of the article.</p>
+
+<h3 id="rtools-installation">RTools Installation</h3>
+
+<p>Before you can install RStan you need to install a tool-chain that works with R, and - for this - RTools is an excellent choice.</p>
+
+<p>RTools can be downloaded form <a href="https://cran.r-project.org/bin/windows/Rtools/">here</a>, and you download the version that matches your Microsoft R Server&rsquo;s / SQL Server R Services version. The table below is a map between various Microsoft R Servers and the corresponding R version. I have not included SQL Server 2016 R Services as the R version is not compatible with Prophet:</p>
+
+<table>
+<thead>
+<tr>
+<th><strong>R Server</strong></th>
+<th><strong>R Version</strong></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Microsoft R Server 8.x - 9.01</td>
+<td>3.3.2</td>
+</tr>
+
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+
+<tr>
+<td>Microsoft R Server 9.1</td>
+<td>3.3.3</td>
+</tr>
+
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+
+<tr>
+<td>SQL Server 2017 R Services</td>
+<td>3.3.3</td>
+</tr>
+
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+</tbody>
+</table>
+
+<p>On the machine I test this on, I have the in-database as well as the standalone R Services from SQL Server 2017, so I downloaded the <code>Rtools34.exe</code>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you have installed the stand-alone version of Microsoft R that comes with SQL Server R Services, the version of R is the same as for SQL Server R Services.</p>
+</blockquote>
+
+<p>To install RTools double click the executable you just downloaded. What you need to ensure is that the <code>PATH</code> is set properly. So during the installation process, when it comes to the dialog <strong>Select Additional Tasks</strong> ensure that you check the check-box for <em>Edit the system PATH</em>:</p>
+
+<p><img src="/images/posts/prophet_rtool_install.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Edit the System Path</em></p>
+
+<p>After having checked the box for editing the PATH, just click through and let the install finish. After installation check that the PATH has been set. You do this by running <code>RTerm.exe</code> and executing <code>Sys.getenv('PATH')</code> from command prompt.</p>
+
+<p>Dependent on if you want to run RTools on a standalone Microsoft Windows R Server installation or in-database, you find <code>RTerm.exe</code> at different locations. On my box the locations are:</p>
+
+<ul>
+<li>Standalone Microsoft R Server: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code></li>
+<li>SQL Server R Services: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code></li>
+</ul>
+
+<p>After executing <code>Sys.getenv('PATH')</code>, you should see something like so:</p>
+
+<p><img src="/images/posts/prophet_rtool_install_path.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>RTools Path</em></p>
+
+<p>You can also check that <code>g++</code> (C++ compiler) can be called: <code>system('g++ -v')</code>. That should result in something like:</p>
+
+<p><img src="/images/posts/prophet_rtool_install_g++.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Checking for g++</em></p>
+
+<h3 id="rstan-installation">RStan Installation</h3>
+
+<p>OK, so after all the above is OK - we can finally install RStan. RStan is just another package, and it should be installed as any other package (like Prophet, which we will see in a bit). Whereas RTools is just installed to a shared directory on the box where R resides, RStan needs to be installed for each R instance specifically.</p>
+
+<h4 id="standalone-microsoft-r-server">Standalone Microsoft R Server</h4>
+
+<p>To install R packages you use the function <code>install.packages()</code>. For a standalone Microsoft R Server instance there is not much more you need to do, apart from saying where to install the package from and what to do about dependencies:</p>
+
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the standalone instance (in my case: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code>).</li>
+<li>Execute the following code: <code>install.packages(&quot;rstan&quot;, repos = &quot;https://cloud.r-project.org/&quot;, dependencies=TRUE)</code></li>
+<li>This will run for a while, click yes for any questions during installation.</li>
+</ol>
+
+<p>When the installation has finished you can test that it has succeeded and that the tool chain works:</p>
+
+<ol>
+<li>Close down the <code>RTerm.exe</code> terminal and re-open it (as admin).</li>
+<li>Execute the code in <em>Code Snippet 1</em> below.</li>
+</ol>
+
+<pre><code class="language-r"># create an inline function fx
+fx &lt;- inline::cxxfunction( signature(x = &quot;integer&quot;, y = &quot;numeric&quot; ) , 
+            'return ScalarReal( INTEGER(x)[0] * REAL(y)[0] ) ;')
+
+fx (2L,5 ) # the result should be 10
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Test of RStan Installation</em></p>
+
+<p>When executing the above, the result from <code>fx(2L,5)</code> should be 10.</p>
+
+<h4 id="sql-server-r-services-installation">SQL Server R Services Installation</h4>
+
+<p>The way to install a package in SQL Server R Services is similar to the standalone installation. However you cannot install a package to any directory, it has to be installed to the default package directory for the instance, as only only one package library is allowed.</p>
+
+<p>The code in <em>Code Snippet 2</em> below shows how to retrieve the default package library:</p>
+
+<pre><code class="language-sql">EXECUTE sp_execute_external_script  
+           @language = N'R'
+         , @script = N'OutputDataSet &lt;- data.frame(.libPaths());'
+WITH RESULT SETS (([DefaultLibraryName] VARCHAR(MAX) NOT NULL));
+GO
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Retrieving Default Package Directory</em></p>
+
+<p>On my machine the directory is: <code>C:/Program Files/Microsoft SQL Server/MSSQL14.INST2K17CTP20/R_SERVICES/library</code>. So to install RStan:</p>
+
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the SQL Server R Services instance (in my case: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code>).</li>
+<li>Execute the code in <em>Code Snippet 3</em> at command prompt.</li>
+</ol>
+
+<pre><code class="language-r">pkg.dir &lt;- &quot;C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\library&quot;
+install.packages(&quot;rstan&quot;, repos = &quot;https://cloud.r-project.org/&quot;, dependencies=TRUE, lib = pkg.dir)
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Installing RStan on SQL Server R Services</em></p>
+
+<p>When I ran the code in <em>Code Snippet 3</em> on my box it ran OK, but it did not install all the dependencies as the install for the standalone installation did. I then tested the installation like so:</p>
+
+<pre><code class="language-sql">EXECUTE sp_execute_external_script  
+           @language = N'R'
+         , @script = N'
+              library(&quot;rstan&quot;)
+              fx &lt;- inline::cxxfunction
+                ( signature(x = &quot;integer&quot;, y = &quot;numeric&quot; ) , 
+            ''return ScalarReal( INTEGER(x)[0] * REAL(y)[0] ) ;'')
+            res &lt;-fx(2L, 5)
+            cat(paste0(&quot;Result: &quot;, res))
+            cat(&quot;\n&quot;)'
+</code></pre>
+
+<p><strong>Code Snippet 4</strong> <em>Test of RStan Installation SQL Server R Services</em></p>
+
+<p>Initially, straight after installation, I received an error that <code>ggplot2</code> was missing. I resorted to copying all the packages from the package library for the standalone installation (<code>W:\Documents\R\win-library\3.3</code>) to the package library for the SQL Server R Services, and that sorted it the issue. When executing the code in <em>Code Snippet 4</em> a second time, all was OK:</p>
+
+<p><img src="/images/posts/prophet_rstan_sql_server.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Result from SQl Server R Services</em></p>
+
+<blockquote>
+<p><strong>NOTE:</strong> My assumption is that when installing RStan the second time, the installation saw that I had the dependent packages installed already. However for SQL Server R Services all packages need to be installed in the default package library directory. For now it all works though.</p>
+</blockquote>
+
+<p>OK, now when we we have the various pre-requisites installed we can install Prophet.</p>
+
+<h2 id="prophet-installation">Prophet Installation</h2>
+
+<p>Compared to the installation of RStan (and its dependencies), the installation of Prophet is really straight forward. Let us start installing Prophet on a standalone Microsoft R Server instance.</p>
+
+<h3 id="install-prophet-on-microsoft-r-server">Install Prophet on Microsoft R Server</h3>
+
+<p>As you did with RStan you:</p>
+
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the standalone instance (in my case: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code>).</li>
+<li>Set the package library where to install Prophet to: <code>lib.dir &lt;- &quot;C:\\Program Files\\Microsoft SQL Server\\140\\R_SERVER\\library&quot;</code></li>
+<li>Execute the actual installation: install.packages(&ldquo;prophet&rdquo;, lib = lib.dir, repos = &ldquo;<a href="https://cloud.r-project.org/&quot;">https://cloud.r-project.org/&quot;</a>, dependencies = TRUE)</li>
+</ol>
+
+<blockquote>
+<p><strong>NOTE:</strong> The reason why I explicitly state where to get the package from in the code above is that I had problems with the Prophet package installing from Microsoft&rsquo;s R repo.</p>
+</blockquote>
+
+<p>The output from the code above will be something like so (heavily redacted):</p>
+
+<p><img src="/images/posts/prophet_install_standalone.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Install Prophet Microsoft R Server</em></p>
+
+<p>Prophet should now be installed and ready to use. Further below we&rsquo;ll see some examples how to use it.</p>
+
+<h3 id="install-prophet-on-sql-server-2017-r-services">Install Prophet on SQL Server 2017 R Services</h3>
+
+<p>The install of Prophet on SQL Server R Services does not differ much from the install on a standalone server:</p>
+
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the SQL Server R Services instance (in my case: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code>).</li>
+<li>Execute the code in <em>Code Snippet 5</em>.</li>
+</ol>
+
+<pre><code>lib.dir &lt;- &quot;C:\\Program Files\\Microsoft SQL Server\\MSSQL14.INST2K17CTP20\\R_SERVICES\\library&quot;
+install.packages(&quot;prophet&quot;, lib = lib.dir, repos = &quot;https://cloud.r-project.org/&quot;, dependencies = TRUE)
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Installation of Prophet on SQL Server 2017 R Services</em></p>
+
+<p>The output from the execution is the same as you see in <em>Figure 5</em>.</p>
+
+<h2 id="use-prophet">Use Prophet</h2>
+
+<p>Now everything should be ready, and we should be able to use Prophet. To test it out I am &ldquo;shamelessly&rdquo; &ldquo;borrowing&rdquo; the examples from <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">here</a> (but I will just do the bare minimum to see that it works - no plotting etc.). The data I use is also the same; the log number of views to <a href="https://en.wikipedia.org/wiki/Peyton_Manning">Petyon Manning’s Wikipedia page</a>. The <code>csv</code> file can be downloaded from <a href="https://github.com/facebookincubator/prophet/blob/master/examples/example_wp_peyton_manning.csv">here</a>.</p>
+
+<p>After you have downloaded the <code>csv</code> file you can see it has two columns: <code>ds</code> which are dates, and <code>y</code> which shows the number of views of his page. This is now the data we&rsquo;ll use to predict future hits of his page. We&rsquo;ll start with the standalone Microsoft R Server installation.</p>
+
+<h3 id="test-code-microsoft-r-server">Test Code Microsoft R Server</h3>
+
+<p>For this test you can use any IDE you want, I&rsquo;m using R Tools for Visual Studio 2017. So following the <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">example</a>, this is what the code will look like:</p>
+
+<pre><code class="language-r"># load prophet
+library(prophet)
+# load dplyr, needed for mutate()
+library(dplyr)
+
+# read in the csv data into a data frame
+df &lt;- read.csv('W:/nielsb-work/GitHub-Repos/prophet/
+                  examples/example_wp_peyton_manning.csv')
+
+# convert the y variable to a natural logarithm
+df &lt;- mutate(df, y = log(y))
+
+# create the model
+m &lt;- prophet(df)
+
+# create a dataframe to fit a forecast into
+future &lt;- make_future_dataframe(m, periods = 365)
+
+# do the forecast
+forecast &lt;- predict(m, future)
+
+# print out some data
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Forecasting With Prophet</em></p>
+
+<p>If you want to know what the code does, look at the comments in the code block. You can also look at the <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">Prophet Quick Start page</a> mentioned above, there they explain it quite well.</p>
+
+<p>Below you see the output from running the code, from the point where <code>forecast &lt;- predict(m, future)</code> was called:</p>
+
+<pre><code class="language-r">&gt; forecast &lt;- predict(m, future)
+&gt; tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+             ds     yhat yhat_lower yhat_upper
+3265 2017-01-14 7.832611   7.133318   8.577273
+3266 2017-01-15 8.214427   7.507750   8.924990
+3267 2017-01-16 8.539490   7.824840   9.325312
+3268 2017-01-17 8.326945   7.660892   9.099628
+3269 2017-01-18 8.159623   7.447501   8.897813
+3270 2017-01-19 8.171545   7.473959   8.911978
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Result from Forecasting with Prophet</em></p>
+
+<p>The <code>forecast</code> object is a data frame with a column <code>yhat</code> containing the forecast. It has additional columns for uncertainty intervals and seasonal components.</p>
+
+<h3 id="test-code-sql-server-r-services">Test Code SQL Server R Services</h3>
+
+<p>Having done the Microsoft R Server test, let us do the test against SQL Server R Services. I want upfront say that there is an issue with running this on SQL Server R Services, whereby dates returned in the model are shown incorrectly. At the moment I am not sure why this is the case - if someone reading this knows the reason, please let me know. I do believe it may be due to some incorrect package in the SQL Server R Services installation, but I am not sure.</p>
+
+<p>Anyway, let&rsquo;s just see what it would look like running more or less the same code as in <em>Code Snippet 6</em>, inside SQL Server R Services. Let&rsquo;s take the code in <em>Code Snippet 6</em>, and enable it to run in SQL Server. You do that by encapsulation the R code inside the <code>@script</code> parameter in <code>sp_execute_external_script</code>:</p>
+
+<pre><code class="language-sql">EXECUTE sp_execute_external_script  
+                    @language = N'R'
+                  , @script = N'
+                      # load prophet
+                      library(prophet)
+                      # load dplyr, needed for mutate()
+                      library(dplyr)
+
+                      # read in the csv data into a data frame
+                      df &lt;- read.csv(&quot;W:\\nielsb-work\\GitHub-Repos\\prophet\\examples\\example_wp_peyton_manning.csv&quot;)
+
+                      # convert the y variable to a natural logarithm
+                      df &lt;- mutate(df, y = log(y))
+
+                      # create the model
+                      m &lt;- prophet(df)
+
+                      # create a dataframe to fit a forecast into
+                      future &lt;- make_future_dataframe(m, periods = 365)
+
+                      # do the forecast
+                      forecast &lt;- predict(m, future)
+
+                      # output the result of the forecast
+                      OutputDataSet &lt;- data.frame(forecast[c(&quot;ds&quot;, &quot;yhat&quot;, &quot;yhat_lower&quot;, &quot;yhat_upper&quot;)])'
+WITH RESULT SETS ((ds datetime, yhat varchar(50), yhat_lower varchar(50), yhat_upper varchar(50)) );
+
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Executing Prophet in SQL Server</em></p>
+
+<p>The only difference from what we see in <em>Code Snippet 6</em>, is that we output the result as a result set. When you execute the code you will get 3270 rows back: 2905 historical, and 365 predicted. However as I said above, there seems to be something not quite right when running it in SQL Server as the dates are completely wrong, and the values are also a bit off. In <em>Figure 6</em> below, you see the last 6 rows returned from SQL Server, compare that with the same in <em>Code Snippet 7</em>, and you will see some differences (apart from the dates).</p>
+
+<p><img src="/images/posts/prophet_result_sql_server.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Result from SQL Server Execution</em></p>
+
+<p>Anyway, this post was more about if you can, and if so how, run Prophet in Microsoft R Server and SQL Server R Services, which we now see we can.</p>
+
+<h2 id="summary">Summary</h2>
+
+<ul>
+<li>Prophet can be run in both Microsoft R Server as well as SQL Server R Services.</li>
+<li>Prophet requires R 3.2.3 or above, so a standard SQL Server 2016 R installation is not going to work.</li>
+<li>There seems to be an issue when executing Prophet inside SQL Server, as dates come out completely wrong, and values are somewhat off. I&rsquo;ll try and find out why this is the case.</li>
+</ul>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2017/05/16/microsoft-sql-server-r-services---internals-vi/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Microsoft SQL Server R Services - Internals VI</span>
+    </a>
+    
+    
+    <a href="/2017/05/21/interesting-stuff---week-20/" class="post--navigation-next">
+      <span class="navigation-tittle">Interesting Stuff - Week 20</span>
+      <i aria-hidden="true" class="fa fa-chevron-right"></i>
+    </a>
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2017/03/12/interesting-stuff---week-10/">Interesting Stuff - Week 10</a>
+      
+      <time class="pull-right hidden-tablet">Mar 12 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/05/16/microsoft-sql-server-r-services---internals-vi/">Microsoft SQL Server R Services - Internals VI</a>
+      
+      <time class="pull-right hidden-tablet">May 16 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/05/01/microsoft-sql-server-r-services---internals-v/">Microsoft SQL Server R Services - Internals V</a>
+      
+      <time class="pull-right hidden-tablet">May 01 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/23/microsoft-sql-server-r-services---internals-iv/">Microsoft SQL Server R Services - Internals IV</a>
+      
+      <time class="pull-right hidden-tablet">Apr 23 &#39;17</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2017/04/13/microsoft-sql-server-r-services---internals-iii/">Microsoft SQL Server R Services - Internals III</a>
+      
+      <time class="pull-right hidden-tablet">Apr 13 &#39;17</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
