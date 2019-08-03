@@ -3,10 +3,143 @@
   <title>Niels Berglund</title>
   <link href="https://nielsberglund.com/atom.xml" rel="self"/>
   <link href="https://nielsberglund.com"/>
-  <updated>2019-07-28T09:40:56+02:00</updated>
+  <updated>2019-08-03T06:55:33+02:00</updated>
   <id>https://nielsberglund.com/</id>
   <generator uri="http://gohugo.io/">Hugo</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[SQL Server 2019 CTP3.2 &amp; Java]]></title>
+    <link href="https://nielsberglund.com/2019/08/03/sql-server-2019-ctp3.2--java/" rel="alternate" type="text/html"/>
+    <updated>2019-08-03T06:55:33+02:00</updated>
+    <id>https://nielsberglund.com/2019/08/03/sql-server-2019-ctp3.2--java/</id>
+    <content type="html"><![CDATA[<p>It seems that for each new SQL Server 2019 CTP release, there are changes to the Java extensions, and CTP 3.2 is no exception. Well, that is not exactly true as in CTP 3.2 release the changes are not about the extension and how we write code, but Java itself.</p>
+
+<p>One of the <a href="https://cloudblogs.microsoft.com/sqlserver/2019/07/24/free-supported-java-in-sql-server-2019-is-now-available/">announcements</a> of what is new in CTP 3.2 was that SQL Server now includes <a href="https://www.azul.com/">Azul System&rsquo;s</a> Zulu Embedded right out of the box for all scenarios where we use Java in SQL Server, including Java extensibility.</p>
+
+<p>So, in this post, we look at the impact, (if any), this has to how we use the Java extensibility framework in SQL Server 2019.</p>
+
+<p></p>
+
+<p>First of all, I find Microsoft&rsquo;s change of stance related to Java very interesting as I remember back in the day the <a href="https://en.wikipedia.org/wiki/Microsoft_Java_Virtual_Machine">battle</a> between Sun and Microsoft regarding Java and the subsequent Java vs .NET &ldquo;war&rdquo;.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Around <sup>1995</sup>&frasl;<sub>96</sub> I attended a Microsoft event in London where Microsoft introduced what was to be Visual J++. It went under the code name &ldquo;Jakarta&rdquo;. The MS people presenting at the conference explained why they chose that name: <em>Jakarta is the capital of Java</em>. That was not entirely true as Jakarta is the capital of Indonesia, but Java is the largest island, so&hellip;</p>
+</blockquote>
+
+<p>Anyway, let us get on with it, and see what happens when we install SQL Server 2019 CTP 3.2.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>You may remember from <a href="/2018/12/02/sql-server-2019-extensibility-framework--java---hello-world/">SQL Server 2019 Extensibility Framework &amp; Java - Hello World</a> that to enable Java in SQL Server 2019; you have to - during installation - choose the <em>Machine Learning Services</em> feature:</p>
+
+<p><img src="/images/posts/sql_2k19_java_intro_install1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Enable In-Database Machine Learning</em></p>
+
+<p>In <em>Figure 1</em> we have chosen <em>Machine Learning Services</em> which ensures that the required components, (<em>Launchpad</em>, and so on), gets installed. In pre-CTP 3.2, we had to - in addition to choosing <em>Machine Learning Services</em> - also ensure that Java is installed on the box where we install the SQL Server instance.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> We also need to do other &ldquo;stuff&rdquo; if we want to enable Java, and I cover that below.</p>
+</blockquote>
+
+<p>When we install SQL Server CTP 3.2, we see something like so:</p>
+
+<p><img src="/images/posts/s2k19_ctp32_java.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Java Feature Selection</em></p>
+
+<p>What we see in <em>Figure 2</em> is:</p>
+
+<ul>
+<li>The <em>Machine Learning Services</em> feature is now named <em>Machine Learning Services and Language Extensions</em>.</li>
+<li>Java appears as a feature in the same way as R/Python.</li>
+</ul>
+
+<p>We choose Java as a feature, as in <em>Figure 2</em>, and after feature rules and instance configuration, we come to a new dialog; <em>Java Install Location</em>:</p>
+
+<p><img src="/images/posts/s2k19_ctp32_java2.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Java Install Location</em></p>
+
+<p>In the dialog, we see in <em>Figure 3</em>, how we have the ability to choose to install the Azule Zulu OpenJDK which is part of the SQL Server install. We choose the OpenJDK and continue with the installation.</p>
+
+<p>Eventually the installation finish, and if we look in the installation path of the instance we just installed, we see:</p>
+
+<p><img src="/images/posts/s2k19_ctp32_openjdk.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Azule Zulu OpenJDK</em></p>
+
+<p>If we drill down in the <code>AZUL-OpenJDK-JRE</code> directory, we see it is the directory for the Java JRE. So we now have Java installed, and theoretically, we should be able to execute Java code, exactly as we execute R/Python?</p>
+
+<h2 id="post-install">Post Install</h2>
+
+<p>Well, to execute Java code is not as straightforward as in the previous paragraph even though Java is now installed. We still have to do some things:</p>
+
+<ul>
+<li>Enable external scripts: <code>EXEC sp_configure 'external scripts enabled', 1</code></li>
+<li>Register Java as an external language in the database from where you want to execute your code: <code>CREATE EXTERNAL LANGUAGE ...</code>. Read more about it in <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">SQL Server 2019 Extensibility Framework &amp; External Languages</a>.</li>
+<li>Deploy the Java external language extension SDK to the database above: <code>CREATE EXTERNAL LIBRARY ...</code>. Refer to <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/">Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</a> for more about that.</li>
+</ul>
+
+<p>When the above is done, we deploy our code either via <code>CREATE EXTERNAL LIBRARY ...</code>, or have our code available in the <code>CLASSPATH</code>. Having done that we should be able to execute:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int = 21;
+DECLARE @p2 int = 21;
+EXEC sp_execute_external_script
+  @language = N'Java'
+, @script = N'sql.JavaTest1'
+, @params = N'@x int, @y int'
+, @x = @p1
+, @y = @p2   
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Execute Java Code</em></p>
+
+<p>In <em>Code Snippet 1</em> we see that we want to <code>EXEC sp_execute_external_script</code> against some Java code deployed as a <code>.jar</code>, (this is the same code as in the <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">external languages</a> post). However, when we execute the result is like so:</p>
+
+<p><img src="/images/posts/s2k19_ctp32_exec1.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Missing Environment Variable</em></p>
+
+<p>So even though we explicitly said during the SQL installation that we want to use the included Java and it got installed, we still need to set the <code>JRE_HOME</code> variable. The installation does not do that for us.</p>
+
+<p>After we have created the <code>JRE_HOME</code> environment variable and set it to point to the <code>AZUL-OpenJDK-JRE</code> directory we see in <em>Figure 4</em>, we need to restart the <em>Launchpad</em> service, and then we can execute the code in <em>Code Snippet 1</em> again:</p>
+
+<p><img src="/images/posts/s2k19_ctp32_exec2.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Success</em></p>
+
+<p>Now everything works as we see in <em>Figure 6</em>.</p>
+
+<h2 id="scenarios">Scenarios</h2>
+
+<p>Even though we explicitly choose the included Java in the installation, we still need to set up Java as in pre-CTP 3.2, so what does this give us?</p>
+
+<p>It gives us peace of mind! Remember that Oracle is phasing out free support for Java, and I wonder how interested they are in solving issues with Java on SQL Server. If we use open source OpenJDK, we rely on the community for support, which may not be ideal in an enterprise production environment. So by using the included Java, we are guaranteed enterprise support - peace of mind!</p>
+
+<p>Does this then mean that we need to use the included Java? Not at all! Below follows some scenarios/options. All require what we did above; create external language, deploy the SDK, deploy your code:</p>
+
+<ul>
+<li>Enable <em>Machine Learning Services and Language Extensions</em> only, (no Java): Ensure that your <code>JRE_HOME</code> environment variable points to whatever Java JRE you want to use.</li>
+<li>Enable <em>Machine Learning Services and Language Extensions</em> including Java, (as per above): The <code>JRE_HOME</code> variable can point to some other Java JRE than Azul, even though the Azul JDK gets installed.</li>
+</ul>
+
+<p>What happens if I enable Java, but instead of choosing the included JRE as in <em>Figure 3</em>, I choose the second option: I provide the location of a different JRE? For Java in <em>Machine Learning Services and Language Extensions</em> that has no effect. You need to, as in all other scenarios, point the <code>JRE_HOME</code> variable to a valid JRE directory.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> It is good practice to whenever you change, (or first set), the <code>JRE_HOME</code> variable to restart the <em>Launchpad</em> service.</p>
+</blockquote>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
+    <author>
+      <name>Niels Berglund</name>
+
+    </author>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Interesting Stuff - Week 30, 2019]]></title>
@@ -3144,434 +3277,6 @@ GO
 <h2 id="finally">~ Finally</h2>
 
 <p>That&rsquo;s all for this week. I hope you enjoy what I did put together. If you have ideas for what to cover, please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
-    <author>
-      <name>Niels Berglund</name>
-
-    </author>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Installing R Packages in SQL Server Machine Learning Services - IV: Permissions]]></title>
-    <link href="https://nielsberglund.com/2019/04/21/installing-r-packages-in-sql-server-machine-learning-services---iv-permissions/" rel="alternate" type="text/html"/>
-    <updated>2019-04-21T11:15:19+02:00</updated>
-    <id>https://nielsberglund.com/2019/04/21/installing-r-packages-in-sql-server-machine-learning-services---iv-permissions/</id>
-    <content type="html"><![CDATA[<p>This post is the fourth in a series about installing R packages in <strong>SQL Server Machine Learning Services</strong> (SQL Server ML Services). To see all posts in the series go to <a href="/sql_server_ml_services_install_packages"><strong>Install R Packages in SQL Server ML Services Series</strong></a>.</p>
-
-<p>Why this series came about is a colleague of mine <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> pinged me and asked if I had any advice as he had issues installing an R package into one of their SQL Server instances. I tried to help him and then thought it would make a good topic for a blog post. Of course, at that time I didn&rsquo;t think it would be more posts than one, but here we are.</p>
-
-<p>In this post, we look at:</p>
-
-<ul>
-<li>What permissions <code>CREATE EXTERNAL LIBRARY</code> requires.</li>
-<li>The ability to create external libraries with different owners and what impact it has.</li>
-</ul>
-
-<p></p>
-
-<p>Let us do a recap to see where we are.</p>
-
-<h2 id="recap">Recap</h2>
-
-<p>In the last post; <a href="/2019/04/10/installing-r-packages-in-sql-server-machine-learning-services---iii/">Installing R Packages in SQL Server Machine Learning Services - III</a> we looked at how to deploy R packages to SQL Server without having to have file system access to the machine SQL Server runs on.</p>
-
-<p>We achieve this by creating an external library, using a DDL statement <code>CREATE EXTERNAL LIBRARY</code>, on the database we want to use the R package on. What <code>CREATE EXTERNAL LIBRARY</code> does, is it uploads package files to a database from a file path or byte stream. The signature looks like so:</p>
-
-<pre><code class="language-sql">CREATE EXTERNAL LIBRARY library_name  
-[ AUTHORIZATION owner_name ]  
-FROM (CONTENT = { &lt;file_spec&gt; }  
-    [, PLATFORM = &lt;platform&gt; ]) 
-WITH ( LANGUAGE = '&lt;language&gt;' )  
-[ ; ] 
-</code></pre>
-
-<p><strong>Code Snippet 1:</strong> <em>Signature CREATE EXTERNAL LIBRARY</em></p>
-
-<p>The arguments we see in <em>Code Snippet 1</em> are:</p>
-
-<ul>
-<li><code>library_name</code>: A unique name for the package. The unique:ness is based on the name and the principal id under which it is created. We look closer at that in this post.</li>
-<li><code>owner_name</code>: This optional parameter specifies the name of the user or role that owns the external library. More about that later in this post as well.</li>
-<li><code>file_spec</code>: The <code>file_spec</code> specifies the content of the package for a specific platform, and it can either be in the form of a file location (local path/network path) or a hex literal.</li>
-<li><code>platform</code>: An optional parameter and right now only Windows is supported.</li>
-<li><code>language</code>: Specifies the language of the package. In SQL Server 2017 the only supported language is R.</li>
-</ul>
-
-<p>One of the examples we used throughout the post looked like this:</p>
-
-<pre><code class="language-sql">CREATE EXTERNAL LIBRARY randomForest
-FROM (CONTENT = 'W:\randomForest_4.6-14.zip') 
-WITH (LANGUAGE = 'R'); 
-</code></pre>
-
-<p><strong>Code Snippet 2:</strong> <em>Create External Library</em></p>
-
-<p>In <em>Code Snippet 2</em> we:</p>
-
-<ul>
-<li>Name the external library <code>randomForest</code>.</li>
-<li>Indicate where the package file is (it has to be a zipped file).</li>
-<li>Set R as the language.</li>
-</ul>
-
-<p>The code works fine, but the problem is that the package file has to be in a location where SQL Server can read the file, and this - most likely - requires access to the box where SQL Server is installed.</p>
-
-<p>In the <a href="/2019/04/10/installing-r-packages-in-sql-server-machine-learning-services---iii/">previous post</a> we discussed how we could create an external library from the hex-literal of the package, and we mentioned two different ways to accomplish this:</p>
-
-<ul>
-<li>From a local database.</li>
-<li>Generate binary from code.</li>
-</ul>
-
-<h4 id="local-datbase">Local Datbase</h4>
-
-<ol>
-<li>Create an external library from the R package based on the file path in a local SQL Server where we have access to the file system (like <code>localhost</code>).</li>
-<li>Get the binary representation from the <code>content</code> column in <code>sys.external_library_files</code> via some XML &ldquo;magic&rdquo;.</li>
-<li>Assign the retrieved value to the <code>CONTENT</code> parameter in <code>CREATE EXTERNAL LIBRARY</code>.</li>
-<li>Execute <code>CREATE EXTERNAL LIBRARY</code>.</li>
-</ol>
-
-<h4 id="generate-from-code">Generate from Code</h4>
-
-<ol>
-<li>Write script code which generates the binary representation.</li>
-<li>Follow from step 3 above (local database).</li>
-</ol>
-
-<p>Alternatively, you can connect to the database from inside the script and call <code>CREATE EXTERNAL LIBRARY</code> from the script.</p>
-
-<h2 id="housekeeping">Housekeeping</h2>
-
-<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code we use today. This section is here for those of who want to follow along in what we are doing in the post.</p>
-
-<pre><code class="language-sql">USE master;
-GO
-
-DROP DATABASE IF EXISTS DataScienceDB;
-GO
-
-IF EXISTS(SELECT 1 FROM sys.server_principals WHERE name = 'dane')
-BEGIN
-  DROP LOGIN dane;
-END
-
-CREATE LOGIN dane
-WITH PASSWORD = 'password1234$';
-
-IF EXISTS(SELECT 1 FROM sys.server_principals WHERE name = 'nielsb')
-BEGIN
-  DROP LOGIN nielsb;
-END
-
-CREATE LOGIN nielsb
-WITH PASSWORD = 'password1234$';
-
-CREATE DATABASE DataScienceDB;
-GO
-
-USE DataScienceDB;
-GO
-
-CREATE USER dane
-FROM LOGIN dane;
-
-CREATE USER nielsb
-FROM LOGIN nielsb;
-
-ALTER ROLE db_owner
-  ADD MEMBER nielsb;
-GO
-
-USE master;
-GO
-
-GRANT EXECUTE ON sp_execute_external_script TO public;
-GO
-
-USE DataScienceDB;
-GO
-
-GRANT EXECUTE ANY EXTERNAL SCRIPT TO dane;
-GRANT EXECUTE ANY EXTERNAL SCRIPT TO nielsb;
-GO
-
-USE DataScienceDB;
-GO
-</code></pre>
-
-<p><strong>Code Snippet 3:</strong> <em>Create Logins, Database and Users</em></p>
-
-<p>In <em>Code Snippet 3</em> we create some logins as well as a database and in that database users for the logins. As you see, we do continue with the &ldquo;theme&rdquo; of Dane the data scientist wanting to do &ldquo;stuff&rdquo; in the database. As <code>nielsb</code> is seen to be &ldquo;trustworthy&rdquo; (take that Dane), we add him to the <code>db_owner</code> role.</p>
-
-<p>In the last part of <em>Code Snippet 3</em> we assign some permissions to <code>sp_execute_external_script</code>, as we did in the post <a href="/2018/06/24/sp_execute_external_script-and-permissions/">sp_execute_external_script and Permissions</a>.</p>
-
-<p>Oh, and if you want to follow along, ensure you download the <code>randomForest</code> package from <a href="https://cran.r-project.org/bin/windows/contrib/3.6/randomForest_4.6-14.zip">here</a>.</p>
-
-<h2 id="permissions">Permissions</h2>
-
-<p>Let us look at what permissions we need when creating an external library. Here is what we do:</p>
-
-<ul>
-<li>Log on to SQL Server and the <code>DataScienceDB</code> database as <code>sa</code>.</li>
-<li>Drop the <code>randomForest</code> external library if you have created it: <code>DROP EXTERNAL LIBRARY randomForest</code>.</li>
-<li>Restart the <em>Launchpad</em> service, this is to clean up properly.</li>
-</ul>
-
-<p>After we restart the <em>Launchpad</em> service we want to create an external library as the user <code>dane</code>:</p>
-
-<pre><code class="language-sql">EXECUTE AS USER = 'dane';
-
-CREATE EXTERNAL LIBRARY randomForest
-FROM (CONTENT = 'W:\randomForest_4.6-14.zip') 
-WITH (LANGUAGE = 'R');
-</code></pre>
-
-<p><strong>Code Snippet 4:</strong> <em>Creating External Library as Dane</em></p>
-
-<p>In <em>Code Snippet 4</em> we see how we emulate being logged in as user <code>dane</code>: <code>EXECUTE AS USER = 'dane'</code> and how we then execute. Unfortunately, when we run the code we get an error:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_perm_error1.png" alt="" /></p>
-
-<p><strong>Figure 1:</strong> <em>Permission Error</em></p>
-
-<p>In <em>Figure 1</em> we see that <code>dane</code> does not have permission to <code>CREATE EXTERNAL LIBRARY</code>. We can fix that quickly:</p>
-
-<pre><code class="language-sql">REVERT
-
-GRANT CREATE EXTERNAL LIBRARY TO Dane;
-
-EXECUTE AS USER = 'dane';
-
-CREATE EXTERNAL LIBRARY randomForest
-FROM (CONTENT = 'W:\randomForest_4.6-14.zip') 
-WITH (LANGUAGE = 'R');
-</code></pre>
-
-<p><strong>Code Snippet 5:</strong> <em>Grant Permissions</em></p>
-
-<p>In <em>Code Snippet 5</em> we:</p>
-
-<ul>
-<li><code>REVERT</code> back from the <code>dane</code> user to <code>sa</code>.</li>
-<li><code>GRANT</code> permissions to <code>dane</code> to create external libraries.</li>
-<li>Switch back to <code>dane</code>.</li>
-<li>Execute as <code>dane</code>.</li>
-</ul>
-
-<p>However, when we execute as <code>dane</code> we get another error:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_perm_error2.png" alt="" /></p>
-
-<p><strong>Figure 2:</strong> <em>Impersonation Error</em></p>
-
-<p>We have moved past the permission error, as we in <em>Figure 2</em> see that we do not get the permission error, but we get another error, something about impersonation. What is this about, can it be related to what roles <code>dane</code> is in (remember he is only part of <code>PUBLIC</code>)? Let us test that theory, and let us use <code>nielsb</code> who is more trusted than <code>dane</code>, and is part of <code>db_owner</code>.</p>
-
-<p>So what we do is we copy the code in <em>Code Snippet 5</em>, but replace <code>EXECUTE AS USER = 'dane'</code> with <code>EXECUTE AS USER = 'nielsb'</code>. The assumption is that being part of <code>db_owner</code> should fix this, but when <code>nielsb</code> executes he gets the same error as in <em>Figure 2</em>.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> Notice that we did not have to give <code>nielsb</code> explicit permissions to create external libraries. He has those permissions implicitly just by being part of the <code>db_owner</code> role.</p>
-</blockquote>
-
-<p>The problem we run into here is that even if you have the correct permissions to create an external library, you do not have the correct permissions to execute something that reads from the file system. So how do we solve this, we have two options:</p>
-
-<ol>
-<li>Add the user to the <code>sysadmin</code> server role.</li>
-<li>Create the external library from the package hex-literal.</li>
-</ol>
-
-<p>Option 1 is quick and dirty, but I would not recommend it (<code>dane</code> as <code>sysadmin</code>???!!!). Option 2 is better and seeing that you most likely use hex-literal anyway when you deploy to a remote SQL Server it makes sense.</p>
-
-<p>So if you want to follow along in this post, I recommend you go and read up on, in <a href="/2019/04/10/installing-r-packages-in-sql-server-machine-learning-services---iii/">Installing R Packages in SQL Server Machine Learning Services - III</a>, how to generate a hex literal from an R Package. We continue when you are back.</p>
-
-<p>Welcome back!</p>
-
-<p>After having read the <a href="/2019/04/10/installing-r-packages-in-sql-server-machine-learning-services---iii/">post</a> above we now have a hex-literal for the <code>randomForest</code> package. Let <code>dane</code> use that to create an external library from:</p>
-
-<pre><code class="language-sql">REVERT
-
-EXECUTE AS USER = 'dane';
-
-DECLARE @hexLit varbinary(max) = 
-0x504B03040A00000000009982964C0000000000000000000000000D00000072...
-4154494f4e95514d6f83300c3d0f89ff60e504520b1dbd4c953854d5a61dda1e...
-...
-
-CREATE EXTERNAL LIBRARY randomForest
-FROM (CONTENT = @hexLit)
-WITH (LANGUAGE = 'R');
-GO
-
-SELECT * FROM sys.external_libraries
-</code></pre>
-
-<p><strong>Code Snippet 6:</strong>  <em>Create External Library from Hex Literal Variable</em></p>
-
-<p>In <em>Code Snippet 6</em> we see how we:</p>
-
-<ul>
-<li>Emulate <code>dane</code>.</li>
-<li>Assign the hex-literal value to the variable.</li>
-<li>Call <code>CREATE EXTERNAL LIBRARY</code>.</li>
-</ul>
-
-<p>All works OK, but the last <code>SELECT</code> does not return anything. Did we silently fail? Let us try to find out:</p>
-
-<pre><code class="language-sql">REVERT
-
-SELECT * FROM sys.external_libraries
-</code></pre>
-
-<p><strong>Code Snippet 7:</strong>  <em>Retrieving External Libraries as sa</em></p>
-
-<p>We see in <em>Code Snippet 7</em> how:</p>
-
-<ul>
-<li>We<code>REVERT</code> back to <code>sa.</code></li>
-<li>We do a <code>SELECT</code> against <code>sys.external_libraries</code>.</li>
-</ul>
-
-<p>When we run the code, the result is like so:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_view_libs1.png" alt="" /></p>
-
-<p><strong>Figure 3:</strong> <em>Result of Selecting as sa</em></p>
-
-<p>Aha, <em>Figure 3</em> shows us that <code>dane</code> managed to create the external library, cool! If we now want to drop the library, only <code>dane</code> can do that, and he needs to have <code>ALTER EXTERNAL LIBRARY</code> permissions. We discuss more why <code>dane</code> is the only one that can drop the library later in this post, together with why I have outlined three of the columns in <em>Figure 3</em>.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> The reason <code>dane</code> does not get any results when he tries to <code>SELECT</code> against <code>sys.external_libraries</code> is because of a bug in SQL Server 2017. That particular bug is fixed in CU2, so it should not be an issue.</p>
-</blockquote>
-
-<h4 id="permissions-summary">Permissions Summary</h4>
-
-<p>Let us do a quick summary of what we have discussed so far:</p>
-
-<ul>
-<li>To create an external library from a hex-literal you need to be part of the <code>db_owner</code> role, or have explicit <code>CREATE EXTERNAL LIBRARY</code> permissions.</li>
-<li>To create an external library from a file path you need to be part of the <code>sysadmin</code> server role.</li>
-</ul>
-
-<h2 id="authorization-ownership">Authorization &amp; Ownership</h2>
-
-<p>Now, when <code>dane</code> has created an external library let us just check that <code>dane</code> actually can use it:</p>
-
-<pre><code class="language-sql">REVERT
-
-EXECUTE AS USER = 'dane';
-
-EXEC sp_execute_external_script 
-                    @language = N'R', 
-                    @script = N'library(&quot;randomForest&quot;)'
-</code></pre>
-
-<p><strong>Code Snippet 8:</strong> <em>Execute as dane Using External Library</em></p>
-
-<p>When we run the code in <em>Code Snippet 8</em> it all works! Let us now see what happens when <code>sa</code> tries to execute:</p>
-
-<pre><code class="language-sql">REVERT
-
-EXEC sp_execute_external_script 
-                    @language = N'R', 
-                    @script = N'library(&quot;randomForest&quot;)'
-</code></pre>
-
-<p><strong>Code Snippet 9:</strong> <em>Execute as sa Using External Library</em></p>
-
-<p>We see in <em>Code Snippet 9</em> how we <code>REVERT</code> back to <code>sa</code>, (as that was what we logged in as), and we then call <code>sp_execute_external_script</code>. However, when we execute, the result is:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_exec_error1.png" alt="" /></p>
-
-<p><strong>Figure 4:</strong> <em>Error When Executing as sa</em></p>
-
-<p>That is strange, the error we see in <em>Figure 4</em> says that the <code>randomForest</code> package does not exist, even though <em>Figure 3</em> shows it. The reason for this can be explained by looking at <em>Figure 3</em> more closely, and especially the three outlined columns: <code>principal_id</code>, <code>scope</code>, and <code>scope_desc</code>.</p>
-
-<p>We see in <em>Figure 3</em> how the <code>principal_id</code> column, (outlined in red), has a value of 5, which happens to be the database principal id of <code>dane</code>. When you create an external library, and you do not specifically set a value for <code>owner_name</code> you become the owner. So what about the two columns outlined in yellow; <code>scope</code>, and <code>scope_desc</code>. They define who can use the library, and any library with an owner other than <code>dbo</code> is private, which means that only the owner can use it. So that explains, (from above), why only <code>dane</code> can drop the library.</p>
-
-<p>So what about <code>nielsb</code>, he is part of the <code>db_owner</code> role, what happens when he creates an external library? Well, do what we did in <em>Code Snippet 6</em>, but replace <code>EXECUTE AS USER = 'dane'</code> with <code>EXECUTE AS USER = 'nielsb'</code>, and run the code. Since <code>nielsb</code> is part of <code>db_owner</code> the <code>SELECT</code> statement works and returns this:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_view_libs2.png" alt="" /></p>
-
-<p><strong>Figure 5:</strong> <em>Multiple Libraries - I</em></p>
-
-<p>We now have two <code>randomForest</code> libraries, as we see in <em>Figure 5</em>, and these two libraries have different owners as we see from the <code>principal_id</code> (5 for <code>dane</code>, and 6 for <code>nielsb</code>). They are both <code>PRIVATE</code> in scope, so only <code>dane</code> can use the external library with an id of 1, and <code>nielsb</code> only the library with an id of 2. If <code>sa</code> tried to run the code in <em>Code Snippet 9</em> it would fail as in <em>Figure 4</em>.</p>
-
-<p>The above makes sense, kind of. The question is why the library <code>nielsb</code> created is <code>PRIVATE</code> as <code>nielsb</code> belongs to the <code>db_owner</code> role? The answer is what I wrote above, about not setting a value for <code>owner_name</code>. As <code>nielsb</code> did not indicate an owner name, he became the owner, and any libraries not owned by the <code>dbo</code> principal is always <code>PRIVATE</code>. However, seeing that <code>nielsb</code> is in the <code>db_owner</code> role, he can run some code like this:</p>
-
-<pre><code class="language-sql">REVERT
-
-EXECUTE AS USER = 'nielsb';
-
-DECLARE @hexLit varbinary(max) = 
-0x504B03040A00000000009982964C0000000000000000000000000D00000072...
-4154494f4e95514d6f83300c3d0f89ff60e504520b1dbd4c953854d5a61dda1e...
-...
-
-CREATE EXTERNAL LIBRARY randomForest
-AUTHORIZATION dbo
-FROM (CONTENT = @hexLit)
-WITH (LANGUAGE = 'R');
-GO
-
-SELECT * FROM sys.external_libraries
-</code></pre>
-
-<p><strong>Code Snippet 10:</strong> <em>Create External Library with dbo as Owner</em></p>
-
-<p>In <em>Code Snippet 10</em> we see how we set the <code>owner_name</code> to <code>dbo</code>, and when we run the code the result of the <code>SELECT</code> is like so:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_view_libs3.png" alt="" /></p>
-
-<p><strong>Figure 6:</strong> <em>Multiple Libraries - II</em></p>
-
-<p>We see <em>Figure 6</em> 3 libraries and the last one has a <code>principal_id</code> of 1 (<code>dbo</code>), and the scope is <code>PUBLIC</code>. If you want to you can <code>REVERT</code> back to <code>sa</code> and execute the code in <em>Code Snippet 9</em>. This time it works, as one of the <code>randomForest</code> libraries are <code>PUBLIC</code>.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> No, <code>dane</code> cannot set the <code>owner_name</code> to <code>dbo</code> as he does not have sufficient privileges, (he is not part of <code>db_owner</code>).</p>
-</blockquote>
-
-<p>We have now three different libraries with the same name, how does the engine know what library to load, and from where? That is a good question, let us run some code we used in the <a href="/2019/04/10/installing-r-packages-in-sql-server-machine-learning-services---iii/">previous post</a>:</p>
-
-<pre><code class="language-sql">EXEC sp_execute_external_script 
-                    @language = N'R', 
-                    @script = N'
-                    OutputDataSet &lt;- data.frame(
-                    installed.packages()[,c(&quot;Package&quot;, &quot;LibPath&quot;)]);'
-WITH RESULT SETS ((Package nvarchar(255), LibPath nvarchar(2000)));
-</code></pre>
-
-<p><strong>Code Snippet 11:</strong> <em>View R Packages</em></p>
-
-<p>The code in <em>Code Snippet 11</em> retrieves installed R packages, and if we run the code as <code>sa</code> we get the following result:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_lib_path1.png" alt="" /></p>
-
-<p><strong>Figure 7:</strong> <em>Randomforest Library Path for sa</em></p>
-
-<p>What is interesting in <em>Figure 7</em> is that we only see one <code>randomForest</code> library, whereas if we execute the same code as <code>dane</code> we see:</p>
-
-<p><img src="/images/posts/sql_ml_install_r_pckgs4_lib_path2.png" alt="" /></p>
-
-<p><strong>Figure 8:</strong> <em>Randomforest Library Path for dane</em></p>
-
-<p>When we look at <em>Figure 8</em> we see two different library paths (where the package is) for the two <code>randomForest</code> packages. We see how they differ based on database id, (5 in both cases), and principal id, where the first one has a principal id of 5, (<code>dane</code>), and the second 1, (<code>dbo</code>). What we have seen here explains the error we saw in <em>Figure 4</em> when we tried to execute as <code>sa</code> - the package was not available to <code>sa</code>. We can also assume that packages load based on principal id, and the resolution logic and order is like so:</p>
-
-<ol>
-<li>Load a package which matches on name and principal id.</li>
-<li>Load a package which matches on name and is public.</li>
-<li>Load a package which matches on name and is located in the default library path.</li>
-</ol>
-
-<h2 id="summary">Summary</h2>
-
-<p>In this post, we looked at permissions required when creating external libraries, and also ownership of the libraries.</p>
-
-<p>To create an external library, you need to have explicit <code>CREATE EXTERNAL LIBRARY</code> permissions, or be - at least - part of the <code>db_owner</code> role. If you want to create a library based on a package path, instead of a hex-literal, you need to also to be in the <code>sysadmin</code> server role.</p>
-
-<p>When you create an external library the library is owned by you, and can only be used by you - it is <code>PRIVATE</code>. However, if you set the <code>owner_name</code> to <code>dbo</code>, the library is <code>PUBLIC</code> and can be used by any user.</p>
-
-<h2 id="finally">~ Finally</h2>
-
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
     <author>
       <name>Niels Berglund</name>
 
