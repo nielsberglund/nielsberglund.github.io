@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>SQL Server 2019 &amp; Java: Parameters • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="SQL Server 2019 &amp; Java: Parameters"/>
+<meta name="twitter:description" content="We discuss how to handle parameters between SQL Server and Java, as well as discussing the support of output parameters."/>
+
+<meta property="og:title" content="SQL Server 2019 &amp; Java: Parameters" />
+<meta property="og:description" content="We discuss how to handle parameters between SQL Server and Java, as well as discussing the support of output parameters." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2019/11/03/sql-server-2019--java-parameters/" />
+
+
+
+<meta property="article:published_time" content="2019-11-03T11:07:23&#43;02:00"/>
+
+<meta property="article:modified_time" content="2019-11-03T11:07:23&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>SQL Server 2019 &amp; Java: Parameters</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Nov 3, 2019
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/sql-server-2019">SQL SERVER 2019</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-extensibility-framework">SQL SERVER EXTENSIBILITY FRAMEWORK</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-2019">sql server 2019</a>
+           
+      
+          <a class="post__tag" href="/tags/r">r</a>
+           
+      
+          <a class="post__tag" href="/tags/python">python</a>
+           
+      
+          <a class="post__tag" href="/tags/java">java</a>
+           
+      
+          <a class="post__tag" href="/tags/sql-server-extensibility-framework">sql server extensibility framework</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 11 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>Microsoft introduced the ability to call Java code from SQL Server in around the SQL Server 2019 CTP 2.0 release, and I have written some posts posts about this:</p>
+
+<ul>
+<li><a href="/s2k19_ext_framework_java"><strong>SQL Server 2019 Extensibility Framework &amp; Java</strong></a>.</li>
+</ul>
+
+<p>Throughout the CTP releases some functionality has changed, and in CTP 2.5 Microsoft introduced the Java Language Extension SDK. The Java code we write needs now to include the Java SDK and extend an abstract base from the SDK.</p>
+
+<p>With the introduction of the Java Language SDK, came some changes to how you handle method parameters, and I touched upon it briefly in the <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a> post. In this post, I want to look more in detail at parameters and how to handle them.</p>
+
+<p></p>
+
+<blockquote>
+<p><strong>DISCLAIMER:</strong> <em>This post contains Java code. I am not a Java guy, in fact, the only Java I have ever written is the code for the SQL Server 2019 Java posts. So, the code is not elegant in any shape or form, and I am absolutely certain it can be done in a much better way. However, this is not about Java as such, but how you call Java code from SQL Server, and what you need to implement on the Java side.</em></p>
+</blockquote>
+
+<h2 id="java-code-in-sql-refresh">Java Code in SQL Refresh</h2>
+
+<p>If you have not done any Java code in SQL Server, or at least not recently, here are some posts which introduce you to Java in SQL Server:</p>
+
+<ul>
+<li><a href="/2019/03/10/sql-server-2019-java--external-libraries---i/"><strong>SQL Server 2019, Java &amp; External Libraries - I</strong></a>. Part I of a couple of posts where we look at how we can deploy Java code to the database, so it can be loaded from there.</li>
+<li><a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>. We look at the implications of the introduction of the Java Language Extension SDK.</li>
+<li><a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/"><strong>SQL Server 2019 Extensibility Framework &amp; External Languages</strong></a>. We look at SQL Server 2019 Extensibility Framework and Language Extensions.</li>
+<li><a href="/2019/08/03/sql-server-2019-ctp3.2--java/"><strong>SQL Server 2019 CTP3.2 &amp; Java</strong></a>. SQL Server 2019 CTP 3.2 and Azule OpenJDK.</li>
+<li><a href="/2019/10/26/sql-server-2019--java-null-handling-take-two/"><strong>SQL Server 2019 &amp; Java Null Handling: Take Two</strong></a>. We take a second look at how to handle null values in datasets being passed to and from Java code.</li>
+</ul>
+
+<h2 id="pre-req">Pre-req</h2>
+
+<p>If you want to follow along with what we are doing in this post, you need:</p>
+
+<ul>
+<li>A SQL Server 2019 CTP 3.0, (or later), instance.</li>
+<li>A database where you have registered Java as a language. Read <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">this post</a> if you are unsure how to register Java as an external language.</li>
+<li>The Java Language SDK deployed to the database above. <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/">This post</a> explains how.</li>
+<li>Understand how to deploy Java code to the database. The post <a href="/2019/03/10/sql-server-2019-java--external-libraries---i/">here</a> helps with that.</li>
+</ul>
+
+<p>You also need an editor with which you can write Java code. I am partial to <strong>Visual Studio Code</strong> myself, and I wrote a post about VS Code and Java <a href="/2019/01/17/sql-server-2019--java-with-visual-studio-code/">here</a>.</p>
+
+<h2 id="parameter-recap">Parameter Recap</h2>
+
+<p>Let us take a look back at parameters to refresh our memory.</p>
+
+<h4 id="bjlsdk-before-java-language-sdk">BJLSDK (Before Java Language SDK)</h4>
+
+<p>Before the introduction of the Java Language SDK, (before CTP 2.5), you called into a method specified in the <code>@script</code> variable of the <code>sp_execute_external_script</code>, (SPEES), procedure. You defined the parameters you wanted to send to the Java code as class variables with the same name as the SQL parameters but without the <code>@</code>:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int = 21;
+DECLARE @p2 int = 21;
+EXEC sp_execute_external_script
+  @language = N'Java'
+, @script = N'JavaTest1.adder'
+, @params = N'@x int, @y int'
+, @x = @p1
+, @y = @p2   
+GO
+</code></pre>
+
+<p><strong>Code Snippet 1</strong> <em>Call from T-SQL to Java with Parameters</em></p>
+
+<p>We see in <em>Code Snippet 1</em> how we want to call into the <code>adder</code> method in the <code>JavaTest1</code> class, passing in two parameters: <code>@x</code>, and <code>@y</code>. When we execute the code the Java C++ language extension gets the parameter values, and looks in the code for two class-level variables named <code>x</code>, and <code>y</code>, and assigns the values to those variables. The <code>adder</code> method then uses <code>x</code>, and <code>y</code>.</p>
+
+<h4 id="ajlsdk-after-java-language-sdk">AJLSDK (After Java Language SDK)</h4>
+
+<p>I mentioned above how a couple of things changed after Microsoft introduced the Java Language SDK. One of them was that you no longer define a method in SPEES&rsquo;s <code>@script</code> parameter. The parameter instead defines a class you want to call into.</p>
+
+<p>The class must extend the <code>AbstractSqlServerExtensionExecutor</code> abstract base class and implement the <code>execute</code> method from the base class. The <code>execute</code> method is the method the Java C++ language extension calls into, and the signature looks like so:</p>
+
+<pre><code class="language-java">public AbstractSqlServerExtensionDataset execute(
+                                AbstractSqlServerExtensionDataset input, 
+                                LinkedHashMap&lt;String, Object&gt; params) {
+  throw new UnsupportedOperationException(&quot;AbstractSqlServerExtensionExecutor 
+                                          execute() is not implemented&quot;);
+}
+</code></pre>
+
+<p><strong>Code Snippet 2</strong> <em>The <code>execute</code> Method</em></p>
+
+<p>From the signature in <em>Code Snippet 2</em> we see how the <code>execute</code> method takes two parameters and has a return type.</p>
+
+<p>To call into Java after the introduction of the Java Language SDK has not changed much:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int = 21;
+DECLARE @p2 int = 21;
+EXEC sp_execute_external_script
+  @language = N'Java'
+, @script = N'sql.JavaTest1'
+, @params = N'@x int, @y int'
+, @x = @p1
+, @y = @p2   
+GO
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Call from T-SQL to Java with Parameters</em></p>
+
+<p>The only real difference between <em>Code Snippet 3</em> and <em>Code Snippet 2</em> is that the <code>@script</code> parameter is now <code>package.class</code>, instead of <code>class.method</code>.</p>
+
+<p>For the parameters the Java C++ language extension creates a new instance of a <code>LinkedHashMap</code> and populates it with the parameter names, (sans <code>@</code>), and the values.</p>
+
+<h2 id="parameters">Parameters</h2>
+
+<p>Having the recap out of the way, let us see how we handle the parameters in our Java code. Let us first start with some skeleton code:</p>
+
+<pre><code class="language-java">package sql;
+
+import com.microsoft.sqlserver.javalangextension.*;
+import java.util.LinkedHashMap;
+
+public class JavaTest1 extends AbstractSqlServerExtensionExecutor {
+
+  public JavaTest1() {
+    executorExtensionVersion = SQLSERVER_JAVA_LANG_EXTENSION_V1;
+    executorInputDatasetClassName = PrimitiveDataset.class.getName();
+    executorOutputDatasetClassName = PrimitiveDataset.class.getName();
+  }
+
+  public PrimitiveDataset execute(PrimitiveDataset input, 
+                                  LinkedHashMap&lt;String, Object&gt; params) {
+    
+    return null;
+
+  }
+}
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Java Starter Code</em></p>
+
+<p>We see in <em>Code Snippet 4</em> that we have a class, <code>JavaTest1</code>, which extends the <code>AbstractSqlServerExtensionExecutor</code> class. In the constructor, we set some required class members, and the <code>execute</code> method is empty.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The post <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a> explains about the constructor in <em>Code Snippet 4</em>.</p>
+</blockquote>
+
+<p>The code we want to write is to handle the parameters we send in when we execute the code in <em>Code Snippet 3</em>, and in our code, we want to add the two parameters together. With that in mind, our code looks like so:</p>
+
+<pre><code class="language-java">public PrimitiveDataset execute(PrimitiveDataset input, 
+                                LinkedHashMap&lt;String, Object&gt; params) {
+
+  int x = (int)params.get(&quot;x&quot;);
+  int y = (int)params.get(&quot;y&quot;);
+  System.out.printf(&quot;The result of adding %d and %d = %d&quot;, x, y, x + y);
+  return null;
+}
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Handle Parameters</em></p>
+
+<p>We see in <em>Code Snippet 5</em> how we handle the parameters that come in from SQL Server:</p>
+
+<ul>
+<li>As we said above, the Java C++ language extension populates the <code>LinkedHashMap</code> with the parameters from SQL Server, so we retrieve the <code>x</code> and <code>y</code> using the <code>get</code> method. As the <code>get</code> method returns an object, we cast it to <code>int</code>.</li>
+<li>We then add <code>x</code> and <code>y</code> together and we call <code>printf</code> to show the result.</li>
+</ul>
+
+<p>After we compile and package the code into a <code>.jar</code> file we deploy to our database:</p>
+
+<pre><code class="language-sql">CREATE EXTERNAL LIBRARY SqlParamLib 
+FROM (CONTENT = 'W:\sql-params-1.0.jar')
+WITH (LANGUAGE = 'Java');
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Deploy to the Database</em></p>
+
+<p>From <em>Code Snippet 6</em> we see how I deploy to my SQL Server based on a file-path: <code>W:\sql-params-1.0.jar</code>, and how I indicate that what I deploy is Java code: <code>LANGUAGE = 'Java'</code>. The post <a href="/2019/03/10/sql-server-2019-java--external-libraries---i/"><strong>SQL Server 2019, Java &amp; External Libraries - I</strong></a> covers in detail how to deploy Java code to SQL Server.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> I can use a file path when I deploy as my SQL Server is on my local machine.</p>
+</blockquote>
+
+<p>When we have deployed as in <em>Code Snippet 6</em> we execute the code in <em>Code Snippet 3</em>:</p>
+
+<p><img src="/images/posts/sql-2k19-java-params-add.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Add Result</em></p>
+
+<p>In <em>Figure 1</em> we see that our code worked, cool!</p>
+
+<h4 id="null-values">Null Values</h4>
+
+<p>Now then, what if one of the parameters in <em>Code Snippet 3</em> is not <code>DECLARE</code>:ed and set, but instead generated by something, (perhaps a <code>SELECT</code>), and it doesn&rsquo;t have a value:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int;
+DECLARE @p2 int;
+
+SELECT @p1 = null, @p2 = 21;
+
+EXEC sp_execute_external_script
+  @language = N'Java'
+, @script = N'sql.JavaTest1'
+, @params = N'@x int, @y int'
+, @x = @p1
+, @y = @p2   
+GO
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Null Parameter</em></p>
+
+<p>In <em>Code Snippet 7</em> we see how we retrieve the values of the two parameters, and one is null, (no value). Let us see what happens when we execute the code:</p>
+
+<p><img src="/images/posts/sql-2k19-java-params-null.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Null Parameter</em></p>
+
+<p>Hmm, not good, we get a <code>NullPointerException</code> as we see in <em>Figure 2</em>. As a Java developer, this is what you would expect, whereas if we executed similar code in T-SQL, it would work - but the result would be <code>NULL</code>. I wrote <a href="/2019/10/26/sql-server-2019--java-null-handling-take-two/">here</a> about null handling in datasets, and how there is a &ldquo;convenience&rdquo; method <code>getColumnNullMap</code> which indicates null values for a column in the dataset.</p>
+
+<p>Unfortunately, we do not have the same for parameters, so we need to handle it ourselves. Since the parameter value&rsquo;s type in the <code>LinkedHashMap</code> is an <code>Object</code>, we should be able to do a null check quite easily before we do the cast. Alternatively, we can use the primitive type&rsquo;s wrapper class to accomplish the same thing:</p>
+
+<pre><code class="language-java">public PrimitiveDataset execute(PrimitiveDataset input, 
+                                LinkedHashMap&lt;String, Object&gt; params) {
+
+  boolean isNull = false;
+
+  Integer x = (Integer)params.get(&quot;x&quot;);
+  Integer y = (Integer)params.get(&quot;y&quot;);
+
+  if(x == null || y == null) {
+    isNull = true;
+  }
+
+  if(isNull) {
+    String xStr = x != null ? x.toString() : &quot;null&quot;;
+    String yStr = y != null ? y.toString() : &quot;null&quot;;
+    System.out.printf(&quot;The result of adding %s and %s = %s&quot;, 
+                       xStr, yStr, &quot;null&quot;);
+  }
+  else {
+    System.out.printf(&quot;The result of adding %d and %d = %d&quot;, 
+                       x, y, x + y);
+  }
+
+  return null;
+}
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Handle Null Parameter</em></p>
+
+<p>In <em>Code Snippet 8</em> we see an example of how we can handle null parameters. As you see in the code snippet, we use the <code>Integer</code> wrapper class for <code>int</code>. Our logic is that if we get a null value, then the result should also be null.</p>
+
+<h4 id="output-parameters">Output Parameters</h4>
+
+<p>In SQL Server, when we execute a procedure, we can return values as output parameters, and the way we indicate that a parameter is for output is by using the <code>OUT</code> statement:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int = 21;
+DECLARE @p2 int = 21;
+DECLARE @ret int;
+EXEC dbo.pr_MyAdder @x = @p1,
+                    @y = @p2,
+                    @retVal = @ret OUT;
+SELECT @ret AS ReturnValue;                    
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>Output Parameters - I</em></p>
+
+<p>We see in <em>Code Snippet 9</em> how we assign <code>@ret</code> as an output parameter and then select the value after the execution of the procedure.</p>
+
+<p>How do we do this in Java? Well, initially output parameters were not supported, but that changed with SQL Server CTP 3.0, (or 3.1). The reason why output parameters were not supported was that the Java C++ language extension did not have an implementation for output parameters. However, as I said above - that changed in CTP 3.0/3.1, and output parameters are now part of the <code>LinkedHashMap</code> parameter.</p>
+
+<p>The Java C++ language extension populates, as I said above, the <code>LinkedHashMap</code> and since it is a reference type when the call returns the Java C++ language extension loops through the parameters and outputs the parameters adorned with <code>OUT</code>, (or <code>OUTPUT</code>).</p>
+
+<p>The code to implement output parameters in our Java code looks like so:</p>
+
+<pre><code class="language-java">public PrimitiveDataset execute(PrimitiveDataset input, 
+                                LinkedHashMap&lt;String, Object&gt; params) {
+
+  boolean isNull = false;
+
+  Integer x = (Integer)params.get(&quot;x&quot;);
+  Integer y = (Integer)params.get(&quot;y&quot;);
+  Integer retVal = (Integer)params.get(&quot;retVal&quot;);
+
+  if(x == null || y == null) {
+    isNull = true;
+  }
+
+  if(isNull) {
+    params.put(&quot;retVal&quot;, null);
+  }
+  else {
+    params.put(&quot;retVal&quot;, x + y);
+  }
+
+  return null;
+}
+</code></pre>
+
+<p><strong>Code Snippet 10:</strong> <em>Output Parameters in Java</em></p>
+
+<p>We see in <em>Code Snippet 10</em> how we have changed the Java code to return the result of the addition of <code>x</code> and <code>y</code> as an output parameter. We retrieve the <code>x</code> and <code>y</code> values as before, and dependent on whether <code>x</code> or <code>y</code> is null or not we either <code>put</code> the <code>retVal</code> parameter as <code>null</code> or the result of the addition.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> It is not necessary to retrieve the <code>retVal</code> parameter as in <em>Code Snippet 10</em> since in this case, it is a pure output parameter. SQL Server, however, allows output parameters both to be used as in as out. So in your Java code, you may get a value coming in for an output parameter.</p>
+</blockquote>
+
+<p>The SQL code to execute against the code in <em>Code Snippet 10</em> looks like so:</p>
+
+<pre><code class="language-sql">DECLARE @p1 int = 21;
+DECLARE @p2 int = 21;
+DECLARE @ret int;
+EXEC sp_execute_external_script
+  @language = N'Java'
+, @script = N'sql.JavaTest1'
+, @params = N'@x int, @y int, @retVal int OUT'
+, @x = @p1
+, @y = @p2  
+, @retVal = @ret OUT;
+
+SELECT @ret AS ReturnValue;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 11:</strong> <em>Output Parameters - II</em></p>
+
+<p>We see in <em>Code Snippet 11</em> how we:</p>
+
+<ul>
+<li>Declare a third parameter<code>@ret</code>.</li>
+<li>In the <code>@params</code> parameter we define the <code>@retVal</code> parameter.</li>
+<li>Assign <code>@ret</code> to <code>@retVal</code>.</li>
+</ul>
+
+<p>The result of executing the code in <em>Code Snippet 11</em> is:</p>
+
+<p><img src="/images/posts/sql-2k19-java-params-outputparam.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Output Parameter</em></p>
+
+<p>As we see in <em>Figure 3</em> it works. If we were to send in null for <code>@x</code> or <code>@y</code>, we get back <code>NULL</code> in the <code>SELECT</code>.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post, we saw how to handle parameters, and we said:</p>
+
+<ul>
+<li>The <code>LinkedHashMap</code> parameter in the <code>execute</code> method exposes parameters.</li>
+<li>For primitive data type parameters, we can use Java&rsquo;s wrapper classes to handle null values.</li>
+<li>The Java C++ language extension handles now output parameters.</li>
+<li>We assign a value to an output parameter by doing a <code>put</code>.</li>
+</ul>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2019/10/27/interesting-stuff---week-43-2019/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 43, 2019</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2019/10/26/sql-server-2019--java-null-handling-take-two/">SQL Server 2019 &amp; Java Null Handling: Take Two</a>
+      
+      <time class="pull-right hidden-tablet">Oct 26 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/08/03/sql-server-2019-ctp3.2--java/">SQL Server 2019 CTP3.2 &amp; Java</a>
+      
+      <time class="pull-right hidden-tablet">Aug 03 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/07/16/set-your-sql-server-data-free-with-kafka-extensibility-framework/">Set Your SQL Server Data Free with Kafka: Extensibility Framework</a>
+      
+      <time class="pull-right hidden-tablet">Jul 16 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">SQL Server 2019 Extensibility Framework &amp; External Languages</a>
+      
+      <time class="pull-right hidden-tablet">Jun 06 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/">Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</a>
+      
+      <time class="pull-right hidden-tablet">May 26 &#39;19</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
