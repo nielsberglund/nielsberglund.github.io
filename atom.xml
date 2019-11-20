@@ -3,10 +3,190 @@
   <title>Niels Berglund</title>
   <link href="https://nielsberglund.com/atom.xml" rel="self"/>
   <link href="https://nielsberglund.com"/>
-  <updated>2019-11-17T07:47:05+02:00</updated>
+  <updated>2019-11-20T05:52:17+02:00</updated>
   <id>https://nielsberglund.com/</id>
   <generator uri="http://gohugo.io/">Hugo</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Fix PolyBase in SQL Server 2019 Developers Edition]]></title>
+    <link href="https://nielsberglund.com/2019/11/20/fix-polybase-in-sql-server-2019-developers-edition/" rel="alternate" type="text/html"/>
+    <updated>2019-11-20T05:52:17+02:00</updated>
+    <id>https://nielsberglund.com/2019/11/20/fix-polybase-in-sql-server-2019-developers-edition/</id>
+    <content type="html"><![CDATA[<p>At <a href="https://www.microsoft.com/en-us/ignite">MS Ignite</a> in Orlando November 4 - 8, 2019, Microsoft announced the general availability of SQL Server 2019. At the same time, the SQL Server 2019 Developers Edition appeared as an MSDN download, and of course, I downloaded it and installed it on my dev box.</p>
+
+<p>After the installation, I noticed that PolyBase did not start up correctly, and I saw dump files all over the place. After some investigation, I figured out what the issue was, and this blog post describes the fix.</p>
+
+<p></p>
+
+<h2 id="polybase-intro">PolyBase Intro</h2>
+
+<p>Before we go into the issue and solution, let us do a quick introduction of PolyBase and also look at the installation of PolyBase.</p>
+
+<p>PolyBase enables you to, in your SQL Server instance, process Transact-SQL queries that read data from external data sources. Microsoft introduced PolyBase in SQL Server 2016, and in that version of PolyBase the only data-sources you could process data from were: Hadoop and Azure Blob Storage. That changed in SQL Server 2019 where PolyBase now supports:</p>
+
+<ul>
+<li>Hadoop.</li>
+<li>Azure Blob Storage.</li>
+<li>SQL Server.</li>
+<li>Oracle.</li>
+<li>Teradata.</li>
+<li>MongoDB</li>
+<li>ODBC Generic Types, (only PolyBase in SQL Server 2019 on Windows).</li>
+</ul>
+
+<h4 id="installation">Installation</h4>
+
+<p>You either install PolyBase as part of a regular installation of a SQL Server instance, or you add it after installation. In both cases, you select it during feature selection:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-install.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>PolyBase Feature Selection</em></p>
+
+<p>In <em>Figure 1</em> we see how I chose both the <em>PolyBase Query Service</em> as well as the <em>Java connector for HDFS data sources</em>. After clicking on from there passing <em>Feature Rules</em>, and <em>Instance Configuration</em> we get to <em>PolyBase Configuration</em>:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-install2.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>PolyBase Configuration</em></p>
+
+<p>As we see from <em>Figure 2</em> I choose a standalone PolyBase-enabled instance.</p>
+
+<p>I click on from there and eventually the installation finishes:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-install3.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Installation Complete</em></p>
+
+<p>We see in <em>Figure 3</em> how all components are green which indicates that the installation has succeeded. Cool!</p>
+
+<h2 id="problem">Problem</h2>
+
+<p>But has the installation succeeded? What usually I do after a SQL installation is to go to <em>Services</em> and change properties for the various SQL services, (automatic startup to manual startup, etc.). When I do this, I see:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-services.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Services</em></p>
+
+<p>What we see in <em>Figure 4</em> is a view of services a couple of minutes after the installation. We see that the SQL Server service, (<code>MSSQLSERVER</code>), is in <code>Running</code> state. However, the two PolyBase services are still in a <code>Starting</code> state. Something must have gone wrong, but what!</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Depending on how long after installation you look at services you may see the PolyBase Engine in a stopped state, but the Data Movement still in a <code>Starting</code> state.</p>
+</blockquote>
+
+<p>Let us see if we can try and figure out what is wrong. We start by going to the SQL Server log files directory, which is at: <code>&lt;path_to_sql_instance&gt;\MSSQL\Log</code>. In there you find a <code>Polybase</code> directory with a <code>dump</code> subdirectory:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-dump-dir.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>PolyBase Dump Directory</em></p>
+
+<p>In <em>Figure 5</em> we see how the <code>dump</code> directory contains a <code>.dmp</code> file. Maybe we can find any clues if we open it in <strong>WinDbg</strong>:</p>
+
+<pre><code class="language-bash">Comment: 'Stack Trace'
+Comment: 
+  '&lt;Identity&gt;
+     &lt;Element key=&quot;CodePackageName&quot; val=&quot;DwDms.Code&quot;/&gt;
+     [snip]
+     &lt;Element key=&quot;ExceptionMessage&quot; val=&quot;A network-related or 
+      instance-specific error occurred while establishing a connection 
+      to SQL Server. The server was not found or was not accessible. 
+      Verify that the instance name is correct and that SQL Server is 
+      configured to allow remote connections. 
+      (provider: TCP Provider, error: 0 - The remote computer refused 
+       the network connection.)&quot;/&gt;
+     &lt;Element key=&quot;ExceptionType&quot; val=&quot;System.Data.SqlClient.SqlException&quot;/&gt;
+     [snip]
+     &lt;/Identity&gt;'
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Exception in File</em></p>
+
+<p>Hmm, in <em>Code Snippet 1</em> we see an excerpt of the top of the file, (I have &ldquo;snipped&rdquo; out parts for brevity), and we see an error about how PolyBase cannot connect to SQL Server via the TCP provider.</p>
+
+<h2 id="fix">Fix</h2>
+
+<p>The error we see in <em>Code Snippet 1</em> is a big clue since TCP is not an enabled network protocol by default for SQL Server Developer edition.</p>
+
+<p>Let us enable TCP/IP as a network protocol for SQL Server. We enable network protocols using the <em>SQL Server Configuration Manager</em>. Open <em>SQL Server Configuration Manager</em> either via the Windows <strong>Start</strong> menu or from <em>Computer Manager</em>:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-compmngr.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>SQL Server Configuration Manager</em></p>
+
+<p>In <em>Figure 6</em> we see, outlined in blue, <em>SQL Server Configuration Manager</em>, and how we have expanded <em>SQL Server Network Configuration</em>, (outlined in red). On the right-hand side in <em>Figure 6</em> we see how the TCP/IP protocol is indeed disabled.</p>
+
+<p>To enable we right-click on the TCP/IP protocol and in the menu choose <strong>Enable</strong>. When we do that a <em>Warning</em> dialog &ldquo;pops&rdquo; up:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-enable-warning.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Warning Dialog</em></p>
+
+<p>So, we see in <em>Figure 7</em> that any changes will not happen until the SQL Server instance is restarted. Cool, let us restart the service. We go back to <em>Services</em> as in <em>Figure 4</em>, and we right-click on the SQL Server service, and choose <strong>Restart</strong>:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-stop-service.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Stop Services</em></p>
+
+<p>When we try to restart we get the warning we see in <em>Figure 8</em>, telling us we need to also restart the <em>PolyBase Data Movement</em> service, and the <em>Launchpad</em> service.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The <em>Launchpad</em> service is part of SQL Server Machine Learning Services.</p>
+</blockquote>
+
+<p>I click <strong>Yes</strong> as in <em>Figure 8</em>, and almost immediately I see:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-stop-control.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Can Not Stop Service</em></p>
+
+<p>The problem that manifests itself by what we see in <em>Figure 9</em> is that the <em>PolyBase Data Movement</em> service is in a <code>Starting</code> state, and cannot be stopped.</p>
+
+<p>What do we do now? Well, we can try and restart the machine, but that seems like overkill, (and it may not work). So let us try to use a command from the command prompt, where we can force the termination of a service: <code>taskkill</code>.</p>
+
+<p>To use the <code>taskkill</code> command, we need to know either the process-id, (<code>PID</code>), of the process we want to terminate, or the process name. To get the <code>PID</code> we open <em>Task Manager</em> and under the services tab we find the SQL Server service:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-task-manager.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Task Manager</em></p>
+
+<p>We see in <em>Figure 10</em> the <code>PID</code>, (highlighted in yellow), which we now use to terminate the SQL Server process:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-task-kill.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>Task Manager</em></p>
+
+<p>As we see in <em>Figure 11</em> I called <code>taskkill</code> from command prompt which I opened as administrator. I used the process-id from <em>Figure 10</em>, and I used the <code>/F</code> flag to indicate I wanted to force the termination. The command executed successfully, and as we see in <em>Figure 11</em> the process has been terminated.</p>
+
+<p>What is left to do now is to start the SQL Server process, followed by the PolyBase Data Movement service and the PolyBase Engine service. The PolyBase Data Movement service may still be in the state of `Starting, but by right-clicking on the service and choose <strong>Start</strong> it will start:</p>
+
+<p><img src="/images/posts/sql-2k19-polybase-issue-services-running.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Services Running</em></p>
+
+<p>We see in <em>Figure 12</em> how the services are up and running.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post, we saw how we fix the issue where the PolyBase services do not start on a SQL Server 2019 Developer Edition.</p>
+
+<p>We said it was due to that TCP/IP is not by default an enabled SQL Server network protocol for the Developer edition. Therefore the PolyBase services cannot connect to the SQL Server instance at startup. We fixed it by:</p>
+
+<ul>
+<li>Enable the TCP/IP protocol under <em>SQL Server Network Configuration</em> in <em>SQL Server Configuration Manager</em>.</li>
+<li>Retrieve the process-id, (<code>PID</code>), for the SQL Server service.</li>
+<li>Forcing the process to be terminated by the <code>taskkill /PID &lt;process-id&gt; /F</code> command.</li>
+<li>Restart the SQL Server service, followed by the PolyBase services.</li>
+</ul>
+
+<p>Another way to do this is to install SQL Server without the PolyBase features. After installation you enable the TCP/IP protocol, restart SQL Server, and then install the PolyBase features.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
+    <author>
+      <name>Niels Berglund</name>
+
+    </author>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Interesting Stuff - Week 46, 2019]]></title>
@@ -2010,139 +2190,6 @@ This session gives you an overview of what a SQL Server Big Data Cluster is, and
 <h2 id="finally">~ Finally</h2>
 
 <p>That&rsquo;s all for this week. I hope you enjoy what I did put together. If you have ideas for what to cover, please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
-    <author>
-      <name>Niels Berglund</name>
-
-    </author>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[SQL Server 2019 CTP3.2 &amp; Java]]></title>
-    <link href="https://nielsberglund.com/2019/08/03/sql-server-2019-ctp3.2--java/" rel="alternate" type="text/html"/>
-    <updated>2019-08-03T06:55:33+02:00</updated>
-    <id>https://nielsberglund.com/2019/08/03/sql-server-2019-ctp3.2--java/</id>
-    <content type="html"><![CDATA[<p>It seems that for each new SQL Server 2019 CTP release, there are changes to the Java extensions, and CTP 3.2 is no exception. Well, that is not exactly true as in CTP 3.2 release the changes are not about the extension and how we write code, but Java itself.</p>
-
-<p>One of the <a href="https://cloudblogs.microsoft.com/sqlserver/2019/07/24/free-supported-java-in-sql-server-2019-is-now-available/">announcements</a> of what is new in CTP 3.2 was that SQL Server now includes <a href="https://www.azul.com/">Azul System&rsquo;s</a> Zulu Embedded right out of the box for all scenarios where we use Java in SQL Server, including Java extensibility.</p>
-
-<p>So, in this post, we look at the impact, (if any), this has to how we use the Java extensibility framework in SQL Server 2019.</p>
-
-<p></p>
-
-<p>First of all, I find Microsoft&rsquo;s change of stance related to Java very interesting as I remember back in the day the <a href="https://en.wikipedia.org/wiki/Microsoft_Java_Virtual_Machine">battle</a> between Sun and Microsoft regarding Java and the subsequent Java vs .NET &ldquo;war&rdquo;.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> Around <sup>1995</sup>&frasl;<sub>96</sub> I attended a Microsoft event in London where Microsoft introduced what was to be Visual J++. It went under the code name &ldquo;Jakarta&rdquo;. The MS people presenting at the conference explained why they chose that name: <em>Jakarta is the capital of Java</em>. That was not entirely true as Jakarta is the capital of Indonesia, but Java is the largest island, so&hellip;</p>
-</blockquote>
-
-<p>Anyway, let us get on with it, and see what happens when we install SQL Server 2019 CTP 3.2.</p>
-
-<h2 id="installation">Installation</h2>
-
-<p>You may remember from <a href="/2018/12/02/sql-server-2019-extensibility-framework--java---hello-world/">SQL Server 2019 Extensibility Framework &amp; Java - Hello World</a> that to enable Java in SQL Server 2019; you have to - during installation - choose the <em>Machine Learning Services</em> feature:</p>
-
-<p><img src="/images/posts/sql_2k19_java_intro_install1.png" alt="" /></p>
-
-<p><strong>Figure 1:</strong> <em>Enable In-Database Machine Learning</em></p>
-
-<p>In <em>Figure 1</em> we have chosen <em>Machine Learning Services</em> which ensures that the required components, (<em>Launchpad</em>, and so on), gets installed. In pre-CTP 3.2, we had to - in addition to choosing <em>Machine Learning Services</em> - also ensure that Java is installed on the box where we install the SQL Server instance.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> We also need to do other &ldquo;stuff&rdquo; if we want to enable Java, and I cover that below.</p>
-</blockquote>
-
-<p>When we install SQL Server CTP 3.2, we see something like so:</p>
-
-<p><img src="/images/posts/s2k19_ctp32_java.png" alt="" /></p>
-
-<p><strong>Figure 2:</strong> <em>Java Feature Selection</em></p>
-
-<p>What we see in <em>Figure 2</em> is:</p>
-
-<ul>
-<li>The <em>Machine Learning Services</em> feature is now named <em>Machine Learning Services and Language Extensions</em>.</li>
-<li>Java appears as a feature in the same way as R/Python.</li>
-</ul>
-
-<p>We choose Java as a feature, as in <em>Figure 2</em>, and after feature rules and instance configuration, we come to a new dialog; <em>Java Install Location</em>:</p>
-
-<p><img src="/images/posts/s2k19_ctp32_java2.png" alt="" /></p>
-
-<p><strong>Figure 3:</strong> <em>Java Install Location</em></p>
-
-<p>In the dialog, we see in <em>Figure 3</em>, how we have the ability to choose to install the Azule Zulu OpenJDK which is part of the SQL Server install. We choose the OpenJDK and continue with the installation.</p>
-
-<p>Eventually the installation finish, and if we look in the installation path of the instance we just installed, we see:</p>
-
-<p><img src="/images/posts/s2k19_ctp32_openjdk.png" alt="" /></p>
-
-<p><strong>Figure 4:</strong> <em>Azule Zulu OpenJDK</em></p>
-
-<p>If we drill down in the <code>AZUL-OpenJDK-JRE</code> directory, we see it is the directory for the Java JRE. So we now have Java installed, and theoretically, we should be able to execute Java code, exactly as we execute R/Python?</p>
-
-<h2 id="post-install">Post Install</h2>
-
-<p>Well, to execute Java code is not as straightforward as in the previous paragraph even though Java is now installed. We still have to do some things:</p>
-
-<ul>
-<li>Enable external scripts: <code>EXEC sp_configure 'external scripts enabled', 1</code></li>
-<li>Register Java as an external language in the database from where you want to execute your code: <code>CREATE EXTERNAL LANGUAGE ...</code>. Read more about it in <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">SQL Server 2019 Extensibility Framework &amp; External Languages</a>.</li>
-<li>Deploy the Java external language extension SDK to the database above: <code>CREATE EXTERNAL LIBRARY ...</code>. Refer to <a href="/2019/05/26/java--sql-server-2019-extensibility-framework-the-sequel/">Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</a> for more about that.</li>
-</ul>
-
-<p>When the above is done, we deploy our code either via <code>CREATE EXTERNAL LIBRARY ...</code>, or have our code available in the <code>CLASSPATH</code>. Having done that we should be able to execute:</p>
-
-<pre><code class="language-sql">DECLARE @p1 int = 21;
-DECLARE @p2 int = 21;
-EXEC sp_execute_external_script
-  @language = N'Java'
-, @script = N'sql.JavaTest1'
-, @params = N'@x int, @y int'
-, @x = @p1
-, @y = @p2   
-GO
-</code></pre>
-
-<p><strong>Code Snippet 1:</strong> <em>Execute Java Code</em></p>
-
-<p>In <em>Code Snippet 1</em> we see that we want to <code>EXEC sp_execute_external_script</code> against some Java code deployed as a <code>.jar</code>, (this is the same code as in the <a href="/2019/06/06/sql-server-2019-extensibility-framework--external-languages/">external languages</a> post). However, when we execute the result is like so:</p>
-
-<p><img src="/images/posts/s2k19_ctp32_exec1.png" alt="" /></p>
-
-<p><strong>Figure 5:</strong> <em>Missing Environment Variable</em></p>
-
-<p>So even though we explicitly said during the SQL installation that we want to use the included Java and it got installed, we still need to set the <code>JRE_HOME</code> variable. The installation does not do that for us.</p>
-
-<p>After we have created the <code>JRE_HOME</code> environment variable and set it to point to the <code>AZUL-OpenJDK-JRE</code> directory we see in <em>Figure 4</em>, we need to restart the <em>Launchpad</em> service, and then we can execute the code in <em>Code Snippet 1</em> again:</p>
-
-<p><img src="/images/posts/s2k19_ctp32_exec2.png" alt="" /></p>
-
-<p><strong>Figure 6:</strong> <em>Success</em></p>
-
-<p>Now everything works as we see in <em>Figure 6</em>.</p>
-
-<h2 id="scenarios">Scenarios</h2>
-
-<p>Even though we explicitly choose the included Java in the installation, we still need to set up Java as in pre-CTP 3.2, so what does this give us?</p>
-
-<p>It gives us peace of mind! Remember that Oracle is phasing out free support for Java, and I wonder how interested they are in solving issues with Java on SQL Server. If we use open source OpenJDK, we rely on the community for support, which may not be ideal in an enterprise production environment. So by using the included Java, we are guaranteed enterprise support - peace of mind!</p>
-
-<p>Does this then mean that we need to use the included Java? Not at all! Below follows some scenarios/options. All require what we did above; create external language, deploy the SDK, deploy your code:</p>
-
-<ul>
-<li>Enable <em>Machine Learning Services and Language Extensions</em> only, (no Java): Ensure that your <code>JRE_HOME</code> environment variable points to whatever Java JRE you want to use.</li>
-<li>Enable <em>Machine Learning Services and Language Extensions</em> including Java, (as per above): The <code>JRE_HOME</code> variable can point to some other Java JRE than Azul, even though the Azul JDK gets installed.</li>
-</ul>
-
-<p>What happens if I enable Java, but instead of choosing the included JRE as in <em>Figure 3</em>, I choose the second option: I provide the location of a different JRE? For Java in <em>Machine Learning Services and Language Extensions</em> that has no effect. You need to, as in all other scenarios, point the <code>JRE_HOME</code> variable to a valid JRE directory.</p>
-
-<blockquote>
-<p><strong>NOTE:</strong> It is good practice to whenever you change, (or first set), the <code>JRE_HOME</code> variable to restart the <em>Launchpad</em> service.</p>
-</blockquote>
-
-<h2 id="finally">~ Finally</h2>
-
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
     <author>
       <name>Niels Berglund</name>
 
