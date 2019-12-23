@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio"/>
+<meta name="twitter:description" content="WE look at using Azure Data Studio to deploy SQL Server 2019 Big Data Cluster."/>
+
+<meta property="og:title" content="How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio" />
+<meta property="og:description" content="WE look at using Azure Data Studio to deploy SQL Server 2019 Big Data Cluster." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2019/12/23/how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/" />
+
+
+
+<meta property="article:published_time" content="2019-12-23T19:35:36&#43;02:00"/>
+
+<meta property="article:modified_time" content="2019-12-23T19:35:36&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Dec 23, 2019
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/sql-server-2019">SQL SERVER 2019</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2019-big-data-cluster">SQL SERVER 2019 BIG DATA CLUSTER</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-2019-big-data-cluster">sql server 2019 big data cluster</a>
+           
+      
+          <a class="post__tag" href="/tags/kubernetes">kubernetes</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-kubernetes-service">azure kubernetes service</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-data-studio">azure data studio</a>
+           
+      
+          <a class="post__tag" href="/tags/spark">spark</a>
+           
+      
+          <a class="post__tag" href="/tags/hadoop">hadoop</a>
+           
+      
+          <a class="post__tag" href="/tags/python">python</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 15 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>For you who follows my sporadic posts, you may wonder why I have yet another post, (YAP), covering how to deploy a <strong>SQL Server 2019 Big Data Cluster</strong>, (BDC), using <strong>Azure Data Studio</strong>, (ADS).</p>
+
+<p>The answer to that is that the version of BDC I deployed in <a href="/2019/09/11/install-sql-server-2019-big-data-cluster-using-azure-data-studio/">this</a> post was a pre-release, and since then BDC has gone GA, (General Availability), and there are certain differences in deployment process between RC1, and RTM.</p>
+
+<p>So in this post let us look at how to deploy BDC RTM to Azure Kubernetes Service using ADS.</p>
+
+<p></p>
+
+<h2 id="pre-reqs">Pre-Reqs</h2>
+
+<p>To deploy using <strong>Azure Data Studio</strong>, (ADS), you need ADS (duh - see below), but you also need some other things.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you wonder where you have seen this pre-req section before, the answer is that it is almost identical to the pre-req section in my <a href="/2019/09/11/install-sql-server-2019-big-data-cluster-using-azure-data-studio/">previous install post</a>.</p>
+</blockquote>
+
+<h4 id="azure-subscription">Azure Subscription</h4>
+
+<p>As this post covers how to deploy a <strong>SQL Server 2019 Big Data Cluster</strong> to <strong>Azure Kubernetes Service</strong>, (AKS), you need an Azure subscription. If you do not have one, you can sign up for a free trial subscription <a href="https://azure.microsoft.com/en-us/free/">here</a>.</p>
+
+<h4 id="python">Python</h4>
+
+<p>Well, Python is not a tool as such, but you need Python installed on the machine you install from, as the ADS deployment runs some Python scrips. You need Python3, and on my machine, I have Python 3.7.3. Ensure that Python is on the <code>PATH</code>.</p>
+
+<h4 id="azdata">azdata</h4>
+
+<p><code>azdata</code> is a Python command-line tool enabling cluster administrators to bootstrap and manages the big data cluster via REST APIs. It replaces <code>mssqlctl</code>, which was the previous command-line tool for deploying a BDC.</p>
+
+<p>There are a couple of steps to install <code>azdata</code>:</p>
+
+<ul>
+<li>If you have <code>mssqlctl</code> installed you need to uninstall it:</li>
+</ul>
+
+<pre><code class="language-bash">$ pip3 uninstall -r https://private-repo.microsoft.com/ \
+                           python/ctp3.1/mssqlctl/requirements.txt
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Uninstall <code>mssqlctl</code></em></p>
+
+<p>In <em>Code Snippet 1</em> above I have inserted a line continuation (<code>\</code>) to make the code fit the page.</p>
+
+<ul>
+<li>If you have deployed CTP 3.2, or any later CTP&rsquo;s of the BDC, (including RC1), then you need to uninstall the corresponding version of <code>azdata</code>:</li>
+</ul>
+
+<pre><code class="language-bash">pip3 uninstall -r https://azdatacli.blob.core.windows.net/ \
+                  python/azdata/&lt;version-indicator&gt;/requirements.txt
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Uninstall <code>azdata</code></em></p>
+
+<p>In <em>Code Snippet 2</em> you see how the uninstall command indicates which version of <code>azdata</code> to uninstall via <code>&lt;version-indicator&gt;</code>. The value of the `<version-indicator> is as follows:</p>
+
+<ul>
+<li>CTP 3.2: <code>2019-ctp3.2</code>.</li>
+
+<li><p>RC1: <code>2019-rc1</code>.</p></li>
+
+<li><p>With the above in mind, the command I used to uninstall the <code>RC1</code> version of <code>azdata</code> looks like so:</p></li>
+</ul>
+
+<pre><code class="language-bash">pip3 uninstall -r https://azdatacli.blob.core.windows.net/ \
+                  python/azdata/2019-rc1/requirements.txt
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Uninstall RC1 <code>azdata</code></em></p>
+
+<p>In <em>Code Snippet 3</em> we see how I have replaced <code>&lt;version-indicator&gt;</code> with <code>2019-rc1</code>. When you run the command, you have to confirm that you want to remove some installed components:</p>
+
+<p><img src="/images/posts/inst-bdcrc1-uninst-azdata.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Confirm Uninstall <code>azdata</code></em></p>
+
+<p>Just click <code>y</code> when asked to proceed.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The biggest issue causing errors in a BDC deployment, by far, is using an older version of <code>azdata</code>. So please, do not be &ldquo;that guy&rdquo; (or girl) - make sure you uninstall <code>azdata</code> if you have an earlier version. In fact, before a deployment, always uninstall <code>azdata</code> followed by an install, (see below).</p>
+</blockquote>
+
+<ul>
+<li>You need the latest version of the Python <code>requests</code> package installed:</li>
+</ul>
+
+<pre><code class="language-bash">$ pip3 install -U requests
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Install/Upgrade <code>requests</code></em></p>
+
+<p>When you have executed the code in <em>Code Snippet 4</em> you can install <code>azdata</code>:</p>
+
+<pre><code class="language-bash">$ pip3 install -r https://aka.ms/azdata
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Installing <code>azdata</code></em></p>
+
+<p>After executing the code in <em>Code Snippet 5</em> you install the other tools needed.</p>
+
+<h4 id="kubectl">kubectl</h4>
+
+<p>The <code>kubectl</code> tool is a Kubernetes command-line tool, and it allows you to run commands against Kubernetes clusters. You use <code>kubectl</code> to deploy applications, inspect and manage cluster resources, and view logs.</p>
+
+<p>You can install <code>kubectl</code> in different ways, and I installed it from <a href="https://chocolatey.org/packages/kubernetes-cli">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
+
+<h4 id="azure-cli">Azure CLI</h4>
+
+<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. You find installation links for Azure CLI <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest">here</a>.</p>
+
+<h2 id="azure-data-studio">Azure Data Studio</h2>
+
+<p>Since this post is about installing and deploying a BDC using <strong>Azure Data Studio</strong>, you also need ADS. Pre-releases of the BDC required special builds of ADS for deployment, (the Insiders builds), and the BDC RC1 release required the ADS RC build.</p>
+
+<p>This is not the case anymore; any ADS build from 1.13.0 is sufficient for deployment. You find installation links for ADS <a href="https://docs.microsoft.com/en-us/sql/azure-data-studio/download?view=sql-server-ver15">here</a>.</p>
+
+<h4 id="azure-data-studio-notebooks">Azure Data Studio Notebooks</h4>
+
+<p>You deploy the BDC using ADS deployment <em>Notebooks</em>. You may ask yourself what an <strong>Azure Data Studio Notebook</strong> is? Well, Notebooks come from the Data Science world where a Notebook can contain live code, equations, visualizations and narrative text. It is a tool for teaching or sharing information between people. A notebook makes it easy to link lots of docs and code together.</p>
+
+<p>When Microsoft developed ADS, they embedded the <a href="https://jupyter.org/">Jupyter</a> service in ADS, which enables ADS to run Notebooks. When you talk about Notebooks, you also talk about <em>Kernels</em>. A <em>Kernel</em> is the programming language you write and execute code in, in the <em>Notebook</em>:</p>
+
+<p><img src="/images/posts/inst-bdcrc1-ads-notebook-kernels.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Notebook Kernels</em></p>
+
+<p>The drop-down you see in <em>Figure 2</em> shows the <em>Kernels</em> ADS supports. When you deploy, you use the <em>Python 3</em> kernel.</p>
+
+<p>Code in Notebooks exists in cells, and to run the code you execute the cell.</p>
+
+<p>If you have not used Python Notebooks before in ADS, you need to configure Python for use with Notebooks. You enter <strong>Ctrl+Shift+P</strong> to open the command palette, and you search for <em>Configure Python</em>:</p>
+
+<p><img src="/images/posts/inst-bdcrc1-ads-configure-notebooks.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Configure Notebooks</em></p>
+
+<p>In <em>Figure 3</em> you see the command palette, and you choose <em>Configure Python for Notebooks</em>, and follow the instructions.</p>
+
+<p>When you have configured Python for the notebooks, you are ready to deploy the BDC.</p>
+
+<h2 id="azure-data-studio-deployment-wizard">Azure Data Studio Deployment Wizard</h2>
+
+<p>When you use ADS to to a deployment you use a deployment wizard who guides you through the steps necessary for the deployment. To start up the wizard you can use the <em>Command Palette</em>, (as per above), and you enter <em>dep</em> in the textbox:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install3.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Command Palette Deploy SQL Server</em></p>
+
+<p>We see in <em>Figure 1</em> the command palette and how I entered <em>dep</em> in the text box, which then shows available commands. Among the commands we see <em>Deployment: Deploy SQL Server &hellip;</em>, (outlined in red).</p>
+
+<p>Before we go any further I want to mention that we do not necessarily need to use the command palette to get to the <em>Deploy &hellip;</em> command:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install2.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Deploy via Connections</em></p>
+
+<p>In <em>Figure 2</em> we see the <em>Deploy SQL Server &hellip;</em> command, (outlined in red), as we saw in <em>Figure 1</em>. In this case, we got to the command by:</p>
+
+<ul>
+<li>Clicking on the first icon from the top, (outlined in yellow), in the activity bar. The activity bar is the leftmost panel in ADS.</li>
+<li>Click on the ellipsis, (outlined in blue), in the <em>CONNECTIONS</em> panel.</li>
+</ul>
+
+<p>So, we get to the <em>Deploy</em> command either through the command palette or the <em>CONNECTIONS</em> panel.</p>
+
+<p>To start the deployment wizard, we click on the <em>Deploy</em> command as we see in <em>Figure 1</em>/<em>Figure 2</em>:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install4.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Deployment Options</em></p>
+
+<p>We see in <em>Figure 3</em> how the deployment wizard supports different SQL Server deployment options:</p>
+
+<ul>
+<li>SQL on Windows.</li>
+<li>SQL Container.</li>
+<li>SQL Server Big Data Cluster.</li>
+</ul>
+
+<p>The default deployment option, as we see in <em>Figure 3</em>, is to deploy SQL Server as a container image. We also see that ADS checks whether we have the necessary tools installed for the deployment in question. In this case, I do not have <code>docker</code> installed, so there is an error.</p>
+
+<p>Fortunately, I do not want to deploy a container but the SQL Server Big Data Cluster, so I click on the BDC option, (outlined in red):</p>
+
+<p><img src="/images/posts/ads-install-bdc-install6.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>BDC Deployment Options</em></p>
+
+<p>Clicking the BDC option we see something like in <em>Figure 4</em>: the <em>Select the deployment options</em> dialog. The dialog gives us the options for the BDC deployment:</p>
+
+<ul>
+<li>Version - at this stage only SQL Server 2019.</li>
+<li>Deployment target - where we want to deploy the BDC to. In <em>Figure 4</em> we see how I chose to deploy to a new Azure Kubernetes Service cluster.</li>
+</ul>
+
+<p>We also see in <em>Figure 4</em> how ADS ensure that we have the required tools installed.</p>
+
+<p>When deploying a BDC to AKS, we have to do some configuration before the actual deployment can happen, and the configuration consists of five steps:</p>
+
+<ul>
+<li>Configuration template / profile.</li>
+<li>Azure settings.</li>
+<li>BDC and Docker settings.</li>
+<li>Service settings.</li>
+<li>Summary of settings.</li>
+</ul>
+
+<h4 id="configuration-template">Configuration Template</h4>
+
+<p>After we have chosen the SQL Server version and deployment target in <em>Figure 4</em>, we click <strong>Select</strong> and we get the dialog for the configuration template:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install7.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Configuration Template</em></p>
+
+<p>The dialog we see in <em>Figure 5</em> allows us to choose a deployment profile. The profile defines things like how many instances we want of the various BDC components, and storage requirements. These settings can be changed later during the deployment process.</p>
+
+<p>I chose the <code>aks-dev-test</code> profile with default values,</p>
+
+<h4 id="azure-settings">Azure Settings</h4>
+
+<p>Going on from the configuration template we see:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install8.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Azure Settings</em></p>
+
+<p>As we see in <em>Figure 6</em>, we now are at the settings for the Azure Kubernetes Service cluster.</p>
+
+<p>All of the settings are relatively self-explanatory, and if you are unsure about any of the settings, you can refer back to my <a href="/2019/09/11/install-sql-server-2019-big-data-cluster-using-azure-data-studio/">previous post</a> about deploying a BDC via ADS.</p>
+
+<p>It is worth noting that I have changed the <em>VM size</em>, and <em>VM count</em> from its default of <code>Standard_E4s_v3</code>, and <code>5</code> to <code>Standard_B8ms</code> and <code>3</code>. Reason for this is that having fewer nodes cuts down on install time.</p>
+
+<p>The thing to bear in mind here is that a BDC deployment requires at a minimum around 24 hard disks altogether in your cluster, and each VM has a set number of disks. In my case, each <code>Standard_B8ms</code> VM has 16 disks so I should be good (3 * 16).</p>
+
+<h4 id="cluster-settings">Cluster Settings</h4>
+
+<p>Moving on from Azure settings:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install9.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>BDC Settings</em></p>
+
+<p>The dialog we see in <em>Figure 7</em> is for configuring settings for the SQL Server BDC. As we see, there are two sections:</p>
+
+<ul>
+<li>Cluster settings.</li>
+<li>Docker settings.</li>
+</ul>
+
+<p>When I set up a BDC, I do not use the default value for cluster name, and as you see in the figure I named the cluster: <code>sqlbdc-cluster</code>. Make sure you remember the password as you need it later.</p>
+
+<p>At the moment, the only authentication mode supported is <em>Basic</em>, so we do not need to do anything there.</p>
+
+<p>For the Docker settings, I go with the default values, and no user-name or password is required.</p>
+
+<h4 id="service-settings">Service Settings</h4>
+
+<p>Having done the cluster settings we are now almost finished, and we get to settings for the various BDC services:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install10.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Service Settings</em></p>
+
+<p>In service settings, as we see in <em>Figure 8</em>, we define how many instances of various services we want, endpoints for services, and also settings for storage.</p>
+
+<p>When I deploy a BDC, I do not change any of these settings.</p>
+
+<h4 id="settings-summary">Settings Summary</h4>
+
+<p>We go on from the service settings:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install11.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Settings Summary</em></p>
+
+<p>The last step is not so much of a step where we do things, but - as we see in <em>Figure 9</em> - it is a summary of the settings we have defined in the previous steps.</p>
+
+<p>In this final step, (before actual deployment), we can:</p>
+
+<ul>
+<li>Save the settings from previous steps to config files.</li>
+<li>Go back and change settings.</li>
+<li>Cancel out.</li>
+<li>Script the settings to a notebook.</li>
+</ul>
+
+<p>The last option in the list above is what we choose when we deploy.</p>
+
+<h2 id="deployment-notebook">Deployment Notebook</h2>
+
+<p>When we click on <strong>Script to Notebook</strong> a Notebook opens:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install12.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Deploy Notebook</em></p>
+
+<p>We see in <em>Figure 10</em> the notebook that has been scripted for us based on the settings we defined in the steps above. Since we said we wanted to deploy to a new Azure Kubernetes Service Cluster, the Notebook creates a new AKS cluster for us together with deploying the BDC.</p>
+
+<p>When you scroll through the notebook, you see the various stages of the deployment and what it does in each stage:</p>
+
+<ul>
+<li>Check dependencies.</li>
+<li>Required information.</li>
+<li>Azure settings.</li>
+<li>Default settings.</li>
+<li>Login to Azure.</li>
+<li>Set active Azure subscription.</li>
+<li>Create Azure resource group.</li>
+<li>Create AKS cluster.</li>
+<li>Set the new AKS cluster as current context.</li>
+<li>Create a deployment configuration file.</li>
+<li>Create SQL Server 2019 big data cluster.</li>
+<li>Login to SQL Server 2019 big data cluster.</li>
+<li>Show SQL Server 2019 big data cluster endpoints.</li>
+<li>Connect to master SQL Server instance in Azure Data Studio.</li>
+</ul>
+
+<p>An example of the Notebook is below:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install13.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>Notebook Cells</em></p>
+
+<p>In <em>Figure 11</em> we see some cells with code, and above the cells describing text.</p>
+
+<p>To do the deployment, you can now either run each cell independently by clicking on the cell and hit F5 or click on the <strong>Run Cells</strong> command at the top of the notebook, (outlined in red in <em>Figure 10</em>). In either case, you see what command the cell executes as well as the outcome:</p>
+
+<p><img src="/images/posts/inst-bdcrc1-cell-output.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Cell Output</em></p>
+
+<p>What you see in <em>Figure 12</em> is the output from creating the Azure resource group.</p>
+
+<p>Be aware that the deployment takes a while, and especially the stage <em>Create SQL Server 2019 big data cluster</em>. Unfortunately, the Notebook does not give you much information where you are in the deployment, but you can use <code>kubectl</code> from the command line to get some feel for where you are in the process:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install16-get-pods.png" alt="" /></p>
+
+<p><strong>Figure 13:</strong> <em>Get Pods - I</em></p>
+
+<p>We see in <em>Figure 13</em> how I have executed <code>kubectl get pods -n sqlbdc-cluster</code> early in the deployment process.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> For the <code>-n</code> flag in the command I use the name of the BDC cluster I assigned in step 3, (<em>Cluster Settings</em>), above.</p>
+</blockquote>
+
+<p>We see that the deployment is busy deploying two pods related to the controller service. If I run the same command a bit later, I see:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install16-get-pods2.png" alt="" /></p>
+
+<p><strong>Figure 14:</strong> <em>Get Pods - II</em></p>
+
+<p>Now we see in <em>Figure 14</em> how more pods are deployed, and some of them also have a state of running, amongst them the control pods. As the control pods have a state of running, the controller service should now be up and running.</p>
+
+<h4 id="controller-service">Controller Service</h4>
+
+<p>The controller service is, as the name implies, what controls the BDC, and it is the controller service which interacts with the Kubernetes cluster. When deploying a BDC, the controller service is always deployed first so it can co-ordinate deployments with the Kubernetes service.</p>
+
+<p>The controller service exposes an endpoint with which we can monitor the BDC. While the deployment is in process we can get to the IP address for the endpoint via a <code>kubectl</code> command:</p>
+
+<pre><code class="language-bash">kubectl get svc -n sqlbdc-cluster
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Retrieve Endpoints</em></p>
+
+<p>In <em>Code Snippet 6</em> we see how I call <code>kubectl get svc</code> with the name of the BDC cluster. The command lists all services in the specified namespace, (the <code>-n</code> flag), together with information about the services. Part of the information is the exposed IP address, (if any), of the service.</p>
+
+<p>When I run the code in <em>Code Snippet 6</em> I see the following:</p>
+
+<p><img src="/images/posts/ads-install-bdc-get-svc.png" alt="" /></p>
+
+<p><strong>Figure 15:</strong> <em>Services</em></p>
+
+<p>We see in <em>Figure 15</em> the controller service and its external IP address and port, (outlined in red). With this in hand, we can now use ADS to connect to the controller:</p>
+
+<p><img src="/images/posts/ads-install-bdc-controller1.png" alt="" /></p>
+
+<p><strong>Figure 16:</strong> <em>Add Big Data Cluster Controller</em></p>
+
+<p>To add a BDC controller we expand the <em>SQL SERVER BIG DATA CLUSTERS</em> panel in ADS as we see in <em>Figure 16</em>, and click on the <code>+</code> sign. That gives us a connection dialog:</p>
+
+<p><img src="/images/posts/ads-install-bdc-add-controller.png" alt="" /></p>
+
+<p><strong>Figure 17:</strong> <em>Connect to BDC Controller</em></p>
+
+<p>In the connection dialog we see in <em>Figure 17</em> we fill in the IP address and port we retrieved when we executed <em>Code Snippet 6</em>. The user name and password are the ones we defined in <em>Cluster Settings</em>, (<em>Figure 7</em>). We then click <strong>Add</strong> and the controller appears in the <em>SQL SERVER BIG DATA CLUSTERS</em> panel. Right-clicking on the controller we see:</p>
+
+<p><img src="/images/posts/ads-install-bdc-controller-manage.png" alt="" /></p>
+
+<p><strong>Figure 18:</strong> <em>Controller Manage</em></p>
+
+<p>We see in <em>Figure 18</em> how we get a menu where we choose <strong>Manage</strong>:</p>
+
+<p><img src="/images/posts/ads-install-bdc-controller2.png" alt="" /></p>
+
+<p><strong>Figure 19:</strong> <em>BDC Dashboard</em></p>
+
+<p>When we click <strong>Manage</strong> as in <em>Figure 18</em> we get a BDC dashboard as we see in <em>Figure 19</em>, and the dashboard gives us an overview of the cluster. Since we have not finished deploying yet, we see that quite a few services are in an unhealthy state. By refreshing now and then we see how the services move from unhealthy to healthy.</p>
+
+<h4 id="deployment-finished">Deployment Finished</h4>
+
+<p>Eventually, the deployment finishes, and we get an output from the cell <em>Create SQL Server 2019 Big Data Cluster</em>:</p>
+
+<p><img src="/images/posts/ads-install-bdc-install17-finished.png" alt="" /></p>
+
+<p><strong>Figure 20:</strong> <em>Deployment Finished</em></p>
+
+<p>In <em>Figure 20</em> we see the output after a successful deployment. We can now go back to the controller service and see what it reports:</p>
+
+<p><img src="/images/posts/ads-install-bdc-controller3.png" alt="" /></p>
+
+<p><strong>Figure 21:</strong> <em>Healthy Cluster</em></p>
+
+<p>As we see in <em>Figure 21</em> all services are green, yay! What we also see in <em>Figure 21</em> are service endpoints. The BDC exposes external endpoints for various services, and those are the ones you see in <em>Figure 21</em>. It is beyond the scope of this post to discuss what all those endpoints are, but the one outlined in red is the endpoint for the SQL Server master instance.</p>
+
+<h2 id="connect-to-cluster">Connect to Cluster</h2>
+
+<p>To connect to the SQL Server master instance, we use the endpoint outlined in red in <em>Figure 21</em>. We can either try and connect via clicking on the link for the endpoint or via the <strong>New Connection</strong> icon in the servers panel:</p>
+
+<p><img src="/images/posts/ads-install-bdc-connect-servers.png" alt="" /></p>
+
+<p><strong>Figure 22:</strong> <em>New Connection</em></p>
+
+<p>Clicking on the <strong>New Connection</strong> icon as we see in <em>Figure 22</em> brings up a <em>Connection</em> dialog:</p>
+
+<p><img src="/images/posts/ads-install-bdc-connect-admin.png" alt="" /></p>
+
+<p><strong>Figure 23:</strong> <em>Connect to SQL Server</em></p>
+
+<p>There are two things to notice in <em>Figure 23</em>:</p>
+
+<ul>
+<li>The Server IP includes a port number.</li>
+<li>User name is not <code>sa</code> but the user name we defined in <em>Cluster Settings</em>, (<em>Figure 7</em>).</li>
+</ul>
+
+<p>The reason for the port number is that the default port number for SQL Server: <code>1433</code> is used within the BDC, and for external use <code>31433</code> is used as default. You can set the port number to something other than the default in the <em>Service Settings</em> step, (<em>Figure 8</em>).</p>
+
+<p>Why we use <code>admin</code> as user name, and not <code>sa</code> - which every SQL DBA/Developer worth his/her salt loves - is that <code>sa</code> is by default disabled.</p>
+
+<p>You would have noticed that if you tried to connect via the endpoint link, as that uses <code>sa</code> as user name. To enable <code>sa</code> we log in as <code>admin</code>, and then run the following code:</p>
+
+<pre><code class="language-sql">USE master;
+GO
+
+ALTER LOGIN sa WITH PASSWORD=N'&lt;some-secret-pwd&gt;''
+GO
+
+ALTER LOGIN sa ENABLE;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Enable <code>sa</code></em></p>
+
+<p>In <em>Code Snippet 7</em> we see how we set a super-secret password for <code>sa</code>, and then we enable the account.</p>
+
+<p>We now have a fully functional BDC!</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post you saw how you can deploy a *<em>SQL Server 2019 Big Data Cluster</em> using <strong>Azure Data Studio</strong> and notebooks.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2019/12/15/interesting-stuff---week-50--year-end-2019/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 50 &amp; Year End, 2019</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2019/09/11/install-sql-server-2019-big-data-cluster-using-azure-data-studio/">Install SQL Server 2019 Big Data Cluster using Azure Data Studio</a>
+      
+      <time class="pull-right hidden-tablet">Sep 11 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/11/11/interesting-stuff---week-45/">Interesting Stuff - Week 45</a>
+      
+      <time class="pull-right hidden-tablet">Nov 11 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/11/10/sql-server-2019-big-data-cluster-on-azure-kubernetes-service/">SQL Server 2019 Big Data Cluster on Azure Kubernetes Service</a>
+      
+      <time class="pull-right hidden-tablet">Nov 10 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/12/08/interesting-stuff---week-49-2019/">Interesting Stuff - Week 49, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Dec 08 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/08/25/interesting-stuff---week-34-2019/">Interesting Stuff - Week 34, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Aug 25 &#39;19</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
