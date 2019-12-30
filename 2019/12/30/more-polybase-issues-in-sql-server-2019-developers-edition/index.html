@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>More PolyBase Issues in SQL Server 2019 Developers Edition • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="More PolyBase Issues in SQL Server 2019 Developers Edition"/>
+<meta name="twitter:description" content="Here we look at how to fix weird error messages when we want to create External Tables"/>
+
+<meta property="og:title" content="More PolyBase Issues in SQL Server 2019 Developers Edition" />
+<meta property="og:description" content="Here we look at how to fix weird error messages when we want to create External Tables" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2019/12/30/more-polybase-issues-in-sql-server-2019-developers-edition/" />
+
+
+
+<meta property="article:published_time" content="2019-12-30T18:26:55&#43;02:00"/>
+
+<meta property="article:modified_time" content="2019-12-30T18:26:55&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2019 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>More PolyBase Issues in SQL Server 2019 Developers Edition</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Dec 30, 2019
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/polybase">POLYBASE</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2019">SQL SERVER 2019</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-2019">sql server 2019</a>
+           
+      
+          <a class="post__tag" href="/tags/polybase">polybase</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 8 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>A couple of weeks ago, I published the post <a href="/2019/11/20/fix-polybase-in-sql-server-2019-developers-edition/"><strong>Fix PolyBase in SQL Server 2019 Developers Edition</strong></a>. In the post, I discussed how to fix an issue in SQL Server 2019 Developers edition, where the PolyBase services do not start up after installation.</p>
+
+<p>The fix in the post works fine, i.e. the services start after the fix. However some days after I published the post there was a question on a SQL Server 2019 forum, where the poster says he cannot create an external file format on the SQL Server 2019 Developer Edition. Sure enough, when I tried to do the same on my &ldquo;fixed&rdquo; instance, I could not either.</p>
+
+<p>So in this post, I look at how to fix that second issue.</p>
+
+<p></p>
+
+<h2 id="demo-data-code">Demo Data / Code</h2>
+
+<p>The following code is for you who want to follow along and try it out for yourselves:</p>
+
+<pre><code class="language-sql">CREATE DATABASE MyOraSourceDB;
+GO
+
+USE MyOraSourceDB;
+GO
+
+CREATE TABLE emp
+(  
+  EMPNO int primary key, 
+  ENAME nvarchar(50), 
+  JOB nvarchar(50), 
+  MGR int, 
+  HIREDATE date, 
+  SAL int, 
+  COMM int, 
+  DEPTNO int
+);
+
+INSERT INTO emp (EMPNO,ENAME,JOB,MGR,HIREDATE,SAL,COMM,DEPTNO)
+VALUES (7369,'SMITH','CLERK',7902, '1980-12-17',800,null,20)
+, (7521,'WARD','SALESMAN',7698,'1981-02-20',1250,500,30)
+,(7499,'ALLEN','SALESMAN',7698,'1981-02-22',1600,300,30)
+,(7566,'JONES','MANAGER',7839,'1981-04-02',2975,null,20)
+,(7654,'MARTIN','SALESMAN',7698,'1981-09-28',1250,1400,30)
+,(7698,'BLAKE','MANAGER',7839,'1981-05-01',2850,null,30)
+,(7782,'CLARK','MANAGER',7839,'1981-06-09',2450,null,10)
+,(7788,'SCOTT','ANALYST',7566,'1987-04-19',3000,null,20)
+,(7839,'KING','PRESIDENT',null,'1981-11-17',5000,null,10)
+,(7844,'TURNER','SALESMAN',7698,'1981-09-08',1500,0,30)
+,(7876,'ADAMS','CLERK',7788,'1987-05-23',1100,null,20)
+,(7900,'JAMES','CLERK',7698,'1981-12-03',950,null,30)
+,(7902,'FORD','ANALYST',7566,'1981-12-03',3000,null,20)
+,(7934,'MILLER','CLERK',7782,'1982-01-23',1300,null,10);
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Create Source Database</em></p>
+
+<p>The code in <em>Code Snippet 1</em> creates a database and a table with some data. The database is what we use as the source database. Typically for demo purposes, I use an Oracle database as the source, but for this, we use a local SQL Server database.</p>
+
+<p>We also need a database which we work from, i.e. the target database:</p>
+
+<pre><code class="language-sql">CREATE DATABASE MyTargetDB;
+GO
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Create Target Database</em></p>
+
+<p>In <em>Code Snippet 2</em> we see how I create the database we will work in. For now, we only create the database, and later we add &ldquo;stuff&rdquo;.</p>
+
+<h2 id="external-table">External Table</h2>
+
+<p>PolyBase enables a database in a SQL Server instance to process Transact-SQL queries that read data from external data sources. The data in the remote data source is exposed via external table(s).</p>
+
+<p>In our case, we emulate a remote Oracle database through our <code>MyOraSourceDB</code> database, and the data source is the <code>emp</code> table. What we want to do is to query the &ldquo;remote&rdquo; <code>emp</code> table from inside the <code>MyTargetDB</code>. To do this, we create an external table targeting the <code>emp</code> table in the <code>MyOraSourceDB</code> database.</p>
+
+<p>The signature for <code>CREATE EXTERNAL TABLE</code> looks like so:</p>
+
+<pre><code class="language-sql">CREATE EXTERNAL TABLE { database_name.schema_name.table_name | 
+                        schema_name.table_name | 
+                        table_name }
+    ( &lt;column_definition&gt; [ ,...n ] )
+    WITH (
+        LOCATION = 'folder_or_filepath',
+        DATA_SOURCE = external_data_source_name
+        [ , FILE_FORMAT = external_file_format_name ]
+        [ , &lt;reject_options&gt; [ ,...n ] ]
+    )
+[;]
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Create External Table</em></p>
+
+<p>We see in <em>Code Snippet 3</em> the main portion of <code>CREATE EXTERNAL TABLE</code>. Notice the <code>DATA_SOURCE</code>, and <code>FILE_FORMAT</code> arguments.</p>
+
+<h4 id="data-source">DATA_SOURCE</h4>
+
+<p>Specifies the name of the external data source that contains the location of the external data. External data sources can be:</p>
+
+<ul>
+<li>Hadoop, (SQL Server 2016+).</li>
+<li>Azure Blob Storage, (SQL Server 2016+).</li>
+<li>SQL Server, (SQL Server 2019+).</li>
+<li>Oracle, (SQL Server 2019+).</li>
+<li>Teradata, (SQL Server 2019+).</li>
+<li>Mongo DB, (SQL Server 2019+).</li>
+<li>Cosmos DB, (SQL Server 2019+).</li>
+<li>Generic ODBC sources, (only in SQL Server 2019 Windows).</li>
+</ul>
+
+<p>The signature of <code>CREATE EXTERNAL DATA SOURCE</code> is as follows:</p>
+
+<pre><code class="language-sql">CREATE EXTERNAL DATA SOURCE &lt;data_source_name&gt;  
+WITH
+(    
+  LOCATION                  = '&lt;prefix&gt;://&lt;path&gt;[:&lt;port&gt;]'
+  [,   CONNECTION_OPTIONS        = '&lt;name_value_pairs&gt;']
+  [,   CREDENTIAL                = &lt;credential_name&gt; ]
+  [,   PUSHDOWN                  = ON | OFF]
+  [,   TYPE                      = HADOOP | BLOB_STORAGE ]
+  [,   RESOURCE_MANAGER_LOCATION = '&lt;resource_manager&gt;[:&lt;port&gt;]'
+)
+[;]
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Create External Data Source - I</em></p>
+
+<p>In <em>Code Snippet 4</em> we see that most of <code>Create External Data Source</code> arguments are optional. In our code further below, we use <code>LOCATION</code> and <code>CREDENTIAL</code>.</p>
+
+<h4 id="file-format">FILE_FORMAT</h4>
+
+<p>The <code>CREATE EXTERNAL FILE FORMAT</code> specifies the layout of the data referenced by an external table. You use this for external tables, not referencing relational data.</p>
+
+<p>The command differs depending on the actual remote file format. The code the poster used in the forum, mentioned above, looked like so:</p>
+
+<pre><code class="language-sql">CREATE EXTERNAL FILE FORMAT csv_file
+WITH 
+(
+  FORMAT_TYPE = DELIMITEDTEXT,
+  FORMAT_OPTIONS
+  (
+    FIELD_TERMINATOR = ',',
+    STRING_DELIMITER = '&quot;'
+  )
+);
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Create External File Format</em></p>
+
+<p>As we see in <em>Code Snippet 5</em>, the poster wanted to define the format for <code>.csv</code> files. He:</p>
+
+<ul>
+<li>Named the format: <code>csv_file</code>.</li>
+<li>Defined the type: <code>DELIMITEDTEXT</code>.</li>
+<li>Defined what terminates a field, and what delimits a string.</li>
+</ul>
+
+<p>A bit further down we see what happened when the poster wanted to execute the statement.</p>
+
+<h2 id="the-issue-s">The Issue(s)</h2>
+
+<p>Let us look at the issue which occurred for the forum post as well for me. When we execute the code in <em>Code Snippet 5</em> we see the following:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-syntax1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Incorrect Syntax</em></p>
+
+<p>What we see in <em>Figure 1</em>, <em>incorrect syntax exception</em>, is strange, as I have executed the same code in a SQL Server 2019 Big Data Cluster, (BDC), without any issues, and the forum poster executed the same in SQL Server 2019 Enterprise Edition also without any issues.</p>
+
+<p>Ok, but what about creating an external table against a relational data source - where we do not need to define an external file format? Let us go back to the databases we created above, and - in the <code>MyTargetDB</code> - create an external table against the <code>emp</code> table in <code>MyOraSourceDB</code>. We start with the external data source:</p>
+
+<pre><code class="language-sql">CREATE MASTER KEY ENCRYPTION BY PASSWORD = '&lt;some-secret-password&gt;';
+GO
+
+CREATE DATABASE SCOPED CREDENTIAL [oracleCred]
+WITH IDENTITY = N'sa', SECRET = N'&lt;some-other-secret-password&gt;';
+
+CREATE EXTERNAL DATA SOURCE OraConnection
+WITH 
+( 
+  LOCATION = 'sqlserver://localhost',
+  CREDENTIAL = [oracleCred]
+);
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>Create External Data Source - II</em></p>
+
+<p>You may wonder why we, in <em>Code Snippet 6</em>, create a master key and a scoped credential? Well, we create the credential as the &ldquo;remote&rdquo; data source, in this case, the <code>MyOraSourceDB</code> requires authentication. The master key is required to protect the scoped credential.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If the database in question already have a master key, you do not need to create a new.</p>
+</blockquote>
+
+<p>As for creating the data source we:</p>
+
+<ul>
+<li>Give it a name.</li>
+<li>Sets the location. The <code>sqlserver</code> prefix indicates this is a SQL Server instance.</li>
+<li>Assign the credential created above.</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> If the remote data source had been an Oracle server, the <code>LOCATION</code> would be like: `oracle://[IP-address]&lsquo;.</p>
+</blockquote>
+
+<p>All this seems correct, however, when we execute the code in <em>Code Snippet 6</em> we get:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-type-generic.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Type Generic not Supported</em></p>
+
+<p>The exception we see in <em>Figure 2</em> is, once again, strange, as when I run the same code in SQL Server 2019 BDC it works fine. What is going on here?</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>Above we have seen two instances of where we received exceptions for operations in SQL Server 2019 Developers Edition that works fine in other editions, (BDC, Enterprise, etc.).</p>
+
+<p>As Developers edition is equivalent to Enterprise edition, PolyBase should just work. When I looked into these issues, the only explanation I could come up with was that some settings differ during setup between Developer and Enterprise Edition, (and BDC for that matter).</p>
+
+<p>So what I did was that I connected to my BDC, and looked at the configuration:</p>
+
+<pre><code class="language-sql">SELECT name, value, value_in_use, description 
+FROM sys.configurations
+where name like '%polybase%'
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Get Config Detail for PolyBase</em></p>
+
+<p>When I executed the code on my BDC instance the result looked like so:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-bdc-pb-config.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>BDC PolyBase Config</em></p>
+
+<p>We see in <em>Figure 3</em> how all PolyBase related configuration settings are enabled. Now, what if we run the code in <em>Code Snippet 7</em> on my local Developer edition:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-bdc-pb-config2.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Local Developer Edition PolyBase Config</em></p>
+
+<p>Oh, notice in <em>Figure 4</em>, outlined in red, how PolyBase is <strong>NOT</strong> enabled. That certainly looks like a smoking gun. So, let us enable PolyBase:</p>
+
+<pre><code class="language-sql">EXEC sp_configure 'polybase enabled', 1
+RECONFIGURE WITH OVERRIDE;
+</code></pre>
+
+<p><strong>Code Snippet 8:</strong> <em>Enable PolyBase</em></p>
+
+<p>After I execute the code in <em>Code Snippet 8</em> and run <code>EXEC sp_configure 'polybase enabled'</code> I see:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-pb-enabled.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Local Developer Edition PolyBase Config</em></p>
+
+<p>Yay, seeing <em>Figure 5</em>, it looks like PolyBase is enabled. To try it out, run the code in <em>Code Snippet 5</em>. When I run it I get:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-success1.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Command Completed Successfully</em></p>
+
+<p>As we see in <em>Figure 6</em>, it looks like all is OK.</p>
+
+<p>Let us now go to the code for the external data source and see what happens when we try to create it. So I execute the <code>CREATE EXTERNAL DATA_SOURCE</code> part of <em>Code Snippet 6</em>, and that succeeds as well.</p>
+
+<p>Cool, so we have the external data source. Now it is time for the external table:</p>
+
+<pre><code class="language-sql">CREATE EXTERNAL TABLE [dbo].[emp_ora]
+(
+  [EMPNO] int NOT NULL,
+  [ENAME] NVARCHAR(50),
+  [JOB] NVARCHAR(50),
+  [MGR] int,
+  [HIREDATE] DATE,
+  [SAL] int,
+  [COMM] int,
+  [DEPTNO] int
+)
+WITH (LOCATION = N'[MyOraSourceDB].[dbo].[emp]', 
+      DATA_SOURCE = [OraConnection]);
+</code></pre>
+
+<p><strong>Code Snippet 9:</strong> <em>External Table</em></p>
+
+<p>In <em>Code Snippet 9</em> we see how we use more or less the same DDL as for the original, remote, table. The only difference is that we define a location which is <code>database.schema.tablename</code>, as well as the data source. After we execute the code in <em>Code Snippet 9</em>, we can query the table: <code>SELECT * FROM dbo.emp_ora</code>:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-query.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Query Result</em></p>
+
+<p>We see in <em>Figure 7</em> the first 5 rows in the external table. However, the data is not persisted in the external table; it is loaded from the remote table. We can prove that by executing: <code>EXEC sp_spaceused 'dbo.emp_ora'</code>:</p>
+
+<p><img src="/images/posts/sql-pb-issues2-space.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Space Used</em></p>
+
+<p>As we see in <em>Figure 8</em> the table has no rows!</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In the <a href="/2019/11/20/fix-polybase-in-sql-server-2019-developers-edition/"><strong>Fix PolyBase in SQL Server 2019 Developers Edition</strong></a> post we saw how to fix the issue when the PolyBase services do not start up after installation of SQL Server 2019 Developers Edition.</p>
+
+<p>In this post, we looked at how to fix the errors we see in <em>Figure 1</em> and <em>Figure 2</em> when we try to either create an external file format or an external data source.</p>
+
+<p>The solution is simple: <code>EXEC sp_configure 'polybase enabled', 1</code> followed by <code>RECONFIGURE WITH OVERRIDE</code>.</p>
+
+<p>Yes, the fix is simple, but I cannot help but think that the error messages could be more descriptive.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2019/12/23/how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2019/11/20/fix-polybase-in-sql-server-2019-developers-edition/">Fix PolyBase in SQL Server 2019 Developers Edition</a>
+      
+      <time class="pull-right hidden-tablet">Nov 20 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/12/15/interesting-stuff---week-50--year-end-2019/">Interesting Stuff - Week 50 &amp; Year End, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Dec 15 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/11/10/interesting-stuff---week-45-2019/">Interesting Stuff - Week 45, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Nov 10 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/11/03/interesting-stuff---week-44-2019/">Interesting Stuff - Week 44, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Nov 03 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/11/03/sql-server-2019--java-parameters/">SQL Server 2019 &amp; Java: Parameters</a>
+      
+      <time class="pull-right hidden-tablet">Nov 03 &#39;19</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
