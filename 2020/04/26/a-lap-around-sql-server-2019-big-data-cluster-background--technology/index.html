@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology"/>
+<meta name="twitter:description" content="A post around the background of SQL Server 2019 Big Data Cluster, and the technology behind it."/>
+
+<meta property="og:title" content="A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology" />
+<meta property="og:description" content="A post around the background of SQL Server 2019 Big Data Cluster, and the technology behind it." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2020/04/26/a-lap-around-sql-server-2019-big-data-cluster-background--technology/" />
+
+
+
+<meta property="article:published_time" content="2020-04-26T06:49:39&#43;02:00"/>
+
+<meta property="article:modified_time" content="2020-04-26T06:49:39&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2020 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Apr 26, 2020
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/sql-server-2019">SQL SERVER 2019</a>
+              •
+          
+              <a class="post__category" href="/categories/sql-server-2019-big-data-cluster">SQL SERVER 2019 BIG DATA CLUSTER</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/sql-server-2019-big-data-cluster">sql server 2019 big data cluster</a>
+           
+      
+          <a class="post__tag" href="/tags/kubernetes">kubernetes</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-kubernetes-service">azure kubernetes service</a>
+           
+      
+          <a class="post__tag" href="/tags/azure-data-studio">azure data studio</a>
+           
+      
+          <a class="post__tag" href="/tags/spark">spark</a>
+           
+      
+          <a class="post__tag" href="/tags/hadoop">hadoop</a>
+           
+      
+          <a class="post__tag" href="/tags/python">python</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 21 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>You who read my blog have probably noticed some posts around <strong>SQL Server 2019 Big Data Cluster</strong>, (BDC). You have also most likely seen me posting about giving conference talks and webinars around BDC.</p>
+
+<p>One of the presentations I do around BDC is named &ldquo;A Lap Around SQL Server 2019 Big Data Cluster&rdquo;, and I thought it would be a good idea to make a blog post around the presentation. Well, as per usual for me, &ldquo;a blog post&rdquo; becomes multiple posts.</p>
+
+<p>So, in this post, we look at the background to <strong>SQL Server 2019 Big Data Cluster</strong>, the technology behind it, and a little bit around monitoring the cluster. In future posts, we look at architecture, data virtualization and other interesting bits and pieces.</p>
+
+<p></p>
+
+<h2 id="data">Data</h2>
+
+<p>Before we &ldquo;drill into&rdquo; what a Big Data Cluster is, let us discuss why Microsoft felt the need for BDC. It all comes down to data:</p>
+
+<p>We are getting more and more data, and to stay competitive, we need to be able to use that data; to integrate it, manage it and analyze it.</p>
+
+<p>The problem is that the data comes in all shapes and types; relational data, NoSQL, files, etc., etc. So how do we integrate and analyze this data?</p>
+
+<h4 id="sql-server">SQL Server</h4>
+
+<p>I come back to the question about how to handle all this data shortly, but before that let us think about the evolution of SQL Server throughout the years.</p>
+
+<p>From its &ldquo;humble beginnings&rdquo; as another flavor of Ashton Tate/Sybase, Microsoft evolved SQL Server throughout the years:</p>
+
+<ul>
+<li>SQL Server 7.0 - re-write of the codebase in C++, introducing: User Mode Scheduling, (UMS), and a multi-dimensional database called SQL OLAP Services.</li>
+<li>SQL Server 2000 - OLAP Services became Analysis Services.</li>
+<li>SQL Server 2005 - this was a massive release! Microsoft introduced, among other things, SQL Server Integration Services, the XML data type, SQL Server Service Broker, and my favorite: SQLCLR.</li>
+<li>SQL Server 2016 - in this release Microsoft introduced SQL Server Machine Learning Services, (the ability to call R code from T-SQL). Microsoft also added PolyBase, which in this release allowed the creation of External Table(s) against Hadoop data.</li>
+<li>SQL Server 2017 - Microsoft added Python in addition to R in SQL Server Machine Learning Services. Also - another biggie - for the first time: SQL Server on Linux, as well as containers!</li>
+<li>SQL Server 2019 - Java is added in addition to R and Python, and it is introduced as SQL Server Extensibility Framework. Polybase is greatly enhanced, and we can now create external tables against relational databases, as well as MongoDB and CosmosDB, plus generic ODBC data sources.</li>
+</ul>
+
+<p>From the above, which is by no means complete, we see how Microsoft has evolved SQL Server to be not only an exceptional relational database but also an engine which can do many things related to data.</p>
+
+<p>Coming back to what I asked above about how to integrate, manage and analyze all types of data, Microsoft sees SQL Server as the hub in all this, and the solution is <strong>SQL Server 2019 Big Data Cluster</strong>.</p>
+
+<p>The idea is that with SQL Server 2019 Big Data cluster we should be able to handle, (manage, integrate, analyze), not only relational data, but also other types of data, (Big Data), and extend SQL Server to store data in the petabyte range.</p>
+
+<h2 id="sql-server-2019-big-data-cluster">SQL Server 2019 Big Data Cluster</h2>
+
+<p>So, from the above, we see that a BDC is not your usual SQL Server instance; it is an entirely different &ldquo;beast&rdquo;.</p>
+
+<p>As the name implies, a BDC is a cluster of &ldquo;things&rdquo;. When you deploy the BDC, you deploy a scalable cluster of SQL Server, (multiple instances in fact), Hadoop File System, (HDFS), and Apache Spark. By having these components in the cluster, you can process and analyse massive amounts of data, not only relational data but big data as well.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Oh how things have changed. From once at a time shying away from Open Source, Microsoft now embraces Open Source: Linux, Apache Spark, Hadoop File System!</p>
+</blockquote>
+
+<p>A difference from a &ldquo;normal&rdquo; SQL Server installation is that the SQL Server instances in a BDC are SQL Server on Linux in containers. All components in a BDC run in containers, and since we now have multiple containers we need something that manages and orchestrates the containers and their workload. For this we use Kubernetes. So, when we deploy a BDC, we deploy into a Kubernetes cluster.</p>
+
+<p>The type of Kubernetes cluster does not matter that much, it can be in the cloud, or on-prem. I always deploy to Azure, and the Azure Kubernetes Service, but as I said - it can essentially be any cluster.</p>
+
+<h2 id="kubernetes">Kubernetes</h2>
+
+<p>Kubernetes, (k8s), is an open-source container orchestration system for automating application deployment, scaling, and management. Kubernetes helps you with:</p>
+
+<ul>
+<li>Service discovery, load balancing.</li>
+<li>Storage orchestration.</li>
+<li>Automated rollouts and rollbacks.</li>
+<li>Automated sharding.</li>
+<li>more &hellip;</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> When I first started hearing about Kubernetes I wondered where the abbreviation &ldquo;k8s&rdquo; came from and what it means. I had various theories, each one &ldquo;weirder&rdquo; than the other. Well, the answer is that k is the first letter in the name, s is the last letter, and the 8 in between stands for the number of letters between k and s.</p>
+</blockquote>
+
+<h4 id="kubernetes-basics">Kubernetes Basics</h4>
+
+<p>A k8s cluster consists of:</p>
+
+<ul>
+<li>Node(s) - the actual servers the cluster runs on. They can be either bare metal or VM&rsquo;s.</li>
+<li>Pod(s) - a Pod is a collection of containers, and a Pod exists on a Node.</li>
+<li>Service - a Service defines a logical set of pods and a policy by which to access them. You access the cluster from the outside via exposed endpoints by the services.</li>
+<li>Namespace - a virtual cluster of nodes.</li>
+<li>Volume -  a directory that contains data accessible to containers in a given Pod. Since Pods and therefore containers come and go a Volume provides a mechanism to connect Pods/containers to persistent data stores elsewhere.</li>
+<li>other &ldquo;stuff&rdquo;.</li>
+</ul>
+
+<p>Each k8s cluster has a master node, (sometimes also called the control plane). The master node runs a collection of processes which manages the cluster and its state. The master node also exposes the API layer which we interact with when managing the cluster.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> If you create a k8s cluster in Azure, (AKS), the master is abstracted away from you.</p>
+</blockquote>
+
+<p>As mentioned above, the nodes contain your application&rsquo;s pods. The nodes contain, in addition to your pods, two k8s components:</p>
+
+<ul>
+<li><code>kubelet</code> - this is the k8s agent which processes the orchestration requests from the master node.</li>
+<li><code>kube-proxy</code> - the proxy routes network traffic and manages IP addressing.</li>
+</ul>
+
+<p>Each node also contains a container runtime, which is the component that allows containerized applications to run:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kubernetes-1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Kubernetes</em></p>
+
+<p>In <em>Figure 1</em> we see some of the parts of a two-node Kubernetes cluster, with a Master node. We see how the Master node communicates with the <code>kubelet</code> agent in the individual nodes, and how a developer/operational &ldquo;dude&rdquo; manages the cluster using a tool named <code>kubectl</code>, which we talk about more below. Each node has, in this example, two pods with two containers each, and the pods sit in the container runtime. The <code>kube-proxy</code> communicates with the pods, and a &ldquo;user&rdquo; connects to a pod via <code>kube-proxy</code>.</p>
+
+<p>In k8s, we also have the notion of <code>StatefulSet</code>, which is a workload API used to manage stateful applications. It manages the deployment and scaling of a set of Pods and provides guarantees about the ordering and uniqueness of these Pods. This is important in the context of the BDC since we really want the BDC to have stateful services - think databases.</p>
+
+<h4 id="managing-a-k8s-cluster">Managing a k8s Cluster</h4>
+
+<p>Above I mentioned how the master node exposes an API layer which we interact with when managing the cluster.</p>
+
+<p>**<code>kubectl</code></p>
+
+<p>The way to manage a cluster is via a command-line tool - <code>kubectl</code> - which allows you to inspect cluster resources; create, delete, and update components; etc.</p>
+
+<p>To illustrate the use of <code>kubectl</code> I have created a small k8s cluster in Azure. The cluster is named <code>kubernetes-test</code>, (imaginative - I know), and the first thing we need to do is to configure <code>kubectl</code> to connect to the cluster.</p>
+
+<p>To configure <code>kubectl I use an Azure CLI command:</code>az aks get-credentials`, like so:</p>
+
+<pre><code class="language-bash">az aks get-credentials --name kubernetes-test \
+                       --resource-group rg-k8s-test \
+                       --admin \
+                       --overwrite-existing \
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Configure <code>kubectl</code></em></p>
+
+<p>We see in <em>Code Snippet 1</em> how I pass in the name of the cluster and the resource group as parameters together with two optional parameters:</p>
+
+<ul>
+<li><code>admin</code> - gets cluster administrator credentials.</li>
+<li><code>overwrite-existing</code> - overwrites any existing cluster entry with the same name.</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> In the code snippet above I use <code>\</code> to denote line-break. If you run this in Powershell on Windows, you use backtick, (&rdquo;`&ldquo;), as a line-break symbol.</p>
+</blockquote>
+
+<p>When I execute the code in <em>Code Snippet 1</em> I get:</p>
+
+<p><img src="/images/posts/bdc-lap-around-kubectl-cfg.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Configure <code>kubectl</code></em></p>
+
+<p>The <code>config</code> file we see outlined in red in <em>Figure 2</em> holds, among other things, the keys for the Kubernetes cluster. To ensure that I can connect to the cluster, I call <code>kubectl get nodes</code>:</p>
+
+<p><img src="/images/posts/bdc-lap-around-kubectl-nodes.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>View Nodes</em></p>
+
+<p>We see in <em>Figure 3</em> the result after executing <code>kubectl get nodes</code>, and how my k8s cluster has three nodes. If I were to execute something like <code>kubectl get pods</code> I would not get a result back as I have not deployed anything to the cluster yet.</p>
+
+<p><strong>Kubernetes Dashboard</strong></p>
+
+<p>You do not have to rely on <code>kubectl</code> solely for monitoring and managing a Kubernetes cluster, as you can also use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>. In Azure you access the dashboard by the <code>az aks browse</code> command, and - as with <code>get-credentials</code> - you pass in the names of the resource group and cluster: <code>az aks browse --resource-group rg-k8s-test --name kubernetes-test</code>, and a new tab opens in your browser:</p>
+
+<p><img src="/images/posts/bdc-lap-around-k8s-dash-error.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Kubernetes Dashboard Errors</em></p>
+
+<p>Hmm, what is this - the tab that opens up shows the dashboard as we see in <em>Figure 4</em>, but it is full of warnings!</p>
+
+<p>The problem here is that on AKS Role Based Access Control, (RBAC), is enabled by default and the service account used by the dashboard does not have enough permissions to access all resources.</p>
+
+<p>We fix that by running the following command:</p>
+
+<pre><code class="language-bash">kubectl create clusterrolebinding kubernetes-dashboard -n kube-system \
+              --clusterrole=cluster-admin \
+              --serviceaccount=kube-system:kubernetes-dashboard
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Assign Permissions to Kubernetes Dashboard</em></p>
+
+<p>After we execute the code in <em>Code Snippet 2</em> we can run the <code>az aks browse</code> command as per above, and now the dashboard comes up with no errors.</p>
+
+<p>Further down in this post, I revisit the dashboard in the context of a SQL Server 2019 Big Data Cluster.</p>
+
+<p>So that was a bit about Kubernetes. Admittedly this barely scratches the surface of k8s. If you are interested in knowing more about k8s I can recommend <a href="https://www.youtube.com/playlist?list=PLLasX02E8BPCrIhFrc_ZiINhbRkYMKdPT">this YouTube playlist</a>, where <a href="https://www.linkedin.com/in/brendan-burns-487aa590/">Brendan Burns</a>, co-creator of Kubernetes, drills down into k8s.</p>
+
+<h2 id="deploying-bdc-to-kubernetes">Deploying BDC to Kubernetes</h2>
+
+<p>So, we now know why we need the BDC, and we also know a bit about the platform the BDC runs on. Let us go on and look at how we install/deploy a BDC.</p>
+
+<p>If you, like me, are a SQL Server guy, you are probably quite familiar with installing SQL Server instances by mounting an ISO file, and running setup. Well, you can forget all that when you deploy a BDC. The setup is all done via Python scripts, or a wizard in <strong>Azure Data Studio</strong>, (ADS)!</p>
+
+<h4 id="install-tools">Install Tools</h4>
+
+<p>There are some tools needed when deploying a BDC:</p>
+
+<ul>
+<li>Python - well, Python is not a tool as such, but you need Python installed on the machine you install from.</li>
+<li><code>azdata</code> - command-line tool for installing and managing a big data cluster.</li>
+<li><code>kubectl</code> - I mentioned the command-line tool for monitoring the underlying Kubernetes cluster above.</li>
+<li>Azure Data Studio - a cross-platform graphical tool for querying SQL Server and other data sources.</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> ADS is not required per se unless you use it for deployment, but it is an excellent tool when working with the BDC after deployment.</p>
+</blockquote>
+
+<h4 id="deployment">Deployment</h4>
+
+<p>The actual deployment of a BDC would require a couple of posts in itself, so here I point you to a couple of resources about BDC deployment:</p>
+
+<ul>
+<li><a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/deployment-guidance?view=sql-server-ver15#deploy">How to deploy SQL Server Big Data Clusters on Kubernetes</a>. This is the official Microsoft documentation for deploying a BDC.</li>
+<li><a href="https://mohammaddarab.com/how-to-deploy-a-big-data-cluster-to-a-single-node-kubeadm-cluster/">How to Deploy a Big Data Cluster to a Single Node Kubeadm Cluster</a>. A post by my friend and BDC guru <a href="https://mohammaddarab.com/">Mohammad Darab</a> about deploying to an on-prem single node cluster.</li>
+<li><a href="https://mohammaddarab.com/how-to-deploy-a-big-data-cluster-to-a-multi-node-kubeadm-cluster/">How to Deploy a Big Data Cluster to a Multi Node Kubeadm Cluster</a>. A second post by <a href="https://mohammaddarab.com/">Mohammad</a>, this time he deploys to an on-prem multi node cluster.</li>
+<li><a href="/2019/12/23/how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/">How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio</a>. The link here is to a blog post by &ldquo;yours truly&rdquo; about how to deploy to Azure using ADS.</li>
+</ul>
+
+<p>Following the <a href="/2019/12/23/how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/">Azure Data Studio post</a> I now have a BDC deployed to the k8s <code>kubesqlbdc-cluster</code> in the Azure resource group <code>rg-ignite-sqlbdc</code>.</p>
+
+<h2 id="managing-a-bdc">Managing a BDC</h2>
+
+<p>So now we have installed and deployed our BDC, let us look at how we can manage it.</p>
+
+<h4 id="kubernets-dashboard">Kubernets Dashboard</h4>
+
+<p>Above I mentioned the k8s dashboard, but we did not see it &ldquo;in action&rdquo;. Let us spin it up against our BDC cluster and see what it looks like.</p>
+
+<p>So let us use the code we saw right above <em>Figure 4</em>, but change the <code>--resource-group</code> and <code>--name</code> options to what I deployed my BDC as:</p>
+
+<pre><code class="language-bash">az aks browse --resource-group rg-ignite-sqlbdc \
+              --name kubesqlbdc-cluster
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Kubernetes Dashboard</em></p>
+
+<p>When I execute the code in <em>Code Snippet 3</em>, I see something like so:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-dash1.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Kubernetes Start Dashboard</em></p>
+
+<p>What we see in <em>Figure 5</em> is how the <code>az aks browse</code> command creates a secure channel from the dashboard in the k8s cluster to <code>localhost</code>, and at the same time a page opens in your browser:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-dash2.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Kubernetes Dashboard</em></p>
+
+<p>So, in <em>Figure 6</em> we see the overview page of the k8s dashboard. In the left, outlined in blue, we see a list of components making up the k8s cluster:</p>
+
+<ul>
+<li>Nodes.</li>
+<li>Pods.</li>
+<li>Services.</li>
+<li>Replica and Stateful Sets.</li>
+<li>and more.</li>
+</ul>
+
+<p>By clicking on any of the entries you drill further down into that specific component. However, when I look at the dashboard I do not see anything that refers to a SQL Server Big Data Cluster at all. I mean, I am certain that there should be able to see something under Stateful Sets for example:</p>
+
+<p><img src="/images/posts/bdc-lap-around-dash-default-ns.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Empty Stateful Sets</em></p>
+
+<p>In <em>Figure 7</em> we see the result when I click on Stateful Sets, (outlined in red), in the dashboards Web UI: nothing. What is up with that?</p>
+
+<p>Well, cast your mind back to when you created and deployed your cluster - at that time you gave the BDC cluster a name. When you deploy your BDC cluster, a k8s namespace gets created with that name.  The BDC is then created and deployed into that namespace. Look again at <em>Figure 6</em> and you see, outlined in red, a drop-down containing the various k8s namespaces in this k8s cluster:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-dash3.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Kubernetes Namespaces</em></p>
+
+<p>When I expand the drop-down, I see some more namespaces in addition to the <code>default</code> namespace, and among them, outlined in red, the namespace for the BDC cluster: <code>sqlbdc-cluster</code>:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-dash4.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Overview BDC Cluster</em></p>
+
+<p>When I click on &ldquo;my&rdquo; namespace, (once again outlined in red), I see an overview as in <em>Figure 9</em>. When we now are in the BDC namespace let us revisit the Stateful Sets as in <em>Figure 7</em>:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-dash5.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>BDC Stateful Sets</em></p>
+
+<p>What we see in <em>Figure 10</em> is definitely more like it, as we can see quite a few stateful sets, and amongst them; <code>master</code>, (outlined in red). Master is the stateful set for the SQL Server master instance in a BDC, and we will look at <code>master</code> in a bit.</p>
+
+<h4 id="kubectl">kubectl</h4>
+
+<p>So the k8s dashboard is one way to manage and get information about a BDC, and the dashboard is a quick and easy way to get information about your cluster. I find however that when you want to do more than just get an overview of your cluster you use <code>kubectl</code>, (which I mentioned above).</p>
+
+<p><strong>Pods</strong></p>
+
+<p>Let us revisit the <code>get pods</code> command which I mentioned wouldn&rsquo;t return any result if I ran it against the test cluster above. If I do it now against the <code>kubesqlbdc-cluster</code> however:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kubectl1.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>Get Pods</em></p>
+
+<p>Cool, we see in <em>Figure 11</em> that we actually have pods in the cluster. Notice in <em>Figure 11</em> how I called <code>get pods</code> with the namespace I wanted the pods from. You can also call <code>get pods</code> with <code>--all-namespaces</code> to see all pods in your k8s cluster.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Yes, when we look at <em>Figure 11</em> we see how some pods are in an evicted state. How to solve that is a topic for a future post.</p>
+</blockquote>
+
+<p>In <em>Figure 11</em> we see a pod outlined in red, the <code>master-0</code> pod. It belongs to the <code>master</code> stateful set we saw above, and we can further drill into the pod:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kubectl2.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Describe Pod</em></p>
+
+<p>In <em>Figure 12</em> we see how we execute <code>kubctl describe pods/master-0 ...</code> to get detailed information about the pod. We see, outlined in yellow, how the pod has a containers section, where the various containers in the pod are listed, and we see one of the containers, the <code>mssql-server</code> container. There are more, and we see that later.</p>
+
+<p>The <code>Labels</code> section, (outlined in red), is interesting as it gives us some insight into what this pod is doing, and what role it plays in the BDC. We&rsquo;ll come back to this in next post.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Instead of <code>kubectl describe ...</code> we can run <code>kubectl get pods/master-0 ... -o json</code> to get the same output as in <code>describe</code>, but in JSON format.</p>
+</blockquote>
+
+<p><strong>Services</strong></p>
+
+<p>I mentioned above about <code>Services</code>, and how they among many things expose endpoints by which we can access the BDC from the &ldquo;outside world&rdquo;.</p>
+
+<p>To find out what services we have in the BDC, we use a <code>kubectl</code> command:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kubectl3.png" alt="" /></p>
+
+<p><strong>Figure 13:</strong> <em>Services</em></p>
+
+<p>The command we use, as we see in <em>Figure 13</em>, is <code>kubectl get svc -n sqlbc-cluster</code>. That gives us back the various services with their name, what type they are, their internal IP address, their external IP address, (if any), and the ports the expose.</p>
+
+<p>The services outlined in red in <em>Figure 13</em>, are the external endpoint services, i.e. the services we can reach from the outside world. The service highlighted in yellow, <code>master-svc-external</code> is the service that exposes the master instance of SQL Server. We see in <em>Figure 13</em> that the port for the SQL Server instance is not the usual 1433 but 31433. So to connect to the master instance, you connect to the IP shown in <code>EXTERNAL-IP</code> using port <code>31433</code>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The port numbers shown for the externally exposed services can all be changed during deployment.</p>
+</blockquote>
+
+<p>We have seen how we can use <code>kubectl</code> to get a list of services, and we see that some of the services expose external endpoints. But what are those endpoints, what do they do? Well, we know that <code>master-svc-external</code> is the SQL Server master instance, as I just said that, but the others?</p>
+
+<p>So, here&rsquo;s the thing: <code>kubectl</code> is awesome for managing the k8s cluster, but it doesn&rsquo;t know anything about the specifics about the BDC. Fortunately there &ldquo;is an app for that&rdquo;: <code>azdata</code>.</p>
+
+<h4 id="azdata">azdata</h4>
+
+<p>I mentioned in the deployment section above that <code>azdata</code> is a pre-requisite for deployment, and after installation of a BDC, <code>azdata</code> gives you complete control of the BDC.</p>
+
+<p>Using <code>azdata</code>, you can upgrade your cluster, deploy applications into your cluster, see statuses, and much more. To get more detail of what <code>azdata</code> can do, <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/reference-azdata?view=sql-server-ver15">here</a> is the reference documentation for <code>azdata</code>.</p>
+
+<p>Now, knowing a bit about <code>azdata</code> let us use it to view a list of endpoints, something similar to what we saw in <em>Figure 13</em>.</p>
+
+<p>Before you use <code>azdata</code> ensure you have configured <code>kubectl</code> as we did in <em>Code Snippet 1</em> above. Then you can log in to the cluster:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-azdata1.png" alt="" /></p>
+
+<p><strong>Figure 14:</strong> <em><code>azdata</code> Log-in</em></p>
+
+<p>To log in, we use the <code>azdata login</code> command, (surprise, surprise), which is outlined in red in <em>Figure 14</em>. When you log in you supply the BDC namespace, the username you set provided when you deployed, and the password. You are then good to go!</p>
+
+<p>So, let us get the endpoints:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-azdata2.png" alt="" /></p>
+
+<p><strong>Figure 15:</strong> <em>Get Endpoints</em></p>
+
+<p>We retrieve the endpoints by calling <code>azdata bdc endpoint list</code>, which you see outlined in red in <em>Figure 15</em>. In <em>Figure 15</em> we also see part of the result coming back as JSON. If we want the result back in a more readable format, we can use the <code>--output</code>, or <code>-o</code> option with either of the following values:</p>
+
+<ul>
+<li><code>json</code></li>
+<li><code>jsonc</code></li>
+<li><code>table</code></li>
+<li><code>tsv</code></li>
+</ul>
+
+<p>Let us see what it looks like in <code>table</code> format:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-azdata3.png" alt="" /></p>
+
+<p><strong>Figure 16:</strong> <em>Endpoints in Tabular Format</em></p>
+
+<p>Well, what we see in <em>Figure 16</em> is more readable than what we saw in <em>Figure 15</em>, don&rsquo;t you agree. Outlined in red, we see the command with the <code>table</code> output value, and then the various endpoints. As I said before, we see the SQL Server master instance endpoint accessible via port <code>31433</code>.</p>
+
+<p>What is outlined in yellow are two endpoints we&rsquo;ll discuss now.</p>
+
+<h2 id="monitoring-the-bdc">Monitoring the BDC</h2>
+
+<p>We&rsquo;ve seen above how the k8s dashboard allows us to monitor the k8s cluster, at least to some degree. What about monitoring the BDC cluster? We know from what we have covered so far that the k8s cluster does not know anything about BDC, so how do we monitor a BDC cluster?</p>
+
+<p>Let us go back to <em>Figure 15</em> and look at what is highlighted in yellow:</p>
+
+<ul>
+<li>Log Search Dashboard</li>
+<li>Metrics Dashboard</li>
+</ul>
+
+<p>When you look at the URL&rsquo;s for those two endpoints, you see how they end in <code>kibana</code> and <code>grafana</code> respectively. Remember what I said up above about how Microsoft embraces Open Source; this is another example of it. They include Kibana and Grafana in the BDC together with Elasticsearch and InfluxDB!</p>
+
+<h4 id="kibana">Kibana</h4>
+
+<p>We start with Kibana. Kibana is an open-source log analysis platform, where the logs are stored in Elasticsearch clusters. To use Kibana, we browse to the URL for the endpoint:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kibana1.png" alt="" /></p>
+
+<p><strong>Figure 17:</strong> <em>Kibana Login</em></p>
+
+<p>In <em>Figure 17</em> we see the login screen for Kibana. To log in, you use the username and password you defined during the BDC deployment. You then log in:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kibana2.png" alt="" /></p>
+
+<p><strong>Figure 18:</strong> <em>Kibana Home Screen</em></p>
+
+<p>After you have logged in, you are presented with the Kibana home screen as we see in <em>Figure 18</em>. To get to the logs, you click on the symbol on the left looking like a compass:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kibana3.png" alt="" /></p>
+
+<p><strong>Figure 19:</strong> <em>Kibana Logs</em></p>
+
+<p>What you see in <em>Figure 19</em> is the Kibana Discover screen, where you now can drill into the logs, query them using KQL, (Kibana Query Language), and lots more.</p>
+
+<h4 id="grafana">Grafana</h4>
+
+<p>Having had a brief look at Kibana, let us go to Grafana.</p>
+
+<p>Grafana is an open-source visualization tool that can be used on top of a variety of different data stores but is most commonly used together with Graphite, InfluxDB, Prometheus, Elasticsearch and Logz.io. In the BDC, the underlying data store is InfluxDB.</p>
+
+<p>You browse to the Grafana URL, and you log-in using the same credentials as you did with Kibana:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-grafana1.png" alt="" /></p>
+
+<p><strong>Figure 20:</strong> <em>Grafana Home Screen</em></p>
+
+<p>In the Grafana home screen as you see in <em>Figure 20</em> you click on the &ldquo;Home&rdquo; button outlined in red:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-grafana2.png" alt="" /></p>
+
+<p><strong>Figure 21:</strong> <em>Grafana Dashboards</em></p>
+
+<p>The Grafana installation comes with some already created dashboards, and we see a list of them in <em>Figure 21</em>. I click on the &ldquo;SQL Server Metrics&rdquo;:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-grafana3.png" alt="" /></p>
+
+<p><strong>Figure 22:</strong> <em>SQL Server Metrics</em></p>
+
+<p>The Host drop-down list, (outlined in red), gives you a list of all the SQL Server instances in the BDC. I choose <code>master-0</code> which is the SQL Server master instance, and we see in the figure some of the metrics collected for SQL Server.</p>
+
+<p>We have here seen how Microsoft has included compelling monitoring tools in the BDC:</p>
+
+<ul>
+<li>Kibana for log monitoring.</li>
+<li>Grafana for metrics monitoring.</li>
+</ul>
+
+<p>That is very cool that the BDC contains these tools, but what is doing the data collection?</p>
+
+<h2 id="log-and-monitor-data-collection">Log and Monitor Data Collection</h2>
+
+<p>To answer the question above, we can look closer at one of the pods to see what containers are in the pod:</p>
+
+<p><img src="/images/posts/bdc-lap-around-bdc-kubectl4.png" alt="" /></p>
+
+<p><strong>Figure 23:</strong> <em>SQL Server Metrics</em></p>
+
+<p>In <em>Figure 23</em> we see how I have called <code>kubectl get pods master-0</code> with some output &ldquo;magic&rdquo; to get information about the SQL Server master instance pod. We see that the pod contains three containers, and the two outlined in red are the interesting ones:</p>
+
+<ul>
+<li><code>collectd</code> - Unix daemon that collects, transfers and stores performance data of computers and network equipment. It feeds InfluxDB.</li>
+<li><code>fluentbit</code> - a lightweight log collector, it feeds Elasticsearch.</li>
+</ul>
+
+<p>These two containers, (or sometimes one of them), are part of almost all pods in a BDC. That is how the BDC collects data from the various services and feeds it into Elasticsearch and InfluxDB.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this first post, of a couple, based on my conference talk &ldquo;A Lap Around SQL Server 2019 Big Data Cluster&rdquo; we looked at a couple of things:</p>
+
+<ul>
+<li>The background, i.e. why do we have the BDC.</li>
+<li>The technology behind it - what makes it tick.</li>
+<li>Managing and monitoring a BDC.</li>
+</ul>
+
+<p><strong>Background:</strong></p>
+
+<ul>
+<li>We are getting more and more data.</li>
+<li>The data comes in all shapes and sizes.</li>
+<li>We want SQL Server to be the hub for all our data, regardless of type.</li>
+</ul>
+
+<p><strong>Technology</strong></p>
+
+<ul>
+<li>Kubernetes.</li>
+<li>SQL Server on Linux.</li>
+<li>Apache Spark.</li>
+<li>Hadoop File System (HDFS).</li>
+</ul>
+
+<p><strong>Managing &amp; Monitoring</strong></p>
+
+<ul>
+<li>Kubernetes Dashboard.</li>
+<li><code>kubectl</code>.</li>
+<li><code>azdata</code>.</li>
+<li>Grafana and Kibana.</li>
+</ul>
+
+<p>In next post, we take a look at the architecture of the BDC.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2020/04/19/interesting-stuff---week-16-2020/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 16, 2020</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2019/12/23/how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/">How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio</a>
+      
+      <time class="pull-right hidden-tablet">Dec 23 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/09/11/install-sql-server-2019-big-data-cluster-using-azure-data-studio/">Install SQL Server 2019 Big Data Cluster using Azure Data Studio</a>
+      
+      <time class="pull-right hidden-tablet">Sep 11 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/11/11/interesting-stuff---week-45/">Interesting Stuff - Week 45</a>
+      
+      <time class="pull-right hidden-tablet">Nov 11 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2018/11/10/sql-server-2019-big-data-cluster-on-azure-kubernetes-service/">SQL Server 2019 Big Data Cluster on Azure Kubernetes Service</a>
+      
+      <time class="pull-right hidden-tablet">Nov 10 &#39;18</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2020/03/15/interesting-stuff---week-11-2020/">Interesting Stuff - Week 11, 2020</a>
+      
+      <time class="pull-right hidden-tablet">Mar 15 &#39;20</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
