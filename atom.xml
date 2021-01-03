@@ -3,10 +3,210 @@
   <title>Niels Berglund</title>
   <link href="https://nielsberglund.com/atom.xml" rel="self"/>
   <link href="https://nielsberglund.com"/>
-  <updated>2021-01-03T07:20:06+02:00</updated>
+  <updated>2021-01-03T13:50:55+02:00</updated>
   <id>https://nielsberglund.com/</id>
   <generator uri="http://gohugo.io/">Hugo</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Build Boost.Python &amp; Numpy in Windows]]></title>
+    <link href="https://nielsberglund.com/2021/01/03/build-boost.python--numpy-in-windows/" rel="alternate" type="text/html"/>
+    <updated>2021-01-03T13:50:55+02:00</updated>
+    <id>https://nielsberglund.com/2021/01/03/build-boost.python--numpy-in-windows/</id>
+    <content type="html"><![CDATA[<p>In this post, we look at how to build <code>Boost.Python</code> and <code>Numpy</code>. We look at it from a perspective where we want to use what we build as part of a bridge between SQL Server 2019 and Python. However, if you are not interested in SQL, the post should still give you some - hopefully - useful information.</p>
+
+<p>Please note that I am a SQL dude, and my knowledge of Boost, Python and Numpy is limited at best. So take this post for what it is; the steps I took to successfully build <code>Boost.Python</code> and <code>Numpy</code> on a Windows box.</p>
+
+<p></p>
+
+<h2 id="background">Background</h2>
+
+<p>In my post, <a href="/2020/12/29/bring-your-own-r--python-runtimes-to-sql-server-extensibility-framework/"><strong>Bring Your Own R &amp; Python Runtimes to SQL Server Extensibility Framework</strong></a> I wrote about how we can use other R and Python runtimes in SQL Server Machine Learning Services than the ones that come &ldquo;out of the box&rdquo;. In the post, I wrote that if you want to bring a Python runtime other than version 3.7.x, (like 3.8, 3.9, etc.), you need to build your own bridge; a SQL Server Python language extension.</p>
+
+<p>A language extension is a C++ dll acting as a bridge between SQL Server and an external runtime - in this case Python. To interact between C++ and Python you often use Boost, and for the SQL Server Python extension, Boost libraries are required.</p>
+
+<h2 id="pre-reqs">Pre-reqs</h2>
+
+<p>What do we need to do this:</p>
+
+<ul>
+<li>Python: I have Python 3.9.1 installed together with <code>numpy</code>.</li>
+<li>Boost: well, that&rsquo;s fairly obvious. I downloaded Boost 1.75.0 from <a href="https://www.boost.org/users/download/">Boost Downloads</a>.</li>
+<li>A C++ compiler, (a <code>toolset</code> in Boost speak). I use the compiler from Visual Studio 2019 - in Boost it is defined as <code>msvc-14.2</code>.</li>
+</ul>
+
+<p>Obviously, if you want to use what we do here to build a Python SQL Server Language Extension, you need the source code for the language extensions and SQL Server. That will be covered in a future post.</p>
+
+<p>Now, let&rsquo;s get on with it.</p>
+
+<h2 id="boost">Boost</h2>
+
+<p>Boost is a set of C++ libraries complementing the C++ standard libraries. The Boost libraries provide support for tasks and structures such as linear algebra, pseudorandom number generation, multithreading, image processing, regular expressions, and unit testing.</p>
+
+<p>Boost also allows us to interact between C++ and Python, via <code>Boost.Python</code>. In the Python extension, Boost is used - among other things - to interact with the runtime, execute scripts as well as to interact with <code>numpy</code>.</p>
+
+<p>Most of the Boost libraries are pre-built, however, <code>Boost.Python</code> needs to be built before we can use it. Initially, I thought &ldquo;how hard can it be to build this&rdquo;, well - it turned out a lot more complicated than I imagined. This, in my opinion, is due to that the Boost documentation is less than stellar, which is one big reason I wrote this post.</p>
+
+<h4 id="boost-installation">Boost Installation</h4>
+
+<p>There is no installation file as such, I just unzipped the file I downloaded above to a location on my box: <code>C:\</code>:</p>
+
+<p><img src="/images/posts/byor-python-boost1.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Boost Install</em></p>
+
+<p>We see in <em>Figure 1</em> the Boost installation. The question now is what we do with it? We know from above that we somehow have to build <code>Boost.Python</code>, but what do we build with?</p>
+
+<h4 id="bootstrap">Bootstrap</h4>
+
+<p>It turns out that you have to bootstrap the Boost build engine, <code>Boost.Build</code>. On Windows, you do that by running the <code>bootstrap.bat</code> file, outlined in red in <em>Figure 1</em>:</p>
+
+<pre><code class="language-bash">c:\boost_1_75_0&gt;.\bootstrap.bat vc142
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Bootstrap Boost Build Engine</em></p>
+
+<p>In <em>Code Snippet 1</em> we see how I from command prompt have <code>cd</code>:ed into the Boost directory. I indicate that I want to use the Visual Studio 2019 toolset by defining the <code>vc142</code> flag. When I execute the script, some information is output to the console, and when the script has finished, I see:</p>
+
+<p><img src="/images/posts/byor-python-boost2.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Boost Install</em></p>
+
+<p>In <em>Figure 2</em> I have a couple of things outlined in red and yellow:</p>
+
+<ul>
+<li>What is outlined in red is the command you use to build with Boost: <code>b2.exe</code>. That is the executable created by <code>bootstrap.bat</code>.</li>
+<li>Outlined in yellow is a configuration file. You configure your builds using - among other things - configuration files which are <code>.jam</code> files. This file <code>project-config.jam</code> is used for project-specific configuration.</li>
+</ul>
+
+<p>Let&rsquo;s talk configuration.</p>
+
+<h4 id="configuration">Configuration</h4>
+
+<p>Above I mentioned the <code>project-config.jam</code> file created when you run the bootstrap script. There are two more configuration files used by <code>b2.exe</code>:</p>
+
+<ul>
+<li><code>site-config.jam</code>: usually installed and maintained by a system administrator. Not installed by default.</li>
+<li><code>user-config.jam</code>: for the user to configure, not installed by default. It usually defines the available compilers and other tools. We&rsquo;ll create the file to indicate what version of Python to compile against.</li>
+</ul>
+
+<p>Create a file in your home directory and name it <code>user-config.jam</code>. Edit it to look like so:</p>
+
+<pre><code class="language-py">using python 
+   : 3.9
+   : C:\\Python39\\python.exe
+   : C:\\Python39\\include #directory that contains pyconfig.h
+   : C:\\Python39\\libs    #directory that contains python39.lib
+   ;
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Configuration File</em></p>
+
+<p>We see in <em>Code Snippet 2</em> how we indicate where to find the Python executable, Python header files, and Python lib files.hr</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Defining the Python version is not really necessary if you have only one Python version installed.</p>
+</blockquote>
+
+<p>Now when we have a configuration, it is time to build.</p>
+
+<h4 id="build">Build</h4>
+
+<p>As mentioned above to build, we run <code>b2.exe</code>. If we were to <code>cd</code> into the Boost install directory and just do: <code>b2</code>, then we would build everything - and it would take a while. Here we are only interested in building Python, so we need to limit what <code>b2</code> does.</p>
+
+<p>After browsing for information around Boost, I started with something like so:</p>
+
+<pre><code class="language-bash">b2 --with-python --prefix=c:\\boost175 address-model=64 \
+                 variant=release link=static threading=multi \
+                 runtime-link=shared install
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Build Take 1</em></p>
+
+<p>Let&rsquo;s look at the code in <em>Code Snippet 3</em>, and see what it means:</p>
+
+<ul>
+<li><code>--with-python</code>: limit the build to only build Python. This will also include <code>numpy</code>.</li>
+<li><code>--prefix</code>: where to build to. In <em>Code Snippet 3</em> I want everything built to be placed in a root directory: <code>c:\\boost175</code>. Notice for the files to be put into this directory, the <code>install</code> flag needs to be set.</li>
+<li><code>address-model=64</code>: specifies if 32-bit or 64-bit code should be generated by the compiler. In my case I want 64-bit.</li>
+<li><code>variant=release</code>: specifies release or debug, or both.</li>
+<li><code>link=static</code>: defines whether to create <code>static</code> or <code>shared</code> libraries. For the Python extension, we want <code>static</code>. Read more about <code>static</code> vs. <code>shared</code> <a href="https://www.boost.org/doc/libs/1_75_0/libs/python/doc/html/building/choosing_a_boost_python_library_.html">here</a>.</li>
+<li><code>threading=multi</code>: threading model.</li>
+<li><code>runtime-link=shared</code>: determines if shared or static version of C and C++ runtimes should be used.</li>
+<li><code>install</code>: ensures that the built files are put into the <code>--prefix</code> directory.</li>
+</ul>
+
+<p>Running the code we see in <em>Code Snippet 3</em> &ldquo;spews&rdquo; out a lot of information to the console, and if something is not working correctly, it can be difficult to see what is going wrong, due to the amount of data being output.</p>
+
+<p>An example of something going wrong was when I initially ran this code on Windows 10; the <code>boost175</code> directory was created as expected. However, when I drilled down in the directory, I saw only a Python lib file, but no Numpy lib file. I knew there should be both Python and Numpy files, so something was clearly not right.</p>
+
+<p>After tearing my hair out for quite a while, I came across the <a href="https://boostorg.github.io/build/manual/develop/index.html">B2 User Manual</a>, and <a href="https://boostorg.github.io/build/manual/develop/index.html#bbv2.overview.invocation.options">invocation options</a>. In there, I found two option flags:</p>
+
+<ul>
+<li><code>--debug-configuration</code>: this flag tells <code>b2</code> to produce debug information about the loading of <code>b2</code> and toolset files.</li>
+<li><code>-d0</code>: suppresses all informational messages.</li>
+</ul>
+
+<pre><code class="language-bash">b2 --with-python --prefix=c:\\boost175 \
+                 --debug-configuration \
+                 -d0 \
+                 address-model=64 \
+                 variant=release link=static threading=multi \
+                 runtime-link=shared install
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Build Take 2</em></p>
+
+<p>When I ran the build as in <em>Code Snippet 4</em> it produced some useful output:</p>
+
+<p><img src="/images/posts/byor-python-numpy-error.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Numpy Error</em></p>
+
+<p>We see in <em>Figure 3</em> (outlined in red) a bug in Windows 10 2004/20H2, (from build 19041.488), impacting Numpy. It is fixed from build 20270 and upwards. However, that build is still not generally available, (you can get it from Windows Insiders Dev channel). Microsoft estimates a fix will be rolled out sometimes in January 2021. If you are affected by this and you can not get a Windows 10 Dev build  you can solve it by downgrading <code>numpy</code> to version 1.19.3: <code>pip install --upgrade numpy==1.19.3</code>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> The link <a href="https://developercommunity.visualstudio.com/content/problem/1207405/fmod-after-an-update-to-windows-2004-is-causing-a.html">here</a> has more information about the bug.</p>
+</blockquote>
+
+<p>I have since then upgraded to the latest Windows Dev build and when I run the code, everything works fine:</p>
+
+<p><img src="/images/posts/byor-python-lib-files.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Lib Files</em></p>
+
+<p>In <em>Figure 4</em> we see how we have lib files for both Python and Numpy! Success!</p>
+
+<p>When you look at the console output when you do the build you may see something like so:</p>
+
+<p><img src="/images/posts/byor-python-boost-arch.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Boost Address Model &amp; Architecture</em></p>
+
+<p>Hmm, that does not look right. In the code we definitely said <code>address-model=64</code>, but in the output, it says 32 bit. It turns out this is a bug in the build output, so nothing to worry about.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>We have in this post looked at how to build <code>Boost.Python</code>, and <code>Numpy</code> on a Windows 10 box:</p>
+
+<ol>
+<li>Ensure we have Python and Numpy installed.</li>
+<li>Download Boost and unzip.</li>
+<li>Ensure you have a C++ compiler installed.</li>
+<li>Run the <code>bootstrap.bat</code> script, and optionally define the compiler, (<code>toolset</code>).</li>
+<li>Execute <code>b2.exe</code> as per <em>Code Snippet 4</em> to build <code>Boost.Python</code> and <code>Numpy</code>.</li>
+</ol>
+
+<p>You can now start to use the libs created. In a future post we&rsquo;ll see how to create the SQL Server Python extension, using the files above.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
+    <author>
+      <name>Niels Berglund</name>
+
+    </author>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Interesting Stuff - Christmas, New Year, Week 1, 2021]]></title>
@@ -1655,73 +1855,6 @@ GO
 <li><a href="https://lenses.io/resources/streaming-sql-cheat-sheet-for-apache-kafka/">Streaming SQL Cheat Sheet for Apache Kafka</a>. As the title says, link to a cheat sheet for ksqlDB syntax. I have downloaded the cheat sheet and have it on my desktop so that I can access it easy!</li>
 <li><a href="https://www.kafka-streams-book.com/">Mastering Kafka Streams and ksqlDB</a>. The book in the post linked to here promises to be the &ldquo;go-to&rdquo; book for anything KStreams/ksqlDB related. I&rsquo;ll make sure my developers get some copies!</li>
 </ul>
-
-<h2 id="finally">~ Finally</h2>
-
-<p>That&rsquo;s all for this week. I hope you enjoy what I did put together. If you have ideas for what to cover, please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
-    <author>
-      <name>Niels Berglund</name>
-
-    </author>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Interesting Stuff - Week 34, 2020]]></title>
-    <link href="https://nielsberglund.com/2020/08/23/interesting-stuff---week-34-2020/" rel="alternate" type="text/html"/>
-    <updated>2020-08-23T11:47:46+02:00</updated>
-    <id>https://nielsberglund.com/2020/08/23/interesting-stuff---week-34-2020/</id>
-    <content type="html"><![CDATA[<p>Throughout the week, I read a lot of blog-posts, articles, and so forth, that has to do with things that interest me:</p>
-
-<ul>
-<li>data science</li>
-<li>data in general</li>
-<li>distributed computing</li>
-<li>SQL Server</li>
-<li>transactions (both db as well as non db)</li>
-<li>and other &ldquo;stuff&rdquo;</li>
-</ul>
-
-<p>This blog-post is the &ldquo;roundup&rdquo; of the things that have been most interesting to me, for the week just ending.</p>
-
-<p></p>
-
-<h2 id="misc">Misc.</h2>
-
-<ul>
-<li><a href="https://medium.com/@danny.noam/http-based-contract-testing-gamesys-8c8d0d9aeee8">HTTP-Based Contract Testing @ Gamesys</a>. This is an interesting post discussing Contract Testing. Contract testing is testing between disparate, heterogenous components that interact via some binding interface. The interface is defined by a contract which defines the inputs and outputs between the components that are tested.</li>
-</ul>
-
-<h2 id="big-data">Big Data</h2>
-
-<ul>
-<li><a href="https://databricks.com/blog/2020/08/21/top-5-reasons-to-convert-your-cloud-data-lake-to-a-delta-lake.html">Top 5 Reasons to Convert Your Cloud Data Lake to a Delta Lake</a>. Databricks Delta Lake is an open-source storage layer that brings reliability to data lakes. The post linked to here discusses the benefits of using a Delta Lake on top of your data lake.</li>
-</ul>
-
-<h2 id="distributed-computing">Distributed Computing</h2>
-
-<ul>
-<li><a href="https://medium.com/@denniszielke/continuous-kubernetes-blue-green-deployments-on-azure-using-nginx-appgateway-or-trafficmanager-4490bce29cb">Continuous Kubernetes blue-green deployments on Azure using Nginx, AppGateway or TrafficManager — part 2</a>. This is the second part of a series of posts around advanced deployment processes. In this post, the author takes us through how to do blue-green deployments using Azure Kubernetes Service (AKS). Very interesting!</li>
-<li><a href="https://sbg.technology/2020/08/21/zero-downtime-kubernetes-deployments/">Zero-Downtime Kubernetes Deployments</a>. This post from one of <a href="/derivco">Derivco&rsquo;s</a> &ldquo;competitors&rdquo;, discusses how they do zero-downtime deployments. It is always interesting seeing how competitors are doing things!</li>
-</ul>
-
-<h2 id="streaming">Streaming</h2>
-
-<ul>
-<li><a href="https://www.confluent.io/blog/kafka-summit-2020-pro-tips-and-schedule/">How to Make the Most of Kafka Summit Virtually</a>. The, (virtual), Kafka Summit 2020, starts on Monday, (August 24). This post discusses how you - as an attendee - can get the most out of the conference. I will definitely be attending, and I hope I&rsquo;ll see you there!</li>
-<li><a href="https://www.confluent.io/blog/testing-kafka-streams/">Testing Kafka Streams – A Deep Dive</a>. This awesome post looks at how to do automated Kafka Streams testing; what tools to use and some of the problems you can run into. As I said, it is an awesome post - and I will make sure that the developers in my team dealing with Kafka Streams read the post. Yes, I am looking at you Stevo, and at you Reinhardt!</li>
-</ul>
-
-<h2 id="wind-what-is-niels-doing">WIND (What Is Niels Doing)</h2>
-
-<p>One of the largest data platform conferences takes place, (virtually), beginning of December this year: <a href="https://dataplatformgeeks.com/dps2020/"><strong>DATA PLATFORM VIRTUAL SUMMIT 2020</strong></a>, and the cool things is:</p>
-
-<p><img src="/images/posts/Niels_Berglund.jpg" alt="" /></p>
-
-<p><strong>Figure 1:</strong> <em>SQL Server &amp; Kafka</em></p>
-
-<p>Yes, I am speaking at the conference! My topic is about, as you can see in <em>Figure 1</em>, the various ways we can stream data from SQL Server to Apache Kafka.</p>
-
-<p>The conference has world class-speakers, (and me), so hurry up and <a href="https://dataplatformgeeks.com/dps2020/booking/">register</a>!</p>
 
 <h2 id="finally">~ Finally</h2>
 
