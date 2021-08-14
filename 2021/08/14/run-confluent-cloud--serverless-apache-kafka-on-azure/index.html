@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>Run Confluent Cloud &amp; Serverless Apache Kafka on Azure • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Run Confluent Cloud &amp; Serverless Apache Kafka on Azure"/>
+<meta name="twitter:description" content="Read about how to deploy and run serverless Apache Kafka on Azure using Confluent Platform."/>
+
+<meta property="og:title" content="Run Confluent Cloud &amp; Serverless Apache Kafka on Azure" />
+<meta property="og:description" content="Read about how to deploy and run serverless Apache Kafka on Azure using Confluent Platform." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/" />
+
+
+
+<meta property="article:published_time" content="2021-08-14T12:58:24&#43;02:00"/>
+
+<meta property="article:modified_time" content="2021-08-14T12:58:24&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2021 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>Run Confluent Cloud &amp; Serverless Apache Kafka on Azure</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Aug 14, 2021
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/apache-kafka">APACHE KAFKA</a>
+              •
+          
+              <a class="post__category" href="/categories/azure">AZURE</a>
+              •
+          
+              <a class="post__category" href="/categories/confluent-cloud">CONFLUENT CLOUD</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/kafka">kafka</a>
+           
+      
+          <a class="post__tag" href="/tags/azure">azure</a>
+           
+      
+          <a class="post__tag" href="/tags/serverless">serverless</a>
+           
+      
+          <a class="post__tag" href="/tags/confluent-cloud">confluent cloud</a>
+           
+      
+          <a class="post__tag" href="/tags/confluent-platform">confluent platform</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 14 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>For readers of my blog, it should not come as a surprise that I think Apache Kafka is <a href="https://www.merriam-webster.com/dictionary/the%20best%2Fgreatest%20thing%20since%20sliced%20bread">&ldquo;the greatest thing since sliced bread&rdquo;</a>, and I have written <a href="https://nielsberglund.com/categories/kafka/">some posts</a> about it. The posts I have written has been geared towards the setup/deployment of Kafka, with a Windows/.NET slant to it. This post is in the same vein; how to set up Kafka but in the cloud.</p>
+
+<p>The &ldquo;conference season&rdquo; is upon us, and I have some conference talks coming up. This year quite a lot of what I am talking about is in the cloud, specifically Azure. As some of the talks involve Apache Kafka, I thought it would be good if Kafka also ran in the cloud. Sure, I could always run Kafka on Docker on a VM in the cloud, but &ldquo;they&rdquo; say serverless is the new &ldquo;in&rdquo; thing, as well as managed services, so why not try that out.</p>
+
+<p>So, this post is about how to deploy Confluent Cloud on Azure!</p>
+
+<p></p>
+
+<h2 id="background">Background</h2>
+
+<p>Let us start with what Confluent Cloud is. I shamelessly stole the following paragraph from <a href="https://docs.confluent.io/cloud/current/get-started/index.html">here</a>:</p>
+
+<p><em>Confluent Cloud is a resilient, scalable streaming data service based on Apache Kafka, delivered as a fully managed service. Confluent Cloud has a web interface and local command line interface. You can manage cluster resources, settings, and billing with the web interface.</em></p>
+
+<p>OK, enough of marketing talk; Confluent Cloud is the Confluent Platform running as a managed service in the cloud, and you can run it on Azure, AWS, and Google Cloud. It was <a href="https://www.confluent.io/blog/announcing-confluent-cloud-apache-kafka-as-a-service/">introduced in 2017</a>, and - if I remember correctly - it initially ran on the Google Cloud Platform (GCP). Shortly after the introduction on GCP, it also became available on AWS.</p>
+
+<p>Towards the end of 2019, Confluent and Microsoft released Confluent Cloud on Azure, but it was like a separate service; you did not provision it from the Azure Portal. You provisioned it from Confluent and chose Azure as your platform. One of the drawbacks with this was that you had to sign up specifically for Confluent Cloud and provide a credit card, as the billing was separate. This changed at the beginning of 2020 when Confluent Cloud became wholly integrated with Azure.</p>
+
+<p>The cost for Confluent Cloud is now billed to your Azure subscription, and you provision a Confluent Cloud cluster from the Azure Marketplace! In the rest of this post, we see how that is done!</p>
+
+<h2 id="pre-reqs">Pre-Reqs</h2>
+
+<p>This post would not be a &ldquo;Niels post&rdquo; if there were no pre-reqs section. So, the pre-reqs - if you want to follow along - are:</p>
+
+<ul>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
+</ul>
+
+<p>That was not so bad, was it? Oh, one more thing; in your Azure subscription, you need to have the role of <em>Owner</em> or <em>Contributor</em>.</p>
+
+<h2 id="provision-confluent-cloud">Provision Confluent Cloud</h2>
+
+<p>When we provision Confluent Cloud on Azure, what we do is we are creating a Confluent Cloud organization inside Azure. A Confluent Cloud organization is a resource that provides the mapping between the Azure and Confluent Cloud resources. It&rsquo;s the parent resource for other Confluent Cloud resources.</p>
+
+<p>Within a Confluent organization, you can create multiple environments, clusters, topics, and connectors. The environments, clusters, etc., are created from within Confluent Cloud <em>Software as a Service</em> (SaaS) resources.</p>
+
+<h4 id="create-confluent-cloud-organization">Create Confluent Cloud Organization</h4>
+
+<p>To create a Confluent organization, we must be signed in to your subscription in the <a href="https://portal.azure.com/">Azure Portal</a>.</p>
+
+<p>What you see after you have signed in my vary, but what you want to do is to <em>Create a resource</em>:</p>
+
+<p><img src="/images/posts/ccl-azure-create-resource.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Create Resource</em></p>
+
+<p>I create a resource in Azure by expanding the hamburger menu in the upper left-hand corner of the portal (outlined in blue in <em>Figure 1</em>), and then click on <em>Create a resource</em> (outlined in red in <em>Figure 1</em>). You may see <em>Azure Services</em> in the portal, and underneath <em>Azure Services</em>, you can click on <em>Create a resource</em>, outlined in yellow in <em>Figure 1</em>. Clicking on <em>Create a resource</em> takes you to a page with a search box:</p>
+
+<p><img src="/images/posts/ccl-azure-confl-cloud.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Search for Confluent Cloud</em></p>
+
+<p>You start to write <em>Confluent Clo &hellip;</em> in the search box as you see in <em>Figure 2</em>. Text completion &ldquo;pops up&rdquo; some options where <em>Apache Kafka on Confluent Cloud</em> is one (outlined in red). You choose that one, you hit enter and you see:</p>
+
+<p><img src="/images/posts/ccl-azure-setup-subscribe.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Setup and Subscribe</em></p>
+
+<p>Choosing <em>Apache Kafka on Confluent Cloud</em> as in <em>Figure 2</em> takes you to the page where you start the process of setting up Apache Kafka on Confluent Cloud. When you click on the <em>Setup + subscribe</em> button outlined in red in <em>Figure 3</em> you see something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-create-org2.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Create Organization</em></p>
+
+<p>I mentioned above about Confluent Cloud organizations, and we see in <em>Figure 4</em> the first step in creating an organization. You provide values for the following properties:</p>
+
+<ul>
+<li><strong>Subscription</strong>: the Azure subscription to deploy to.</li>
+<li><strong>Resource group</strong>: here, you choose an existing resource group. There is the option to create a new resource group, but I got an error when the deployment started when I had chosen to create a new group. The error was along the lines of that the resource group needed a location. So what I do now is to first create a resource group (and define a region) and use that resource group.</li>
+<li><strong>Confluent organization name</strong>: This is the name of the Software as a Service resource.</li>
+<li><strong>Region</strong>: in what Azure region that you want to place this deployment.</li>
+<li><strong>Plan</strong>: the billing plan. I  most instances, this is <em>Pay as you Go</em>.</li>
+<li><strong>Billing term</strong>: prefilled based on your chosen <em>Plan</em>.</li>
+<li><strong>Price</strong>: as with <em>Billing term</em>, it is prefilled.</li>
+</ul>
+
+<p>Having filled in the values for the properties above, you can now click the <em>Review + create</em> button (outlined in red in <em>Figure 4</em>), and you see:</p>
+
+<p><img src="/images/posts/ccl-azure-create-org-validation.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Validate Organization</em></p>
+
+<p>Clicking the <em>Review + create</em> starts a validation of the values you have entered. In <em>Figure 5</em> we see what it looks like when the validation has successfully passed.</p>
+
+<p>We can now go ahead and create and deploy the organization. At the bottom of the page, we see in <em>Figure 5</em> (we only see the top part in <em>Figure 5</em>) is a <em>Create</em> button. Clicking that button starts the deployment. After a while, you see:</p>
+
+<p><img src="/images/posts/ccl-azure-org-complete.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Deployment Complete</em></p>
+
+<p>As we see in <em>Figure 6</em>, the deployment has now been completed, and everything should be set up. To see that everything is indeed set up, click on the <em>Go to resource</em> button outlined in red in <em>Figure 6</em>. Clicking on that button results in something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-manage-org.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Manage on Confluent Cloud</em></p>
+
+<p>In <em>Figure 7</em>, we see how we are inside the Confluent organization, and we are more or less done. However, remember how I above mentioned that the organization we just have created is the mapping between Azure and Confluent Cloud resources, and how we use Confluent Cloud resources to create Kafka clusters, Topics, etc. So, to seamlessly move between Azure and Confluent Cloud, we need to enable Single Sign-On (SSO).</p>
+
+<h4 id="single-sign-on-sso">Single Sign-On (SSO)</h4>
+
+<p>Enabling SSO allows us to transparently move from Azure to Confluent Cloud and directly login to Confluent Cloud with an SSO URL.</p>
+
+<p>To enable SSO, we click on the link outlined in red in <em>Figure 7</em>. Clicking on that link gives us this:</p>
+
+<p><img src="/images/posts/ccl-azure-sso-perm.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Permissions</em></p>
+
+<p>In <em>Figure 8</em>, we see a request for permissions from Confluent Cloud to do what is outlined in <em>Figure 8</em>. That is the final thing we do in Azure because when we accept the request, we see something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-welcome.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Welcome</em></p>
+
+<p>We have now arrived at Confluent Cloud, and the <em>Welcome</em> page, as we see in <em>Figure 9</em>, asks us some questions about what we want to do with Kafka, our experience, etc.  I am not that interested in answering those questions so I just hit the <em>Skip</em> link we see outlined in red in <em>Figure 9</em>, and I see this:</p>
+
+<p><img src="/images/posts/ccl-azure-welcome-done.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Ready to Roll</em></p>
+
+<p>Right, we are done with creating the organization, and we have enabled SSO. As we see in <em>Figure 10</em> we can now start doing the &ldquo;cool stuff&rdquo;! However, let us not click on any links on this page, but just close down the page and go back to Azure and our Confluent organization in Azure.</p>
+
+<p>Having enabled SSO, we have three ways of logging into/signing-in to our Confluent Cloud SaaS resources:</p>
+
+<ul>
+<li>from inside Azure Portal: by clicking on the <em>Manage on Confluent Cloud</em> link in <em>Figure 7</em> (the one we used to set up SSO).</li>
+<li>from the <a href="https://confluent.cloud"><strong>Confluent Cloud</strong> login page</a>, where we use the email and password we use to authenticate against Azure.</li>
+<li>use the SSO login URL. You get the URL by right-clicking on the <em>Manage on Confluent Cloud</em> link and choose <em>Copy link</em>.</li>
+</ul>
+
+<p>Up until now we have created a Confluent Cloud organization in Azure and registered that organization with Confluent Cloud. It is now time to do the interesting stuff: Kafka Clusters, Topics etc.</p>
+
+<h2 id="create-a-kafka-cluster">Create a Kafka Cluster</h2>
+
+<p>Login to Confluent Cloud by using one of the methods above. After having logged in we see something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-defaukt-environment.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>Default Environment</em></p>
+
+<p>At the beginning of this post, I said how a Confluent Cloud organization was the parent resource for other Confluent Cloud resources. When we create an organization, an Environment is also created by default (named <code>default</code>), which we see in <em>Figure 11</em>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> We can change the name of the environment by clicking on the link in <em>Figure 11</em> outlined in yellow.</p>
+</blockquote>
+
+<p>An environment is a container for Kafka clusters, and we see in <em>Figure 11</em> a button (outlined in red) <em>Create cluster on my own</em>. When clicking that button we get:</p>
+
+<p><img src="/images/posts/ccl-azure-create-cluster-I.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Create Cluster - I</em></p>
+
+<p>In <em>Figure 12</em>, we see the <em>Create cluster</em> page we end up on after clicking the <em>Create cluster on my own</em> in <em>Figure 11</em>. We see how we can choose what cluster type to create, and for our purposes, the <em>Basic</em> type is more than enough. Having selected the cluster type, we are now ready to configure the cluster. Clicking on the button outlined in red in <em>Figure 12</em>: the <em>Begin configuration</em> button, we see this:</p>
+
+<p><img src="/images/posts/ccl-azure-create-cluster-II.png" alt="" /></p>
+
+<p><strong>Figure 13:</strong> <em>Create Cluster - II</em></p>
+
+<p>The first thing to do when configuring a new cluster is what we see in <em>Figure 13</em>, we choose:</p>
+
+<ul>
+<li>the region we want the cluster in. A good practice is to choose the same region as our resource group and organization.</li>
+<li>the level of availability we want: single zone or multi. In our case, using the <em>Basic</em> cluster type, single-zone is our only choice.</li>
+</ul>
+
+<p>Having decided on the <em>Region</em> we click <em>Continue</em> (outlined in red), and we get this:</p>
+
+<p><img src="/images/posts/ccl-azure-create-cluster-III.png" alt="" /></p>
+
+<p><strong>Figure 14:</strong> <em>Create Cluster - III</em></p>
+
+<p>What is left for us to do is to give the cluster a name. In <em>Figure 14</em>, we see how I named it <code>test_cluster_1</code> (outlined in yellow). Then I click on the <em>Launch cluster</em> button, which in <em>Figure 14</em> is outlined in red:</p>
+
+<p><img src="/images/posts/ccl-azure-cluster-overview.png" alt="" /></p>
+
+<p><strong>Figure 15:</strong> <em>Cluster Created</em></p>
+
+<p>The cluster is now created, and we are presented with an overview of the cluster as in <em>Figure 15</em>. For you who have used Confluent Platform, this looks almost like the overview page in Confluent Control Center (the Web UI for Confluent Platform). We see in <em>Figure 15</em>:</p>
+
+<ul>
+<li>outlined in blue: a menu covering the cluster&rsquo;s main components; topics, ksqlDB, etc.</li>
+<li>red: the link to create and manage topics.</li>
+<li>green: to connect to the cluster from the outside world, we need an API key (and a secret). The link here allows us to create that.</li>
+<li>yellow: a link to instructions on downloading and installing the Confluent Cloud CLI (CCLI). You can definitely manage your cluster, topics, etc., using the Web UI, but to be more efficient, you want to use the Confluent Cloud CLI.</li>
+</ul>
+
+<blockquote>
+<p><strong>NOTE:</strong> Above the CCLI box is a link giving examples of how to configure clients. Very useful.</p>
+</blockquote>
+
+<p>Speaking about clients: to access the cluster and publish to or consume from a topic you need the address of the cluster. If you click on the <em>Cluster settings</em> link we see in <em>Figure 15</em> you get all sorts of information about the cluster, including the the value of <code>bootstrap.servers</code> that clients need.</p>
+
+<p>OK, so we now have a cluster; let us create a topic.</p>
+
+<h2 id="create-topic-s">Create Topic(s)</h2>
+
+<p>Click on the <em>Topics</em> link outlined in red in <em>Figure 15</em>:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-create-I.png" alt="" /></p>
+
+<p><strong>Figure 16:</strong> <em>Topics</em></p>
+
+<p>What we see in <em>Figure 16</em> should be self-explanatory. It is the page for our topics in this cluster. We don&rsquo;t have any topics yet, so we create one by clicking on the <em>Create topic</em> button outlined in red in <em>Figure 16</em>. Doing that, we see:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-new.png" alt="" /></p>
+
+<p><strong>Figure 17:</strong> <em>New Topic</em></p>
+
+<p>In <em>Figure 17</em>, we see the form for creating a new topic. We fill in the <em>Topic name</em> field outlined in blue, we set the number of partitions we want in the field outlined in yellow, and then we are ready to click the <em>Create with defaults</em> button.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> By default number of partitions is set to 6.</p>
+</blockquote>
+
+<p>When we click on the <em>Create with defaults</em> button, the result looks like so:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-topic.png" alt="" /></p>
+
+<p><strong>Figure 18:</strong> <em>Topic Created</em></p>
+
+<p>Yay - we have a topic! In <em>Figure 18</em>, we see an overview of the topic, and we see we have some tabs: <em>Overview</em>, <em>Messages</em>, <em>Schema</em>, and <em>Configuration</em>. I will not go into detail about the various tabs, but - nevertheless - let us have a brief look at the <em>Messages</em> tab</p>
+
+<h4 id="messages">Messages</h4>
+
+<p>Click on the <em>Messages</em> tab and you see something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-messages.png" alt="" /></p>
+
+<p><strong>Figure 19:</strong> <em>Messages</em></p>
+
+<p>As we see in <em>Figure 19</em>, the <em>Messages</em> tab has to do with messages - duh! I mention this tab because it gives us the ability to quickly produce messages to the topic and view messages that have been published to the topic. Being able to publish messages gives us a quick and easy way to ensure the topic is set up correctly. Viewing messages is good because we can quickly ensure messages have arrived in the topic.</p>
+
+<p>To publish, we click on what is outlined in red in <em>Figure 19</em>, and we see the following:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-publish.png" alt="" /></p>
+
+<p><strong>Figure 20:</strong> <em>Publish</em></p>
+
+<p>In <em>Figure 20</em>, we see how a message in JSON format has been generated (you can edit the message as you want), and we publish it by clicking on the <em>Produce</em> button outlined in red. Clicking on the button, you see a notification saying the message is being processed. When the notification disappears, you enter an offset in the field outlined in blue in <em>Figure 19</em>. Enter <code>0</code>, hit return, and you see under the <em>Produce</em> button something like so:</p>
+
+<p><img src="/images/posts/ccl-azure-topics-published=message.png" alt="" /></p>
+
+<p><strong>Figure 21:</strong> <em>Published Message</em></p>
+
+<p>Another Yay! We have a message in the topic, as we see in <em>Figure 21</em>.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When you are <del>playing around</del> doing tests, you may want to delete all messages from a topic. The only way to do it from the UI is to delete the topic. You then need to re-create it. To delete the topic, you go to the <em>Configuration</em> tab we see in <em>Figure 18</em> (and 19) and click on the <em>Delete topic</em> link in the lower left-hand corner.</p>
+</blockquote>
+
+<p>We are almost done. What is left is to create an API key and a secret. We use the API key and the secret to access the cluster from the outside world.</p>
+
+<h2 id="api-access">API Access</h2>
+
+<p>To enable API access, we use the <em>API access</em> link we see outlined in green in <em>Figure 15</em>. Clicking on that link results in this:</p>
+
+<p><img src="/images/posts/ccl-azure-api-access-I.png" alt="" /></p>
+
+<p><strong>Figure 22:</strong> <em>API Access</em></p>
+
+<p>In <em>Figure 22</em> we click on the <em>Create Key</em> button, which is outlined in red, and we get this:</p>
+
+<p><img src="/images/posts/ccl-azure-api-create-key-I.png" alt="" /></p>
+
+<p><strong>Figure 23:</strong> <em>Create API Key</em></p>
+
+<p>An API key can have different scope. In our case, we choose the create the with Global scope as we see in <em>Figure 24</em> and having selected the scope, we click <em>Next</em> (outlined in red in <em>Figure 23</em>):</p>
+
+<p><img src="/images/posts/ccl-azure-api-create-key-II.png" alt="" /></p>
+
+<p><strong>Figure 24:</strong> <em>API Key Created</em></p>
+
+<p>Please read the highlighted section, in <em>Figure 24</em>, carefully!</p>
+
+<p>After creating the key, you see the key and the secret as in <em>Figure 24</em>. However, you will no longer see the secret after clicking the <em>Save</em> button outlined in red. So ensure you have written down the key and the secret somewhere (and remember where you saved it to).</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>This post looked at how to run Apache Kafka in Confluent Cloud, where Azure is our cloud environment.</p>
+
+<p>We saw how we:</p>
+
+<ul>
+<li>Create a Confluent Cloud organization from within Azure.</li>
+<li>Enable SSO between Azure and Confluent Cloud.</li>
+</ul>
+
+<p>The above creates the organization in Azure and &ldquo;registers&rdquo; it with Confluent Cloud. We then:</p>
+
+<ul>
+<li>Log into the Confluent Cloud.</li>
+<li>Create a Kafka cluster.</li>
+<li>In the Kafka cluster, we create one or more topics.</li>
+</ul>
+
+<p>To connect to the cluster from the &ldquo;outside&rdquo; world, we let Confluent Cloud generate an API key with a corresponding secret.</p>
+
+<p>That&rsquo;s it!</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2021/08/08/interesting-stuff---week-32-2021/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 32, 2021</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2021/08/01/interesting-stuff---week-31-2021/">Interesting Stuff - Week 31, 2021</a>
+      
+      <time class="pull-right hidden-tablet">Aug 01 &#39;21</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2020/08/09/interesting-stuff---week-32-2020/">Interesting Stuff - Week 32, 2020</a>
+      
+      <time class="pull-right hidden-tablet">Aug 09 &#39;20</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2020/06/07/interesting-stuff---week-23-2020/">Interesting Stuff - Week 23, 2020</a>
+      
+      <time class="pull-right hidden-tablet">Jun 07 &#39;20</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/12/01/interesting-stuff---week-48-2019/">Interesting Stuff - Week 48, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Dec 01 &#39;19</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2019/10/20/interesting-stuff---week-42-2019/">Interesting Stuff - Week 42, 2019</a>
+      
+      <time class="pull-right hidden-tablet">Oct 20 &#39;19</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
