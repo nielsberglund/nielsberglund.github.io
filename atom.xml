@@ -3,10 +3,386 @@
   <title>Niels Berglund</title>
   <link href="https://nielsberglund.com/atom.xml" rel="self"/>
   <link href="https://nielsberglund.com"/>
-  <updated>2021-09-05T10:38:44+02:00</updated>
+  <updated>2021-09-06T06:11:51+02:00</updated>
   <id>https://nielsberglund.com/</id>
   <generator uri="http://gohugo.io/">Hugo</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances]]></title>
+    <link href="https://nielsberglund.com/2021/09/06/run-self-managed-kusto-kafka-connector-serverless-in-azure-container-instances/" rel="alternate" type="text/html"/>
+    <updated>2021-09-06T06:11:51+02:00</updated>
+    <id>https://nielsberglund.com/2021/09/06/run-self-managed-kusto-kafka-connector-serverless-in-azure-container-instances/</id>
+    <content type="html"><![CDATA[<p>A couple of weeks ago, I <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/">posted</a> how I set up Kafka to run serverless in Azure by deploying Confluent Cloud.</p>
+
+<p>If you have followed my blog lately, you have probably seen that I am interested in <strong>Azure Data Explorer</strong> and that I have a couple of conference talks coming. One being:</p>
+
+<ul>
+<li><strong>How to do Real-Time Analytics Using Apache Kafka and Azure Data Explorer</strong>: We are looking at how to stream events from Apache Kafka to Azure Data Explorer (ADX) and perform user-facing analytics in near real-time.</li>
+</ul>
+
+<p>The question is how to connect Kafka with ADX? You normally connect Kafka with another system using a Kafka Connect connector, and fortunately a connector exists for connecting Kafka with ADX: the <a href="https://github.com/Azure/kafka-sink-azure-kusto"><strong>Kafka Connect Kusto Sink Connector</strong></a>.</p>
+
+<p>However, since I am running managed Kafka (Confluent Cloud, remember), I need a managed connector to run it in Confluent Cloud&rsquo;s Kafka Connect. In the previous paragraph, I mentioned I was fortunate as we had a Kafka connector for ADX. Unfortunately, it is not a managed connector, so I cannot run it in Confluent Cloud - bummer!</p>
+
+<p>So, this post looks at the various options we have if we want to use the Kafka Connect Kusto Sink Connector connecting Confluent Cloud in Azure with Azure Data Explorer. However, if you are not interested in neither Kafka nor ADX, the post may still be of use for you. The reason being it also covers running Docker images in Azure Container Instances (ACI).</p>
+
+<p></p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Even though this post comes out of me wanting to use the Kafka Connect Kusto Sink Connector, the post is <strong>NOT</strong> about the usage or the configuration of the connector. That is covered in a future post.</p>
+</blockquote>
+
+<h2 id="credits">Credits</h2>
+
+<p>Usually, the credits &ldquo;roll&rdquo; at the end of the <del>movie</del> post, but I feel I should start with the credits as this post would not have happened if it wasn&rsquo;t for this blog post:</p>
+
+<ul>
+<li><a href="https://rmoff.net/2021/01/11/running-a-self-managed-kafka-connect-worker-for-confluent-cloud/">Running a self-managed Kafka Connect worker for Confluent Cloud</a>. I came across this post by Kafka guru extraordinaire <a href="https://twitter.com/rmoff">Robin Moffat</a> when I looked into running a self-managed connector when you use Confluent Cloud. His post made me look into what it would take to run the connector in Azure Container Instances (ACI).</li>
+</ul>
+
+<p>As I said, <a href="https://twitter.com/rmoff">Robin Moffat</a> is a Kafka Guru, and if you are into Kafka, then you <strong>MUST</strong> read his <a href="https://rmoff.net/">blog</a>.</p>
+
+<h2 id="pre-reqs">Pre-Reqs</h2>
+
+<p>This section is here if you want to follow along. I am listing what you need if you&rsquo;re going to deploy and run a container in ACI; not all required components for Kafka and ADX:</p>
+
+<ul>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
+<li>Azure CLI. The Azure CLI is a cross-platform command-line tool to connect to Azure and execute administrative commands on Azure resources. You find downloads and install instructions <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli">here</a>.</li>
+<li>Docker Desktop: We will build a Docker image, so we need Docker Desktop.</li>
+<li>Something to build the image from. The image I build for this post includes the Kusto Sink Connector, which I download from <a href="https://github.com/Azure/kafka-sink-azure-kusto/releases/download/v2.0.0/kafka-sink-azure-kusto-2.0.0-jar-with-dependencies.jar">here</a>.</li>
+</ul>
+
+<p>The version (2.0) of the Kusto Sink Connector I downloaded is not the latest you find on the <a href="https://github.com/Azure/kafka-sink-azure-kusto/releases">release page</a>, but I could not get the 2.1 version to work.</p>
+
+<p>In addition to the above, I have Confluent Cloud deployed as per my <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/">post</a> mentioned in the beginning. As I want to connect Kafka to Azure Data Explorer, I also have Azure Data Explorer installed.</p>
+
+<h2 id="background">Background</h2>
+
+<p>Before we get down into it, let us get an understanding of some of the components in this post:</p>
+
+<ul>
+<li>Azure Data Explorer</li>
+<li>Confluent Cloud</li>
+<li>Kafka Connect</li>
+<li>Kafka Connect Kusto Sink Connector</li>
+</ul>
+
+<h4 id="azure-data-explorer">Azure Data Explorer</h4>
+
+<p>Azure Data Explorer is a fully-managed big data analytics cloud platform and data-exploration service that ingests structured, semi-structured (like JSON) and unstructured data. The service then stores this data and answers analytic ad hoc queries on it with seconds of latency. It is a full-text indexing and retrieval database, including time series analysis capabilities, machine learning, regular expression evaluation, and text parsing.</p>
+
+<p>It is ideal for analyzing large volumes of diverse data from any data source, such as websites, applications, IoT devices, and more. Essentially it is a distributed database running on a cluster of compute nodes in Azure.</p>
+
+<h4 id="confluent-cloud">Confluent Cloud</h4>
+
+<p>In my <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/">post</a> setting up Confluent Cloud I said it is a resilient, scalable streaming data service based on Apache Kafka, delivered as a fully managed service. It is Confluent Platform, running as a managed service in the cloud, and you can run it on Azure, AWS, and Google Cloud.</p>
+
+<p>As it is Confluent Platform, you get so much more than <em>just</em> Kafka. You get built-in stream processing through ksqlDB, schema registry for data integrity, managed Kafka Connect connectors for data sources/sinks, and more.</p>
+
+<h4 id="kafka-connect">Kafka Connect</h4>
+
+<p>Kafka Connect is a tool for streaming data between Apache Kafka and other systems scalable and reliable. The way you move data between systems and Kafka is using connectors, and there are two flavors of connectors:</p>
+
+<ul>
+<li>Source connectors that understand how to interact with the source system send records into Kafka</li>
+<li>Sink connectors that propagate records from Kafka topics to other systems.</li>
+</ul>
+
+<p>Kafka Connect is a JVM process, and it operates separately from the Kafka Broker. The process loads connectors, and the connectors know how to interact with Kafka and the source/sink systems. The connectors are written in Java and packaged into <code>.jar</code> files.</p>
+
+<h4 id="kafka-connect-kusto-sink-connector">Kafka Connect Kusto Sink Connector</h4>
+
+<p>The Kusto Sink Connector is a Kafka Connect connector. It is - as the name implies - a sink connector, dequeuing events from Kafka topics and ingesting them into Azure Data Explorer. The ingestion is, for now, queued ingestion leveraging the Azure Data Explorer Java SDK, i.e. batch mode.</p>
+
+<p>Since the Kusto connector is not a managed connector, we need to decide where and how to run it.</p>
+
+<h2 id="options">Options</h2>
+
+<p>Robin covered the various options in his <a href="https://rmoff.net/2021/01/11/running-a-self-managed-kafka-connect-worker-for-confluent-cloud/">post</a> a lot better than I ever could, so I won&rsquo;t repeat that. Furthermore, seeing that I say in the title of this post <strong>Azure Container Instances</strong> (ACI), it is probably safe to assume that&rsquo;s the option we&rsquo;ll go with. As a picture says more than a thousand words, our solution looks something like so:</p>
+
+<p><img src="/images/posts/kusto-aci-conn.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Kafka - ADX Architecture</em></p>
+
+<p>We see in <em>Figure 1</em> how we have:</p>
+
+<ul>
+<li>Kafka in Azure (Confluent Cloud).</li>
+<li>an Azure Container Instances running the Kusto Sink Connector.</li>
+<li>data ingested from the connector into Azure Data Explorer.</li>
+</ul>
+
+<p>Oh, and yes - the data being ingested is published to Kafka from the publisher we see in the upper left-hand corner.</p>
+
+<p>In this post, the term Azure Container Instances has been mentioned a couple of times. What is that, then?</p>
+
+<h4 id="azure-container-instances">Azure Container Instances</h4>
+
+<p>ACI gives you an easy way to run containers in the Azure cloud, eliminating the need to manage virtual machines (VMs) or using more complex container orchestration services, like Kubernetes. For me, just testing this out, ACI is &ldquo;good enough&rdquo;.</p>
+
+<p>There are a couple of ways you can deploy and run a container in ACI:</p>
+
+<ul>
+<li>Utilise the integration between Docker and Azure and execute <code>docker run</code>. You do this mostly in test scenarios.</li>
+<li>Deploy the container image to ACI and run it in ACI.</li>
+</ul>
+
+<p>Even though I said I am using ACI for testing at the beginning of this section, I will not use <code>docker run</code> but instead do a &ldquo;proper&rdquo; deployment to ACI.</p>
+
+<h2 id="create-kusto-sink-connector-image">Create Kusto Sink Connector Image</h2>
+
+<p>We start with creating the <code>Dockerfile</code> for the image we want to deploy to ACI:</p>
+
+<p><img src="/images/posts/kusto-aci-dockerfile.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Dockerfile</em></p>
+
+<p>As we need to run the connector in Kafka Connect, we base the image on the <code>cp-server-connect-base</code> image (the <code>FROM</code> statement). This image contains the bare minimum for Kafka Connect.</p>
+
+<p>In the Pre-Reqs section, I mentioned how I downloaded the Kusto connector. I downloaded it as a zip file and unzipped it to the same directory the <code>Dockerfile</code> is in. In line 3, we see how I copy the connector&rsquo;s <code>.jar</code> file to <code>/usr/share/java</code> in the base image. That path is a &ldquo;well known&rdquo; path to load connectors from.</p>
+
+<p>The <code>...OVERRIDE_POLICY=All</code> statement on line 5 allows this connector to override consumer and producer properties to not impact all connectors running in that worker.</p>
+
+<p>Lines 7 - 10 in the docker file are core config security settings that need to be set at the Kafka connect worker level and need to be &ldquo;baked&rdquo; into the Docker image. These settings are related to authentication and authorization against the Confluent Cloud Kafka.</p>
+
+<h4 id="build-the-image">Build the Image</h4>
+
+<p>Having created the <code>Dockerfile</code>, we can build the image:</p>
+
+<p><img src="/images/posts/kusto-aci-docker-build.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Docker Build</em></p>
+
+<p>In <em>Figure 3</em>, we see us executing the <code>docker build</code> command and the outcome. When the build has finished, we can check that all looks OK by running <code>docker images</code>:</p>
+
+<p><img src="/images/posts/kusto-aci-kusto-image.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Kusto Docker Image</em></p>
+
+<p>Success, we have an image, as we see in <em>Figure 4</em>. Well, at least partial success; we don&rsquo;t know if it works yet. Let us find out.</p>
+
+<h4 id="run-locally">Run Locally</h4>
+
+<p>To find out if it works, we can run the container image locally using <code>docker-compose</code>. We create a <code>docker-compose.yml</code> file containing the bare minimum for running the connector:</p>
+
+<p><img src="/images/posts/kusto-aci-docker-compose.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Docker Compose File</em></p>
+
+<p>We see in <em>Figure 5</em> the compose file I use to test that my container works. As mentioned before, the file contains the required properties to get this connector up and running. What you see outlined in red are properties naming topics needed to store Kafka offsets, configs and statuses. After we have &ldquo;spun up&rdquo; the container, we can check for these topics in our Kafka installation. Let us execute `docker-compose up -d&rsquo;:</p>
+
+<p><img src="/images/posts/kusto-aci-docker-compose-up.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Run Docker Compose</em></p>
+
+<p>In <em>Figure 6</em>, we see that it looks like everything has worked OK and that we have created a connector instance <code>kusto-conn-1</code>. We can confirm that it has worked by checking the topics mentioned above or execute a REST call against the Kafka Connect API to <code>GET</code> the available connectors:</p>
+
+<p><img src="/images/posts/kusto-aci-get-connectors.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>GET Connectors</em></p>
+
+<p>From what we see in <em>Figure 7</em> it looks like we are OK. We see, outlined in blue, the <code>GET</code> call on port <code>8083</code>, and in the result below, we see the connector outlined in red.</p>
+
+<h2 id="azure-container-instances-1">Azure Container Instances</h2>
+
+<p>When we have confirmed that our image works, it is time to deploy it to ACI. When we run a container in ACI, the container is stored in <a href="https://azure.microsoft.com/en-us/services/container-registry/#overview">Azure Container Registry</a> (ACR).</p>
+
+<p>We&rsquo;ll create a new container registry in a second, but before we do that, let us log in to Azure and set the subscription to use. To log in, we run <code>az login</code>. The command may take a second or two, and a dialog in your browser may ask you for login credentials. When login is done, you will see a JSON blob with information about the subscriptions you have access to. Choose the one you want to use:</p>
+
+<pre><code class="language-bash"># az login
+# az login above returns a JSON blob with subscriptions.
+# set the subscription you want to use
+az account set --subscription 00000000-0000-0000-0000-000000000000 
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Set Subscription</em></p>
+
+<p>After we have logged in, we execute the code in <em>Code Snippet 1</em> to set the subscription we want to use. And no, the subscription Id in <em>Code Snippet 1</em> is not mine.</p>
+
+<p>We are almost at the stage where we can create the ACR, but we need one more thing before creating the ACR. That one more thing is a resource group. I will use an existing resource group for this post, so I will not create a new one. If you need to create a resource group, you do:</p>
+
+<pre><code class="language-bash">az group create --name name-of-rg --location azure-location  
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Create Resource Group</em></p>
+
+<p>To see what locations are available for the <code>--location</code> parameter in <em>Code Snippet 2</em>, you can execute: <code>az account list-locations</code>.</p>
+
+<p>Right, we now have a resource group. Let us press on.</p>
+
+<h4 id="create-azure-container-registry">Create Azure Container Registry</h4>
+
+<p>ACR is a private Docker registry service, similar to Dockerhub. As with Dockerhub, you push container images to your container registry.</p>
+
+<p>To create a container registry, we use <code>az acr create ...</code>:</p>
+
+<pre><code class="language-bash">az acr create --resource-group rg-kafka \
+              --name nielsblog1 \
+              --sku Basic \
+              --admin-enabled true \
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>Create Container Registry</em></p>
+
+<p>In <em>Code Snippet 3</em>, we see how we create a container registry. The first two parameters define the resource group to create it in: <code>rg-kafka</code>, and the name of the registry: <code>nielsblog1</code>. You may ask what the last two parameters are:</p>
+
+<ul>
+<li><code>--sku</code>: this parameter defines the service tier: <code>Basic</code>, <code>Standard</code>, or <code>Premium</code>. Read more about service tiers <a href="https://docs.microsoft.com/en-us/azure/container-registry/container-registry-skus">here</a>.</li>
+<li><code>--admin-enabled</code>: an admin user account is included when creating a container registry. The account is disabled by default. For testing purposes, you may want to have it enabled, so that is why I have included it in the creation. Read more about the admin account <a href="https://docs.microsoft.com/en-us/azure/container-registry/container-registry-authentication?tabs=azure-cli#admin-account">here</a>.<br /></li>
+</ul>
+
+<p>When you execute the code in <em>Code Snippet 3</em>, it will take a little while. When it finishes, you will see a JSON blob with some information about the created registry.</p>
+
+<p>Having created the registry, we can now log in to it: <code>az acr login --name regname</code>. We are almost ready to push our image to the registry, but there are two things we need to do before that.</p>
+
+<p><strong>Login Server</strong></p>
+
+<p>When we push an image to the registry, we need an address to push to; the login server. To retrieve the login server, we do:</p>
+
+<pre><code class="language-bash">az acr show --name registryname --query loginServer
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Get Login Server</em></p>
+
+<p>Most likely, when you execute the code in <em>Code Snippet 4</em>, you get back <code>your-registry-name.azurecr.io</code>, but it is good practice to explicitly retrieve the login server.</p>
+
+<p><strong>Credentials</strong></p>
+
+<p>The second thing we need to do is get the credentials for the admin user we enabled in <em>Code Snippet 3</em>. We use the credentials later when we deploy our container:</p>
+
+<p><img src="/images/posts/kusto-aci-acr-credentials.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>ACR Credentials</em></p>
+
+<p>In <em>Figure 8</em>, we see outlined in yellow:ish the code to retrieve the credentials. Outlined in red, we see the two passwords. These passwords are created when the admin account is enabled, and they can also be re-generated. Finally, outlined in blue is the user name to use for the admin account.</p>
+
+<h4 id="push-image-to-acr">Push Image to ACR</h4>
+
+<p>We are getting there. Now, the time has come to push the image we built in <em>Figure 3</em> to the ACR. We do it in a two-step process:</p>
+
+<p><strong>Tag the Image</strong></p>
+
+<p>Tag the image with the login server string:</p>
+
+<p><img src="/images/posts/kusto-aci-docker-tag.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Tag the Image</em></p>
+
+<p>We see in <em>Figure 9</em> outlined in:</p>
+
+<ul>
+<li>Blue: the <code>docker tag</code> statement we use.</li>
+<li>Yellow: the name of the image we want to tag.</li>
+<li>Red: the &ldquo;tagged&rdquo; new name of the image.</li>
+</ul>
+
+<p><strong>Push the Image</strong></p>
+
+<p>Having tagged the image with the login server, we can push it to ACR:</p>
+
+<p><img src="/images/posts/kusto-aci-docker-push-acr.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Docker Push to ACR</em></p>
+
+<p>When you run the code outlined in blue in <em>Figure 10</em>, you see how the image layers are pushed to the registry.</p>
+
+<p>Looking at <em>Figure 10</em> everything looks OK, but - look at the statement outlined in red. What is this &ldquo;repository&rdquo; thing?</p>
+
+<p>It turns out that when we push an image to the ACR, we push it not directly into the ACR. Instead, a repository is created, and we push it into that repository. A repository is a collection of container images or other artefacts in a registry with the same name but different tags.</p>
+
+<p>That explains why we, when looking for images in the ACR we do something like so:</p>
+
+<p><img src="/images/posts/kusto-aci-acr-repo-images.png" alt="" /></p>
+
+<p><strong>Figure 11:</strong> <em>ACR Repository with Image(s)</em></p>
+
+<p>In <em>Figure 11</em>, we see how we execute <code>az acr repository list ...</code> when looking for images (outlined in yellow) and how the result comes back as an array (outlined in red).</p>
+
+<h2 id="deploy-the-container">Deploy the Container</h2>
+
+<p>It is now time to deploy and run the image in Azure Container Instances. To create the container, we use the <code>az container create ...</code> command:</p>
+
+<pre><code class="language-bash">az container create --resource-group rg-kafka `
+&gt;&gt; --name nielsblog1 `
+&gt;&gt; --image nielsblog1.azurecr.io/kusto-conn-1:latest `
+&gt;&gt; --restart-policy OnFailure `
+&gt;&gt; --ip-address Public `
+&gt;&gt; --ports 8083 `
+&gt;&gt; --registry-login-server nielsblog1.azurecr.io `
+&gt;&gt; --registry-username nielsblog1 `
+&gt;&gt; --registry-password some-super-secret-password
+</code></pre>
+
+<p><strong>Code Snippet 5:</strong> <em>Create Container - I</em></p>
+
+<p>The code in <em>Code Snippet 5</em> is part of the code we need to run to create the container. The parameters we see are straightforward. The only thing worth mentioning is the <code>--ip-address Public</code> and <code>--ports 8083</code>. We need to indicate that we need a public IP address and that port 8083 should be open.</p>
+
+<p>In the previous paragraph, I mentioned that the code in <em>Code Snippet 5</em> is only part of what we need to run. So what else do we need? Remember what we did when we tested the container locally, how we had a <code>.yml</code> file (<em>Figure 5</em>), with properties required to run Kafka Connect? We need the same here!</p>
+
+<p>The question is, how do we supply those properties? The answer is that <code>az container create</code> has an <code>--environment-variables</code> parameter. This parameter is a list of environment variables for the container, where the list contains space-separated values in &lsquo;key=value&rsquo; format, something like so:</p>
+
+<p><img src="/images/posts/kusto-aci-create-container-I.png" alt="" /></p>
+
+<p><strong>Figure 12:</strong> <em>Create Container - II</em></p>
+
+<p>In <em>Figure 12</em>, we see the entire command, including the required properties for Kafka.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> Notice how the <code>--environment-variables</code> do not have an quotes around them. That is because I am running from PowerShell. If you run the command from command prompt you need the environment variables be enclosed in single quotes.</p>
+</blockquote>
+
+<p>The text outlined in red at the bottom of <em>Figure 12</em> shows that the screenshot is taken while the command executes. While the command is running, you can execute the following to see the state it is in:</p>
+
+<pre><code class="language-bash"> az container show --resource-group rg-kafka `
+ &gt;&gt;--name nielsblog1 --query instanceView.state
+</code></pre>
+
+<p><strong>Code Snippet 6:</strong> <em>View Container State</em></p>
+
+<p>Eventually, the creation finishes and results in a JSON blog with some information about the container. Most of the information in the blob is available from <code>az container ...</code> commands:</p>
+
+<pre><code class="language-bash"># get log information from the container
+az container logs --resource-group rg-kafka --name nielsblog1
+
+# get ip address information
+az container show --resource-group  rg-kafka `
+&gt;&gt;--name nielsblog1 --query ipAddress
+</code></pre>
+
+<p><strong>Code Snippet 7:</strong> <em>Get Logs &amp; IP Address</em></p>
+
+<p>The code in <em>Code Snippet 7</em> retrieves log information from the running container and the public IP address. Looking at the logs, everything looks OK, so let us use the IP address we retrieved in <em>Code Snippet 7</em> and do what we did in <em>Figure 7</em> (but now against the container in Azure):</p>
+
+<p><img src="/images/posts/kusto-aci-get-connectors-az.png" alt="" /></p>
+
+<p><strong>Figure 13:</strong> <em>Get Connectors - II</em></p>
+
+<p>Yay, from what we see in <em>Figure 13</em> all is OK. We see the Kusto Sink Connector, outlined in red, being part of the returned result from the <code>GET</code> call. And in the <code>GET</code> call outlined in blue, we see we use the Azure IP address (highlighted in yellow). Well, you don&rsquo;t necessarily know it is the Azure IP, but trust me - it is. Yay, again!</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>Wow, that was a lot! In this post, we saw how to:</p>
+
+<ul>
+<li>Build a docker image for the Kusto Kafka Sink Connector.</li>
+<li>Test it locally.</li>
+<li>Create an Azure Container Registry.</li>
+<li>Push the image to the registry.</li>
+<li>Deploy the image to, and run it in Azure Container Instances.</li>
+</ul>
+
+<p>Look out for a post covering how to configure and use the Kusto Sink Connector.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>]]></content>
+    <author>
+      <name>Niels Berglund</name>
+
+    </author>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Interesting Stuff - Week 36, 2021]]></title>
@@ -1785,56 +2161,6 @@ VALUES(1, 'Hello Number 1')
 <p>As you see in <em>Figure 1</em> I will be giving a training class at the 2021 Data Platform Summit. The class is <strong>Big Data &amp; Analytics with SQL Server 2019 Big Data Cluster</strong>. So right now, I am creating the content for that class - it will be awesome.</p>
 
 <p>If you are interested, <a href="http://bit.ly/dps_2021">sign up</a> for the class. When signing up, you also get free access to the Summit! Hope to see you there!</p>
-
-<h2 id="finally">~ Finally</h2>
-
-<p>That&rsquo;s all for this week. I hope you enjoy what I did put together. Please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me if you have ideas for what to cover.</p>]]></content>
-    <author>
-      <name>Niels Berglund</name>
-
-    </author>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Interesting Stuff - Week 19, 2021]]></title>
-    <link href="https://nielsberglund.com/2021/05/09/interesting-stuff---week-19-2021/" rel="alternate" type="text/html"/>
-    <updated>2021-05-09T07:07:52+02:00</updated>
-    <id>https://nielsberglund.com/2021/05/09/interesting-stuff---week-19-2021/</id>
-    <content type="html"><![CDATA[<p>Throughout the week, I read a lot of blog-posts, articles, and so forth that has to do with things that interest me:</p>
-
-<ul>
-<li>AI/data science</li>
-<li>data in general</li>
-<li>data architecture</li>
-<li>streaming</li>
-<li>distributed computing</li>
-<li>SQL Server</li>
-<li>transactions (both db as well as non db)</li>
-<li>and other &ldquo;stuff&rdquo;</li>
-</ul>
-
-<p>This blog-post is the &ldquo;roundup&rdquo; of the things that have been most interesting to me for the week just ending.</p>
-
-<p></p>
-
-<h2 id="machine-learning">Machine Learning</h2>
-
-<ul>
-<li><a href="https://eng.uber.com/optimal-feature-discovery-ml/">Optimal Feature Discovery: Better, Leaner Machine Learning Models Through Information Theory</a>. This post talks about an approach at Uber called Optimal Feature Discovery. It searches for the most compact set of features out of all available at Uber for a given model, both boosting accuracy and reducing feature count at the same time.<br /></li>
-</ul>
-
-<h2 id="databases">Databases</h2>
-
-<ul>
-<li><a href="https://www.infoq.com/articles/serverless-data-api/">Why a Serverless Data API Might be Your Next Database</a>. This <a href="https://www.infoq.com/">InfoQ</a> article discusses database as a service (DBaaS) and serverless data API for cloud-based data management.</li>
-</ul>
-
-<h2 id="streaming">Streaming</h2>
-
-<ul>
-<li><a href="https://chathura-ekanayake.medium.com/eda-implementation-integration-scenarios-66895923439">EDA implementation — Integration scenarios</a>. The post linked to is a follow up to <a href="https://chathura-ekanayake.medium.com/applying-event-driven-architecture-in-digital-transformation-projects-acbcb27440af">Applying Event-Driven Architecture in Digital Transformation Projects</a>, which discussed a generic architecture for event-driven architecture (EDA) based systems. This post explores implementation approaches for such event-driven systems by focusing on specific products and their interactions.</li>
-<li><a href="https://www.confluent.io/blog/streaming-etl-with-confluent-kafka-message-routing-and-fan-out/">Streaming ETL with Confluent: Routing and Fan-Out of Apache Kafka Messages with ksqlDB</a>. This post looks at how we can use ksqlDB for message routing. I quite liked the post, and I will definitely see if we can implement some of this at <a href="/derivco">Derivco</a>.</li>
-</ul>
 
 <h2 id="finally">~ Finally</h2>
 
