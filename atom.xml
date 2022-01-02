@@ -3,10 +3,307 @@
   <title>Niels Berglund</title>
   <link href="https://nielsberglund.com/atom.xml" rel="self"/>
   <link href="https://nielsberglund.com"/>
-  <updated>2021-12-12T10:37:02+02:00</updated>
+  <updated>2022-01-02T09:48:17+02:00</updated>
   <id>https://nielsberglund.com/</id>
   <generator uri="http://gohugo.io/">Hugo</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Use Kafka Client with Azure Event Hubs]]></title>
+    <link href="https://nielsberglund.com/2022/01/02/how-to-use-kafka-client-with-azure-event-hubs/" rel="alternate" type="text/html"/>
+    <updated>2022-01-02T09:48:17+02:00</updated>
+    <id>https://nielsberglund.com/2022/01/02/how-to-use-kafka-client-with-azure-event-hubs/</id>
+    <content type="html"><![CDATA[<p>This blog post came by, by accident, lol. A couple of weeks ago, I started to prepare for a webinar: <a href="https://www.meetup.com/SQLCape-Meetup/events/282241220/"><strong>Analyze Billions of Rows of Data in Real-Time Using Azure Data Explorer</strong></a>. One of the demos in that webinar is about ingesting data from Apache Kafka into <strong>Azure Data Explorer</strong>. When prepping, I noticed that my Confluent Cloud Kafka cluster didn&rsquo;t exist anymore, so I had to come up with a workaround. That workaround was to use <strong>Azure Event Hubs</strong> instead of Kafka.</p>
+
+<p>Since I already had the code to publish data to Kafka and knew that you could use the Kafka client to publish to Event Hubs, I thought I&rsquo;d test it out. I did run into some minor snags along the way, so I thought I&rsquo;d write a blog post about it. Then, at least, I have something to go back to. This post also looks at how to set up an Event Hubs cluster.</p>
+
+<p></p>
+
+<h2 id="background">Background</h2>
+
+<p>Azure Event Hubs is similar to Apache Kafka in that it is a big data streaming platform and event ingestion service. It is a fully managed Platform-as-a-Service (PaaS) with little configuration or management overhead, very much like Apache Kafka in <strong>Confluent Cloud</strong>. The one difference between Azure Event Hubs and Apache Kafka is that Event Hubs does not have an on-prem solution.</p>
+
+<h4 id="kafka-vs-event-hubs-concepts">Kafka vs Event Hubs Concepts</h4>
+
+<p>Event Hubs and Kafka are pretty similar, as I mentioned above. Let us compare the concepts of the two:</p>
+
+<table>
+<thead>
+<tr>
+<th>Kafka</th>
+<th>Event Hubs</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Cluster</td>
+<td>Namespace</td>
+</tr>
+
+<tr>
+<td>Topic</td>
+<td>EventHub</td>
+</tr>
+
+<tr>
+<td>Partition</td>
+<td>Partition</td>
+</tr>
+
+<tr>
+<td>Consumer Group</td>
+<td>Consumer Group</td>
+</tr>
+
+<tr>
+<td>Offset</td>
+<td>Offset</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 1:</strong> <em>Kafka vs Event Hubs Concepts</em></p>
+
+<p>As we see in <em>Table 1</em>, there is not much difference between Kafka and Event Hubs. The one difference worth noting is the Event Hubs namespace instead of the Kafka cluster.</p>
+
+<h4 id="namespace">Namespace</h4>
+
+<p>An Event Hubs namespace is a dedicated scoping container for event hubs, where an event hub as mentioned above is the equivalent to a Kafka topic. We can see it as a management container for individual event hubs (topics), and it provides a range of access control and network integration management features.</p>
+
+<p>For this post, the important part is that the namespace provides IP endpoints allowing us to publish to the namespace and its individual event hubs (topics).</p>
+
+<h4 id="event-hubs-kafka-endpoint">Event Hubs Kafka Endpoint</h4>
+
+<p>One of the endpoints the namespace provides is an endpoint compatible with the Apache Kafka producer and consumer APIs at version 1.0 and above.</p>
+
+<p>So if your application uses a Kafka client version 1.0+, you can use the Event Hubs Kafka endpoint from your applications without code changes, apart from configuration, compared to your existing Kafka setup.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When I above say you only need to change the configuration, I assume that the Kafka topics have corresponding EventHubs (remember Kafka topic = Event Hubs EventHub).</p>
+</blockquote>
+
+<p>An interesting point here is that it is not only your Kafka applications that can consume from Event Hubs but any application that uses Kafka Client 1.0+, like Kafka Connect connectors!</p>
+
+<h2 id="pre-reqs">Pre-Reqs</h2>
+
+<p>This section is here if you want to follow along. This is what you need:</p>
+
+<ul>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
+<li>Your favourite development language. In this post, I use Python.</li>
+<li>Kafka client for your favourite language as per above. <a href="https://docs.confluent.io/platform/current/clients/index.htm">Here</a> you find a list of clients.</li>
+<li>Application publishing to Kafka. The idea is that you can switch from publishing to Kafka to publish to Event Hubs in this application.</li>
+</ul>
+
+<p>Ensure the client is installed. In Python, I do it using <code>pip</code>, like so:</p>
+
+<pre><code class="language-python">pip install confluent-kafka
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Install the Client</em></p>
+
+<p>After having run the code in <em>Code Snippet 1</em>, or similar code for your language, you are good to go.</p>
+
+<h4 id="kafka-application">Kafka Application</h4>
+
+<p>Above I mentioned about an application publishing to Kafka being optional. Let us here take a look at a very simple example.</p>
+
+<p>In this example, I have an Azure Confluent Cloud cluster looking like so:</p>
+
+<p><img src="/images/posts/evthub-adx-confluent-cloud.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Confluent Cloud Cluster</em></p>
+
+<p>In <em>Figure 1</em>, we see my Confluent Cloud cluster named <code>kafkaeventhubs</code> and how that cluster has one topic - <code>testtopic</code> - with four partitions.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> To see how to run Confluent Cloud in Azure, see my post <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/"><strong>Run Confluent Cloud &amp; Serverless Apache Kafka on Azure</strong></a>.</p>
+</blockquote>
+
+<p>I have a very basic Python application publishing to the <code>testtopic</code> looking like so:</p>
+
+<p><img src="/images/posts/evthub-adx-kafka-app.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Python Publish App</em></p>
+
+<p>As we see in <em>Figure 2</em> the app is not doing anything advanced. It publishes a comma-delimited message containing the random key value, &ldquo;Hello World&rdquo;, and a timestamp.</p>
+
+<p>What is interesting in the code is the configuration string (assigned to the variable <code>conf</code>) in lines 14 - 19, and specifically the following properties:</p>
+
+<ul>
+<li><code>bootstrap.servers</code>: The cluster endpoint.</li>
+<li><code>security.protocol</code>: The protocol used to communicate with brokers. In this case, we use <code>SASL_SSL</code>, which uses SASL for authentication and SSL for encryption.</li>
+<li><code>sasl.mechanism</code>: This indicates how we authenticate. By setting it to <code>PLAIN</code>, we use a &ldquo;simple&rdquo; username/password based authentication mechanism.</li>
+<li><code>sasl.username</code>: The username to use. In Confluent Cloud, we use an API key mechanism, where the <code>username</code> is the API key, and the password is the API key&rsquo;s secret.</li>
+<li><code>sasl.password</code>: As per above, this is the API key&rsquo;s secret.</li>
+</ul>
+
+<p>Why I say these are interesting is these are the ones that are in play if we want to publish to Event Hubs.</p>
+
+<p>Having seen the pre-reqs lets us create a namespace in Event Hubs.</p>
+
+<h2 id="create-event-hubs-namespace">Create Event Hubs Namespace</h2>
+
+<p>There are multiple ways we can create an Event Hubs resource, where the Azure Portal is one of them.</p>
+
+<p>Instead of doing a step-by-step explanation of creating an Event Hubs namespace, I suggest you read the Microsoft article <a href="https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create"><strong>Quickstart: Create an event hub using Azure portal</strong></a>. While you are doing that, I will create an Event Hubs test namespace for this post.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When you create the namespace, you have to ensure you create it under the <em>Standard</em> pricing tier (or higher), as <em>Basic</em> does not support Kafka.</p>
+</blockquote>
+
+<p>We are all back? Cool, I ended up with this:</p>
+
+<p><img src="/images/posts/evthub-adx-topics-1.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Event Hubs Namespace with EventHub</em></p>
+
+<p>As you see in <em>Figure 3</em> I ended up with an Event Hubs namespace called <code>kafkaeventhubs</code> and an Event Hub named <code>testtopic</code>, the same as I have in Confluent Cloud.</p>
+
+<h2 id="event-hubs-security-authentication">Event Hubs Security &amp; Authentication</h2>
+
+<p>So now we have all we need to replace Kafka with Event Hubs - almost. We still need to see how to configure the Event Hubs security and authentication.</p>
+
+<p>When using Event Hubs, all data in transit is TLS encrypted, and we can satisfy that by using <code>SASL_SSL</code>. This is exactly as in the Kafka code. Using <code>SASL_SSL</code> we have basically two options for authentication: OAuth 2.0 or Shared Access Signature (SAS). In this post, I use SAS, which matches what I do using Kafka.</p>
+
+<h4 id="create-shared-access-signature">Create Shared Access Signature</h4>
+
+<p>In Event Hubs, we can create a SAS for either a namespace or an individual EventHub in a namespace. Let us create a SAS for our <code>testtopic</code> Event Hub.</p>
+
+<p>If you click into the <code>testtopic</code> Event Hub we see in <em>Figure 3</em> and look at the left-hand side; you see something like so:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Event Hub Shared Access Policies</em></p>
+
+<p>We see under <em>Settings</em> in <em>Figure 4</em> <em>Shared access policies</em> (outlined in red). When we click on it:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-2.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Shared Access Policies</em></p>
+
+<p>We are being told that we don&rsquo;t have any policies set up, as outlined in yellow in <em>Figure 5</em>. Cool, let us create a policy. We do that by clicking on the <em>+ Add</em> button, which is outlined in red in <em>Figure 5</em>:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-create.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Add Policy</em></p>
+
+<p>By clicking the <em>+ Add</em> button, we get a dialog <em>Add SAS Policy</em> as shown in <em>Figure 6</em>. We give it a name and the claims (what it allows), and then we click the <em>Create</em> button at the bottom of the dialog (not shown in <em>Figure 6</em>):</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-created.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Policy Created</em></p>
+
+<p>In <em>Figure 7</em>, we see the generated policy and the claims. Clicking on the policy, we get yet another dialog:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-policy-keys.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Policy Keys &amp; Connection Strings</em></p>
+
+<p>The policy we created consists of two keys and corresponding connection strings as in <em>Figure 8</em>. The reason for having two is that in a production environment, you may want to cycle and regenerate the keys, so while you regenerate one, you can use the other.</p>
+
+<p>Copy one of the connection strings as that is what we use for the Kafka client configuration:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-policy-connstring.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Connection String</em></p>
+
+<p>In <em>Figure 9</em>, we see one of my connection strings. I have outlined in red the endpoint URL, and this is the one we use for the <code>bootstrap.servers</code> property in the configuration.</p>
+
+<p>Now we should have everything we need to use the Kafka client to publish to the EventHub.</p>
+
+<h2 id="configure-kafka-client">Configure Kafka Client</h2>
+
+<p>Above I listed the configuration properties used when I connect to Confluent Cloud. Let us see what they should be when publishing to Event Hubs:</p>
+
+<h4 id="bootstrap-servers">Bootstrap Servers</h4>
+
+<p>The <code>bootstrap.servers</code> property defines the endpoint(s) where the client connects to. In <em>Figure 9</em>, I outlined the endpoint URL and said it would be used for <code>bootstrap.servers</code>. At the beginning of this post, I mentioned how Event Hubs exposes a Kafka endpoint. It does that on port <code>9093</code>. So:</p>
+
+<pre><code class="language-python">`&quot;bootstrap.servers&quot;: &quot;kafkaeventhubs.servicebus.windows.net:9093&quot;`
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Bootstrap Servers</em></p>
+
+<p>Onto the security and authorization part.</p>
+
+<h4 id="security-protocol-sasl-mechanisms">Security Protocol` &amp; SASL Mechanisms</h4>
+
+<p>As we use Shared Access Signature, We do not need to change <code>security.protocol</code> or <code>sasl.mechanism</code>; we keep them as <code>SASL_SSL</code> and <code>PLAIN</code>, respectively..</p>
+
+<h4 id="username-password">Username &amp; Password</h4>
+
+<p>At the very beginning of this post, I mentioned how I ran into some snags when trying to use the Kafka client to publish to Event Hubs. This is the part that caused me issues.</p>
+
+<p>Reading documentation and blog posts when trying to connect to Event Hubs, I concluded that <code>sasl.password</code> should be set to the whole connection string you get from the SAS policy. OK, that&rsquo;s cool - but what about the user name?</p>
+
+<p>Posts and docs talk about using <code>$ConnectionString</code>, but <code>$ConnectionString</code> looked like a variable to me, and I could not see where it was set. It finally dawned upon me that the user name property should literally be set to <code>$ConnectionString</code> - duh. So:</p>
+
+<pre><code class="language-python">'sasl.username': &quot;$ConnectionString&quot;,
+'sasl.password': &quot;Endpoint= sb://kafkaeventhubs.servicebus.windows.net/; \
+                      SharedAccessKeyName=publishconsumepolicy; \
+                      SharedAccessKey=&lt;secret-key&gt;, 
+                      EntityPath=testtopic&quot;
+
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>User Name &amp; Password</em></p>
+
+<p>In <em>Code Snippet 3</em>, we see how <code>sasl.password</code> is set to the SAS policy&rsquo;s connection string and <code>sasl.username</code> to <code>$ConnectionString</code>.</p>
+
+<p>The complete configuration required to connect to and publish to Event Hubs looks like so:</p>
+
+<pre><code class="language-python">conf = {'bootstrap.servers': 'kafkaeventhubs.servicebus.windows.net:9093',
+         'security.protocol': 'SASL_SSL',
+         'sasl.mechanisms': 'PLAIN',
+         'sasl.username': &quot;$ConnectionString&quot;,
+         'sasl.password': &quot;Endpoint= \
+                      sb://kafkaeventhubs.servicebus.windows.net/; \
+                      SharedAccessKeyName=publishconsumepolicy; \
+                      SharedAccessKey=&lt;secret-key&gt;; \
+                      EntityPath=testtopic&quot;,
+         'client.id': socket.gethostname()}
+
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Event Hubs Configuration</em></p>
+
+<p>You can now replace lines 14 - 19 that we see in <em>Figure 2</em> with what we have in <em>Code Snippet 4</em>, and you are good to go!</p>
+
+<h2 id="publish-to-event-hubs">Publish to Event Hubs</h2>
+
+<p>After editing the <code>conf</code> variable, you can run the application. Let it publish some messages and then check what you see in the overview for the <code>testtopic</code> Event Hub:</p>
+
+<p><img src="/images/posts/evthub-adx-publish.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Publish Events</em></p>
+
+<p>There is no straightforward way to see if messages come into the Event Hub, so we look at the request stats. In <em>Figure 10</em>, we see how events have come into the Event Hub. Yay - it seems like it works!</p>
+
+<p>I said above that there is no straightforward way to see if messages/events arrive into the Event Hub. Well, when we now know how to connect and publish to Event Hubs using the Kafka client, we could easily create a consuming application. However, I leave that up to you.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post, we have seen how to use the Kafka client to connect and publish messages to an Azure Event Hub.</p>
+
+<p>We compared the terminology of Kafka with Event Hubs, and saw that it is more or less the same. The two major differences are:</p>
+
+<ol>
+<li>In Kafka, we talk about clusters, whereas in Event Hubs, we have namespaces.</li>
+<li>A topic in Kafka is called an Event Hub in Event Hubs.</li>
+</ol>
+
+<p>We use port <code>9093</code> on the Event Hubs endpoint to connect the Kafka client. When using <code>SASL_SSL</code> and the <code>PLAIN</code> <code>sasl.mechanism</code>, the user name we use is<code>$ConnectionString</code>, and the password is the entire connection string from the Event Hub&rsquo;s Shared Access Signature policy.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>]]></content>
+    <author>
+      <name>Niels Berglund</name>
+
+    </author>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Interesting Stuff - Week 50, 2021]]></title>
@@ -1905,63 +2202,6 @@ az container show --resource-group  rg-kafka `
 </ul>
 
 <p>Oh, don&rsquo;t forget the register for <a href="https://azurebootcamp.co.za/"><strong>Azure Bootcamp 2021 South Africa</strong></a>. It will be a fantastic event, and I have just submitted some talks to it. Hopefully, one or two will be accepted.</p>
-
-<h2 id="finally">~ Finally</h2>
-
-<p>That&rsquo;s all for this week. I hope you enjoy what I did put together. Please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me if you have ideas for what to cover.</p>]]></content>
-    <author>
-      <name>Niels Berglund</name>
-
-    </author>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Interesting Stuff - Week 33, 2021]]></title>
-    <link href="https://nielsberglund.com/2021/08/15/interesting-stuff---week-33-2021/" rel="alternate" type="text/html"/>
-    <updated>2021-08-15T09:27:43+02:00</updated>
-    <id>https://nielsberglund.com/2021/08/15/interesting-stuff---week-33-2021/</id>
-    <content type="html"><![CDATA[<p>Throughout the week, I read a lot of blog-posts, articles, and so forth that has to do with things that interest me:</p>
-
-<ul>
-<li>AI/data science</li>
-<li>data in general</li>
-<li>data architecture</li>
-<li>streaming</li>
-<li>distributed computing</li>
-<li>SQL Server</li>
-<li>transactions (both db as well as non db)</li>
-<li>and other &ldquo;stuff&rdquo;</li>
-</ul>
-
-<p>This blog-post is the &ldquo;roundup&rdquo; of the things that have been most interesting to me for the week just ending.</p>
-
-<p></p>
-
-<h2 id="big-data">Big Data</h2>
-
-<ul>
-<li><a href="https://eng.uber.com/challenges-opportunities-to-reduce-cost-ubers-big-data/">Challenges and Opportunities to Dramatically Reduce the Cost of Uber&rsquo;s Big Data</a>. I think we all agree that Big Data is good. However, there is no doubt that Big Data incurs costs, especially in large organisations. This post from Uber looks at the top challenges they had when assessing their Big Data Platform&rsquo;s costs and the overall strategy they devised to address them. Very interesting!</li>
-<li><a href="https://eng.uber.com/cost-efficient-big-data-platform/">Cost-Efficient Open Source Big Data Platform at Uber</a>. Another post by Uber. In the previous post, Uber discussed their initiative to reduce costs on their data platform. They looked at three broad pillars: platform efficiency, supply, and demand. In this post, they discuss the efforts to improve the efficiency of the data platform and bring down costs.</li>
-</ul>
-
-<h2 id="streaming">Streaming</h2>
-
-<ul>
-<li><a href="https://engineering.linkedin.com/blog/2021/lambda-learner--nearline-learning-on-data-streams">Lambda Learner: Nearline learning on data streams</a>. In this post, LinkedIn discusses an in-house system called Lambda Learner. Lambda Learner is a library for iterative, incremental training of a class of supervised machine learning models. The discussion is about how the Lambda Learner system allows for near real-time re-training of machine learning models. This is a very interesting post!</li>
-<li><a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/">Run Confluent Cloud &amp; Serverless Apache Kafka on Azure</a>. This is a post by yours truly. As you may know, I have some conferences coming up, and Azure features in quite a few of the talks, together with Apache Kafka. I thought it would be cool if I could run Apache Kafka on Azure and bonus points if I could run it as SaaS, i.e. Confluent Cloud. So in this post, I look at what it takes to deploy Confluent Cloud on Azure.</li>
-</ul>
-
-<h2 id="wind-what-is-niels-doing">WIND (What Is Niels Doing)</h2>
-
-<p>Apart from publishing the blog post mentioned above, I am prepping for the upcoming <a href="https://dataplatformgeeks.com/dps2021/"><strong>2021 Data Platform Summit</strong></a>. Speaking about the <strong>Data Platform Summit</strong>, the organizers have managed to increase the capacity of the virtual platform to 10,000! So, they have opened up <strong>FREE</strong> booking for <strong>LIVE</strong> attendance for a limited time. They have an internal quota, and once that is full, the free booking will close. Hurry up to <a href="https://dataplatformgeeks.com/dps2021/complimentary-registration"><strong>https://dataplatformgeeks.com/dps2021/complimentary-registration</strong></a> to register for <strong>FREE</strong>!</p>
-
-<p>Related to conferences; during the last couple of weeks, I did two webinars, of which one is up on YouTube (I expect the other one to be up soon as well):</p>
-
-<ul>
-<li><a href="https://youtu.be/dmsM_NKjFGs"><strong>Stream Processing with Apache Kafka and .NET</strong></a>. A presentation about Apache Kafka for the .NET developer and some stuff about stream-processing and ksqlDB. Due to a power failure, there is a break and some distortion in this video; sorry about that.</li>
-</ul>
-
-<p>Obviously I&rsquo;ll let you know when the second webinar is up.</p>
 
 <h2 id="finally">~ Finally</h2>
 

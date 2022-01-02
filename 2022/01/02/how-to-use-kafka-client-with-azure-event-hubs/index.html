@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    
+
+    <head>
+    <link href="https://gmpg.org/xfn/11" rel="profile">
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Cache-Control" content="public" />
+<!-- Enable responsiveness on mobile devices -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="generator" content="Hugo 0.46" />
+
+    
+    
+    
+
+<title>How to Use Kafka Client with Azure Event Hubs • Niels Berglund</title>
+<meta name="description" content="nielsb&#39;s blog :: technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more">
+<meta name="keywords" content="sql server, c#, distributed computing, data science, microsoft r server, microsoft machine learning server, data science, sql server r services, sql server machine learning services, kafka, flink">
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="How to Use Kafka Client with Azure Event Hubs"/>
+<meta name="twitter:description" content="We look at how to use a Kafka client to connect to Azure Event hubs"/>
+
+<meta property="og:title" content="How to Use Kafka Client with Azure Event Hubs" />
+<meta property="og:description" content="We look at how to use a Kafka client to connect to Azure Event hubs" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/2022/01/02/how-to-use-kafka-client-with-azure-event-hubs/" />
+
+
+
+<meta property="article:published_time" content="2022-01-02T09:48:17&#43;02:00"/>
+
+<meta property="article:modified_time" content="2022-01-02T09:48:17&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
+
+
+<link rel="stylesheet" href="/css/hyde-hyde.css">
+<link rel="stylesheet" href="/css/print.min.css" media="print">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/apple-touch-icon-144-precomposed.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    
+
+</head>
+
+
+    <body >
+        
+<div class="sidebar">
+  <div class="container">
+    <div class="sidebar-about">
+      <span class="site__title">
+        <a href="">Niels Berglund</a>
+      </span>
+      
+      <p class="site__description">
+         Technology musings about coding and data. Some topics: .NET, SQL Server, Data Science, R, Windows Azure and a lot more. 
+      </p>
+      <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:250px"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="7704601332"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+      <div>
+	<ul class="sidebar-nav">
+		 
+		 
+			 
+				<li>
+					<a href="/">
+						<span>Home</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/posts/">
+						<span>Post Archive</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/series/">
+						<span>Blog Post Series</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/presentations/">
+						<span>Presentations</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/categories/">
+						<span>Categories</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/tags/">
+						<span>Tags</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/about/">
+						<span>About</span>
+					</a>
+				</li>
+			 
+		 
+			 
+				<li>
+					<a href="/disclaimer/">
+						<span>Disclaimer</span>
+					</a>
+				</li>
+			 
+		
+		</li>
+	</ul>
+</div>
+
+    
+      <img src="/images/MVP_Logo_large.png"/>
+
+    </div>
+
+      
+    
+    <p>
+      <section class="social">
+	<h3 style="color:#ffffff">Follow Me:</h3>
+	<a href="http://feeds.feedburner.com/manageddata/"><i class="fas fa-rss"></i></a>
+	
+	&nbsp;<a href="https://twitter.com/nielsberglund"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	&nbsp;<a href="https://github.com/nberglund"><i class="fab fa-github fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+	&nbsp;<a href="https://linkedin.com/in/niels-berglund-0122593"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a>
+	
+	
+	&nbsp;<a href="https://stackoverflow.com/users/7656880"><i class="fab fa-stack-overflow fa-lg" aria-hidden="true"></i></a>
+	
+	
+	
+	
+	
+</section>
+
+    </p>
+    <p class="copyright">
+      &copy; 2022 nielsb.
+      <a href="https://creativecommons.org/licenses/by-sa/4.0">Some Rights Reserved</a>.
+      
+    </p>
+  </div>
+  <div>
+  </div>
+</div>
+
+        <div class="content container">
+            
+    <article>
+  <header>
+    <h1>How to Use Kafka Client with Azure Event Hubs</h1>
+     
+    
+<div class="post__meta">
+    
+    
+      <i class="fas fa-calendar-alt"></i> Jan 2, 2022
+    
+    
+    
+      
+      
+          in
+          
+          
+              <a class="post__category" href="/categories/azure">AZURE</a>
+              •
+          
+              <a class="post__category" href="/categories/event-hubs">EVENT HUBS</a>
+              •
+          
+              <a class="post__category" href="/categories/kafka">KAFKA</a>
+              
+          
+      
+    
+    
+    
+      
+      
+          <br/>
+           <i class="fas fa-tags"></i>
+          
+          <a class="post__tag" href="/tags/kafka">kafka</a>
+           
+      
+          <a class="post__tag" href="/tags/event-hubs">event hubs</a>
+           
+      
+          <a class="post__tag" href="/tags/python">python</a>
+           
+      
+          <a class="post__tag" href="/tags/confluent-cloud">confluent cloud</a>
+          
+      
+    
+    
+    <br/>
+    <i class="fas fa-clock"></i> 10 min read
+</div>
+
+
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="6668073777"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </header>
+  <div class="post">
+    <p>This blog post came by, by accident, lol. A couple of weeks ago, I started to prepare for a webinar: <a href="https://www.meetup.com/SQLCape-Meetup/events/282241220/"><strong>Analyze Billions of Rows of Data in Real-Time Using Azure Data Explorer</strong></a>. One of the demos in that webinar is about ingesting data from Apache Kafka into <strong>Azure Data Explorer</strong>. When prepping, I noticed that my Confluent Cloud Kafka cluster didn&rsquo;t exist anymore, so I had to come up with a workaround. That workaround was to use <strong>Azure Event Hubs</strong> instead of Kafka.</p>
+
+<p>Since I already had the code to publish data to Kafka and knew that you could use the Kafka client to publish to Event Hubs, I thought I&rsquo;d test it out. I did run into some minor snags along the way, so I thought I&rsquo;d write a blog post about it. Then, at least, I have something to go back to. This post also looks at how to set up an Event Hubs cluster.</p>
+
+<p></p>
+
+<h2 id="background">Background</h2>
+
+<p>Azure Event Hubs is similar to Apache Kafka in that it is a big data streaming platform and event ingestion service. It is a fully managed Platform-as-a-Service (PaaS) with little configuration or management overhead, very much like Apache Kafka in <strong>Confluent Cloud</strong>. The one difference between Azure Event Hubs and Apache Kafka is that Event Hubs does not have an on-prem solution.</p>
+
+<h4 id="kafka-vs-event-hubs-concepts">Kafka vs Event Hubs Concepts</h4>
+
+<p>Event Hubs and Kafka are pretty similar, as I mentioned above. Let us compare the concepts of the two:</p>
+
+<table>
+<thead>
+<tr>
+<th>Kafka</th>
+<th>Event Hubs</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Cluster</td>
+<td>Namespace</td>
+</tr>
+
+<tr>
+<td>Topic</td>
+<td>EventHub</td>
+</tr>
+
+<tr>
+<td>Partition</td>
+<td>Partition</td>
+</tr>
+
+<tr>
+<td>Consumer Group</td>
+<td>Consumer Group</td>
+</tr>
+
+<tr>
+<td>Offset</td>
+<td>Offset</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Table 1:</strong> <em>Kafka vs Event Hubs Concepts</em></p>
+
+<p>As we see in <em>Table 1</em>, there is not much difference between Kafka and Event Hubs. The one difference worth noting is the Event Hubs namespace instead of the Kafka cluster.</p>
+
+<h4 id="namespace">Namespace</h4>
+
+<p>An Event Hubs namespace is a dedicated scoping container for event hubs, where an event hub as mentioned above is the equivalent to a Kafka topic. We can see it as a management container for individual event hubs (topics), and it provides a range of access control and network integration management features.</p>
+
+<p>For this post, the important part is that the namespace provides IP endpoints allowing us to publish to the namespace and its individual event hubs (topics).</p>
+
+<h4 id="event-hubs-kafka-endpoint">Event Hubs Kafka Endpoint</h4>
+
+<p>One of the endpoints the namespace provides is an endpoint compatible with the Apache Kafka producer and consumer APIs at version 1.0 and above.</p>
+
+<p>So if your application uses a Kafka client version 1.0+, you can use the Event Hubs Kafka endpoint from your applications without code changes, apart from configuration, compared to your existing Kafka setup.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When I above say you only need to change the configuration, I assume that the Kafka topics have corresponding EventHubs (remember Kafka topic = Event Hubs EventHub).</p>
+</blockquote>
+
+<p>An interesting point here is that it is not only your Kafka applications that can consume from Event Hubs but any application that uses Kafka Client 1.0+, like Kafka Connect connectors!</p>
+
+<h2 id="pre-reqs">Pre-Reqs</h2>
+
+<p>This section is here if you want to follow along. This is what you need:</p>
+
+<ul>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
+<li>Your favourite development language. In this post, I use Python.</li>
+<li>Kafka client for your favourite language as per above. <a href="https://docs.confluent.io/platform/current/clients/index.htm">Here</a> you find a list of clients.</li>
+<li>Application publishing to Kafka. The idea is that you can switch from publishing to Kafka to publish to Event Hubs in this application.</li>
+</ul>
+
+<p>Ensure the client is installed. In Python, I do it using <code>pip</code>, like so:</p>
+
+<pre><code class="language-python">pip install confluent-kafka
+</code></pre>
+
+<p><strong>Code Snippet 1:</strong> <em>Install the Client</em></p>
+
+<p>After having run the code in <em>Code Snippet 1</em>, or similar code for your language, you are good to go.</p>
+
+<h4 id="kafka-application">Kafka Application</h4>
+
+<p>Above I mentioned about an application publishing to Kafka being optional. Let us here take a look at a very simple example.</p>
+
+<p>In this example, I have an Azure Confluent Cloud cluster looking like so:</p>
+
+<p><img src="/images/posts/evthub-adx-confluent-cloud.png" alt="" /></p>
+
+<p><strong>Figure 1:</strong> <em>Confluent Cloud Cluster</em></p>
+
+<p>In <em>Figure 1</em>, we see my Confluent Cloud cluster named <code>kafkaeventhubs</code> and how that cluster has one topic - <code>testtopic</code> - with four partitions.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> To see how to run Confluent Cloud in Azure, see my post <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/"><strong>Run Confluent Cloud &amp; Serverless Apache Kafka on Azure</strong></a>.</p>
+</blockquote>
+
+<p>I have a very basic Python application publishing to the <code>testtopic</code> looking like so:</p>
+
+<p><img src="/images/posts/evthub-adx-kafka-app.png" alt="" /></p>
+
+<p><strong>Figure 2:</strong> <em>Python Publish App</em></p>
+
+<p>As we see in <em>Figure 2</em> the app is not doing anything advanced. It publishes a comma-delimited message containing the random key value, &ldquo;Hello World&rdquo;, and a timestamp.</p>
+
+<p>What is interesting in the code is the configuration string (assigned to the variable <code>conf</code>) in lines 14 - 19, and specifically the following properties:</p>
+
+<ul>
+<li><code>bootstrap.servers</code>: The cluster endpoint.</li>
+<li><code>security.protocol</code>: The protocol used to communicate with brokers. In this case, we use <code>SASL_SSL</code>, which uses SASL for authentication and SSL for encryption.</li>
+<li><code>sasl.mechanism</code>: This indicates how we authenticate. By setting it to <code>PLAIN</code>, we use a &ldquo;simple&rdquo; username/password based authentication mechanism.</li>
+<li><code>sasl.username</code>: The username to use. In Confluent Cloud, we use an API key mechanism, where the <code>username</code> is the API key, and the password is the API key&rsquo;s secret.</li>
+<li><code>sasl.password</code>: As per above, this is the API key&rsquo;s secret.</li>
+</ul>
+
+<p>Why I say these are interesting is these are the ones that are in play if we want to publish to Event Hubs.</p>
+
+<p>Having seen the pre-reqs lets us create a namespace in Event Hubs.</p>
+
+<h2 id="create-event-hubs-namespace">Create Event Hubs Namespace</h2>
+
+<p>There are multiple ways we can create an Event Hubs resource, where the Azure Portal is one of them.</p>
+
+<p>Instead of doing a step-by-step explanation of creating an Event Hubs namespace, I suggest you read the Microsoft article <a href="https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create"><strong>Quickstart: Create an event hub using Azure portal</strong></a>. While you are doing that, I will create an Event Hubs test namespace for this post.</p>
+
+<blockquote>
+<p><strong>NOTE:</strong> When you create the namespace, you have to ensure you create it under the <em>Standard</em> pricing tier (or higher), as <em>Basic</em> does not support Kafka.</p>
+</blockquote>
+
+<p>We are all back? Cool, I ended up with this:</p>
+
+<p><img src="/images/posts/evthub-adx-topics-1.png" alt="" /></p>
+
+<p><strong>Figure 3:</strong> <em>Event Hubs Namespace with EventHub</em></p>
+
+<p>As you see in <em>Figure 3</em> I ended up with an Event Hubs namespace called <code>kafkaeventhubs</code> and an Event Hub named <code>testtopic</code>, the same as I have in Confluent Cloud.</p>
+
+<h2 id="event-hubs-security-authentication">Event Hubs Security &amp; Authentication</h2>
+
+<p>So now we have all we need to replace Kafka with Event Hubs - almost. We still need to see how to configure the Event Hubs security and authentication.</p>
+
+<p>When using Event Hubs, all data in transit is TLS encrypted, and we can satisfy that by using <code>SASL_SSL</code>. This is exactly as in the Kafka code. Using <code>SASL_SSL</code> we have basically two options for authentication: OAuth 2.0 or Shared Access Signature (SAS). In this post, I use SAS, which matches what I do using Kafka.</p>
+
+<h4 id="create-shared-access-signature">Create Shared Access Signature</h4>
+
+<p>In Event Hubs, we can create a SAS for either a namespace or an individual EventHub in a namespace. Let us create a SAS for our <code>testtopic</code> Event Hub.</p>
+
+<p>If you click into the <code>testtopic</code> Event Hub we see in <em>Figure 3</em> and look at the left-hand side; you see something like so:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas.png" alt="" /></p>
+
+<p><strong>Figure 4:</strong> <em>Event Hub Shared Access Policies</em></p>
+
+<p>We see under <em>Settings</em> in <em>Figure 4</em> <em>Shared access policies</em> (outlined in red). When we click on it:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-2.png" alt="" /></p>
+
+<p><strong>Figure 5:</strong> <em>Shared Access Policies</em></p>
+
+<p>We are being told that we don&rsquo;t have any policies set up, as outlined in yellow in <em>Figure 5</em>. Cool, let us create a policy. We do that by clicking on the <em>+ Add</em> button, which is outlined in red in <em>Figure 5</em>:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-create.png" alt="" /></p>
+
+<p><strong>Figure 6:</strong> <em>Add Policy</em></p>
+
+<p>By clicking the <em>+ Add</em> button, we get a dialog <em>Add SAS Policy</em> as shown in <em>Figure 6</em>. We give it a name and the claims (what it allows), and then we click the <em>Create</em> button at the bottom of the dialog (not shown in <em>Figure 6</em>):</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-created.png" alt="" /></p>
+
+<p><strong>Figure 7:</strong> <em>Policy Created</em></p>
+
+<p>In <em>Figure 7</em>, we see the generated policy and the claims. Clicking on the policy, we get yet another dialog:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-policy-keys.png" alt="" /></p>
+
+<p><strong>Figure 8:</strong> <em>Policy Keys &amp; Connection Strings</em></p>
+
+<p>The policy we created consists of two keys and corresponding connection strings as in <em>Figure 8</em>. The reason for having two is that in a production environment, you may want to cycle and regenerate the keys, so while you regenerate one, you can use the other.</p>
+
+<p>Copy one of the connection strings as that is what we use for the Kafka client configuration:</p>
+
+<p><img src="/images/posts/evthub-adx-topic-sas-policy-connstring.png" alt="" /></p>
+
+<p><strong>Figure 9:</strong> <em>Connection String</em></p>
+
+<p>In <em>Figure 9</em>, we see one of my connection strings. I have outlined in red the endpoint URL, and this is the one we use for the <code>bootstrap.servers</code> property in the configuration.</p>
+
+<p>Now we should have everything we need to use the Kafka client to publish to the EventHub.</p>
+
+<h2 id="configure-kafka-client">Configure Kafka Client</h2>
+
+<p>Above I listed the configuration properties used when I connect to Confluent Cloud. Let us see what they should be when publishing to Event Hubs:</p>
+
+<h4 id="bootstrap-servers">Bootstrap Servers</h4>
+
+<p>The <code>bootstrap.servers</code> property defines the endpoint(s) where the client connects to. In <em>Figure 9</em>, I outlined the endpoint URL and said it would be used for <code>bootstrap.servers</code>. At the beginning of this post, I mentioned how Event Hubs exposes a Kafka endpoint. It does that on port <code>9093</code>. So:</p>
+
+<pre><code class="language-python">`&quot;bootstrap.servers&quot;: &quot;kafkaeventhubs.servicebus.windows.net:9093&quot;`
+</code></pre>
+
+<p><strong>Code Snippet 2:</strong> <em>Bootstrap Servers</em></p>
+
+<p>Onto the security and authorization part.</p>
+
+<h4 id="security-protocol-sasl-mechanisms">Security Protocol` &amp; SASL Mechanisms</h4>
+
+<p>As we use Shared Access Signature, We do not need to change <code>security.protocol</code> or <code>sasl.mechanism</code>; we keep them as <code>SASL_SSL</code> and <code>PLAIN</code>, respectively..</p>
+
+<h4 id="username-password">Username &amp; Password</h4>
+
+<p>At the very beginning of this post, I mentioned how I ran into some snags when trying to use the Kafka client to publish to Event Hubs. This is the part that caused me issues.</p>
+
+<p>Reading documentation and blog posts when trying to connect to Event Hubs, I concluded that <code>sasl.password</code> should be set to the whole connection string you get from the SAS policy. OK, that&rsquo;s cool - but what about the user name?</p>
+
+<p>Posts and docs talk about using <code>$ConnectionString</code>, but <code>$ConnectionString</code> looked like a variable to me, and I could not see where it was set. It finally dawned upon me that the user name property should literally be set to <code>$ConnectionString</code> - duh. So:</p>
+
+<pre><code class="language-python">'sasl.username': &quot;$ConnectionString&quot;,
+'sasl.password': &quot;Endpoint= sb://kafkaeventhubs.servicebus.windows.net/; \
+                      SharedAccessKeyName=publishconsumepolicy; \
+                      SharedAccessKey=&lt;secret-key&gt;, 
+                      EntityPath=testtopic&quot;
+
+</code></pre>
+
+<p><strong>Code Snippet 3:</strong> <em>User Name &amp; Password</em></p>
+
+<p>In <em>Code Snippet 3</em>, we see how <code>sasl.password</code> is set to the SAS policy&rsquo;s connection string and <code>sasl.username</code> to <code>$ConnectionString</code>.</p>
+
+<p>The complete configuration required to connect to and publish to Event Hubs looks like so:</p>
+
+<pre><code class="language-python">conf = {'bootstrap.servers': 'kafkaeventhubs.servicebus.windows.net:9093',
+         'security.protocol': 'SASL_SSL',
+         'sasl.mechanisms': 'PLAIN',
+         'sasl.username': &quot;$ConnectionString&quot;,
+         'sasl.password': &quot;Endpoint= \
+                      sb://kafkaeventhubs.servicebus.windows.net/; \
+                      SharedAccessKeyName=publishconsumepolicy; \
+                      SharedAccessKey=&lt;secret-key&gt;; \
+                      EntityPath=testtopic&quot;,
+         'client.id': socket.gethostname()}
+
+</code></pre>
+
+<p><strong>Code Snippet 4:</strong> <em>Event Hubs Configuration</em></p>
+
+<p>You can now replace lines 14 - 19 that we see in <em>Figure 2</em> with what we have in <em>Code Snippet 4</em>, and you are good to go!</p>
+
+<h2 id="publish-to-event-hubs">Publish to Event Hubs</h2>
+
+<p>After editing the <code>conf</code> variable, you can run the application. Let it publish some messages and then check what you see in the overview for the <code>testtopic</code> Event Hub:</p>
+
+<p><img src="/images/posts/evthub-adx-publish.png" alt="" /></p>
+
+<p><strong>Figure 10:</strong> <em>Publish Events</em></p>
+
+<p>There is no straightforward way to see if messages come into the Event Hub, so we look at the request stats. In <em>Figure 10</em>, we see how events have come into the Event Hub. Yay - it seems like it works!</p>
+
+<p>I said above that there is no straightforward way to see if messages/events arrive into the Event Hub. Well, when we now know how to connect and publish to Event Hubs using the Kafka client, we could easily create a consuming application. However, I leave that up to you.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>In this post, we have seen how to use the Kafka client to connect and publish messages to an Azure Event Hub.</p>
+
+<p>We compared the terminology of Kafka with Event Hubs, and saw that it is more or less the same. The two major differences are:</p>
+
+<ol>
+<li>In Kafka, we talk about clusters, whereas in Event Hubs, we have namespaces.</li>
+<li>A topic in Kafka is called an Event Hub in Event Hubs.</li>
+</ol>
+
+<p>We use port <code>9093</code> on the Event Hubs endpoint to connect the Kafka client. When using <code>SASL_SSL</code> and the <code>PLAIN</code> <code>sasl.mechanism</code>, the user name we use is<code>$ConnectionString</code>, and the password is the entire connection string from the Event Hub&rsquo;s Shared Access Signature policy.</p>
+
+<h2 id="finally">~ Finally</h2>
+
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+    <br/>
+    
+<h2>Blog Feed:</h2>
+To automatically receive more posts like this, please
+<a href="http://feeds.feedburner.com/manageddata/" target="_blank"> subscribe to my RSS/Atom feed</a> in your feed reader!</p>
+
+
+
+  </div>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3005153158271538"
+     data-ad-slot="1158080725"
+     data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  
+
+<div class="post--navigation post--navigation-single">
+    
+    <a href="/2021/12/12/interesting-stuff---week-50-2021/" class="post--navigation-prev">
+      <i aria-hidden="true" class="fa fa-chevron-left"></i>
+      <span class="navigation-tittle">Interesting Stuff - Week 50, 2021</span>
+    </a>
+    
+    
+</div>
+
+
+  
+
+
+<div class="post__related">
+    
+    <h2>Related Articles</h2>
+    <ul class="related-posts">
+        
+<li>
+  <span class="list__title--small">
+    <a href="/2021/09/06/run-self-managed-kusto-kafka-connector-serverless-in-azure-container-instances/">Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</a>
+      
+      <time class="pull-right hidden-tablet">Sep 06 &#39;21</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2021/08/15/interesting-stuff---week-33-2021/">Interesting Stuff - Week 33, 2021</a>
+      
+      <time class="pull-right hidden-tablet">Aug 15 &#39;21</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2021/08/14/run-confluent-cloud--serverless-apache-kafka-on-azure/">Run Confluent Cloud &amp; Serverless Apache Kafka on Azure</a>
+      
+      <time class="pull-right hidden-tablet">Aug 14 &#39;21</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2021/08/01/interesting-stuff---week-31-2021/">Interesting Stuff - Week 31, 2021</a>
+      
+      <time class="pull-right hidden-tablet">Aug 01 &#39;21</time>
+      
+  </span>
+</li>
+
+<li>
+  <span class="list__title--small">
+    <a href="/2020/08/09/interesting-stuff---week-32-2020/">Interesting Stuff - Week 32, 2020</a>
+      
+      <time class="pull-right hidden-tablet">Aug 09 &#39;20</time>
+      
+  </span>
+</li>
+
+    </ul>
+</div>
+
+
+
+  
+    
+        <div id="disqus_thread"></div>
+<script type="text/javascript">
+    
+
+    (function () {
+    if (location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "") {
+      return;
+    }
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    var disqus_shortname = 'manageddata';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || 
+      document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+<noscript>
+  Please enable JavaScript to view the
+  <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by
+  <span class="logo-disqus">Disqus</span>
+</a>
+
+    
+
+
+</article>
+
+
+        </div>
+        
+    
+  
+  
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+<script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"
+  integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy"
+  crossorigin="anonymous">
+</script>
+
+
+<script src="/js/highlight.pack.js"></script>
+
+<script type="text/javascript">
+    hljs.configure({languages: []});
+    hljs.initHighlightingOnLoad();
+</script>
+
+
+
+    
+
+
+
+    </body>
+</html>
