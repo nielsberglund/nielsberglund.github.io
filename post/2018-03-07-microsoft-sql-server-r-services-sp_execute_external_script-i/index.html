@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - sp_execute_external_script - I" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - sp_execute_external_script - I" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - sp_execute_external_script - I" />
+    
+
+    
+    <meta name="description" content="A lowdown of sp_execute_external_script and its different parameters, using Process Monitor and WireShark">
+    <meta property="og:description" content="A lowdown of sp_execute_external_script and its different parameters, using Process Monitor and WireShark" />
+    <meta property="twitter:description" content="A lowdown of sp_execute_external_script and its different parameters, using Process Monitor and WireShark" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - sp_execute_external_script - I | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                        <a class="tag" href="/tags/wireshark" title="WireShark">
+                            WireShark
+                        </a>
+                        
+                        <a class="tag" href="/tags/sp_execute_external_script" title="sp_execute_external_script">
+                            sp_execute_external_script
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - sp_execute_external_script - I</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Wednesday, March 7, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 22:nd post in a series about <strong>Microsoft SQL Server R Services</strong>. This journey started about a year ago when I thought it would be a good idea to write a couple of blog posts about, what then went under the name of, Microsoft SQL Server 2016 R Services. Never in my wildest fantasies did I think I would write over 20 posts.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Since the introduction of Microsoft SQL Server R Services, it has been renamed to <strong>Microsoft SQL Server Machine Learning Services</strong>.</p>
+</blockquote>
+<p>To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>This series began with a discussion about how to install Microsoft SQL Server R Services and continued with the internals of how it works internally in SQL Server and the launchpad service. Throughout the series, we have used <code>sp_execute_external_script</code> when investigating what goes on. So, I thought that having a couple of posts looking at <code>sp_execute_external_script</code> would be a good way to finish this series off, and this post is the first of three about <code>sp_execute_external_script</code>.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code and the tools we use today. This section is here for those of who want to follow along in what we are doing in the post.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we use <em>Process Monitor</em>, and <em>WireShark</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>The code below sets up the database and creates some tables with some data. The data is based on the <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set"><em>Iris</em></a> dataset:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">59
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">60
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">61
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">62
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">IrisTestDb</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">IrisTestDb</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">IrisTestDb</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_full</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_full</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">SepalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">SepalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">PetalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PetalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">Species</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">100</span>) <span style="color:#859900">null</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_even</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_even</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">SepalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">SepalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">PetalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PetalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">Species</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">100</span>) <span style="color:#859900">null</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_uneven</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_uneven</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">SepalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">SepalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">PetalLength</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PetalWidth</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">Species</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">100</span>) <span style="color:#859900">null</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_full</span>( <span style="color:#268bd2">SepalLength</span>, <span style="color:#268bd2">SepalWidth</span>, 
+</span></span><span style="display:flex;"><span>                                  <span style="color:#268bd2">PetalLength</span>, <span style="color:#268bd2">PetalWidth</span>, <span style="color:#268bd2">Species</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>  , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;iris_data &lt;- iris;&#39;</span>
+</span></span><span style="display:flex;"><span>  , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;&#39;</span>
+</span></span><span style="display:flex;"><span>  , @<span style="color:#268bd2">output_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;iris_data&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--split up the Iris data
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_even</span>( <span style="color:#268bd2">SepalLength</span>, <span style="color:#268bd2">SepalWidth</span>, 
+</span></span><span style="display:flex;"><span>                                  <span style="color:#268bd2">PetalLength</span>, <span style="color:#268bd2">PetalWidth</span>, <span style="color:#268bd2">Species</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">SepalLength</span>, <span style="color:#268bd2">SepalWidth</span>, <span style="color:#268bd2">PetalLength</span>, <span style="color:#268bd2">PetalWidth</span>, <span style="color:#268bd2">Species</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_full</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowID</span> % <span style="color:#2aa198;font-weight:bold">2</span> = <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_uneven</span>( <span style="color:#268bd2">SepalLength</span>, <span style="color:#268bd2">SepalWidth</span>, 
+</span></span><span style="display:flex;"><span>                                    <span style="color:#268bd2">PetalLength</span>, <span style="color:#268bd2">PetalWidth</span>, <span style="color:#268bd2">Species</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">SepalLength</span>, <span style="color:#268bd2">SepalWidth</span>, <span style="color:#268bd2">PetalLength</span>, <span style="color:#268bd2">PetalWidth</span>, <span style="color:#268bd2">Species</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_irisdata_full</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowID</span> % <span style="color:#2aa198;font-weight:bold">2</span> = <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">/*
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">SELECT * FROM dbo.tb_irisdata_full
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">SELECT * FROM dbo.tb_irisdata_even
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">SELECT * FROM dbo.tb_irisdata_uneven
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">*/</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Creating Database Objects and Generating Data</em></p>
+<p>The code in <em>Code Snippet 1</em> should be fairly self explanatory. The reason why we split up the full Iris dataset is to later on in this post handle multiple datasets.</p>
+<h2 id="sp_execute_external_script">sp_execute_external_script</h2>
+<p>The first thing to do is to remind ourselves why we need <code>sp_execute_external_script</code> at all? Well, as opposed to SQLCLR, the external script engine is not embedded in SQL Server, but sits outside of SQL Server and runs in its own process - it is, (wait for it&hellip;), external :). So, if the external engine runs outside of SQL Server there needs to be a bridge between SQL and the engine - and <code>sp_execute_external_script</code> is that bridge.</p>
+<p>In most of the blog posts in this series we have used <code>sp_execute_external_script</code> something like so (or with variants thereof):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>  @<span style="color:#859900">language</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>, 
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">script</span>=<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet&lt;-InputDataSet&#39;</span>, 
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">input_data_1</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 42&#39;</span> 
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> (([<span style="color:#268bd2">TheAnswer</span>] <span style="color:#cb4b16">int</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>));  
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Use of sp_execute_external_script</em></p>
+<p>When we compare <em>Code Snippet 2</em> with what the full signature of <code>sp_execute_external_script</code>, as in <em>Code Snippet 3</em>, we see that we have used <code>sp_execute_external_script</code> in a somewhat simplistic way:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>             @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;language&#39;</span>, 
+</span></span><span style="display:flex;"><span>             @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;script&#39;</span>, 
+</span></span><span style="display:flex;"><span>             [ @<span style="color:#268bd2">input_data_1</span> = ] <span style="color:#2aa198">&#39;input_data_1&#39;</span> 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">input_data_1_name</span> = ] <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;input_data_1_name&#39;</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">output_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;output_data_1_name&#39;</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">parallel</span> = <span style="color:#2aa198;font-weight:bold">0</span> | <span style="color:#2aa198;font-weight:bold">1</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">params</span> = ] <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@parameter_name data_type [ OUT | OUTPUT ] [ ,...n ]&#39;</span> 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">parameter1</span> = ] <span style="color:#2aa198">&#39;value1&#39;</span> [ <span style="color:#859900">OUT</span> | <span style="color:#859900">OUTPUT</span> ] [ ,...<span style="color:#268bd2">n</span> ] 
+</span></span><span style="display:flex;"><span>[ <span style="color:#859900">WITH</span> &lt;<span style="color:#268bd2">execute_option</span>&gt; ] 
+</span></span><span style="display:flex;"><span>[;] 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Full Signature of sp_execute_external_script</em></p>
+<p>In a majority of the blog posts, the only parameters used are: <code>@language</code>, <code>@script</code> and sometimes <code>@input_data_1</code>, but as we see in <em>Code Snippet 3</em>, there are more:</p>
+<ul>
+<li><code>@language</code></li>
+<li><code>@script</code></li>
+<li><code>@input_data_1</code></li>
+<li><code>@input_data_1_name</code></li>
+<li><code>@output_data_1_name</code></li>
+<li><code>@parallel</code></li>
+<li><code>@params</code></li>
+<li><code>@parameter1</code></li>
+</ul>
+<p>So, what are these parameters intended use? Let us find out.</p>
+<h2 id="language"><code>@language</code></h2>
+<p>By now we should know what the <code>@language</code> parameter is for. It is to tell the launchpad service which launcher dll to initialise, which in turn targets the correct external engine. At the time of writing, there are two external engines which we can use; R and Python, and I would expect Microsoft to add other engines over time. From my side, I would love to see being able to call into .NET - outside of the SQL Engine.</p>
+<p>
+  <img src="/images/posts/sql_r_services_ect_script1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>External Script and Language</em></p>
+<p><em>Figure 1</em> illustrates how the launchpad service chooses which launcher dll to launch based on the <code>@language</code> parameter.</p>
+<blockquote>
+<p><strong>NOTE:</strong> <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Microsoft SQL Server R Services - Internals II</a> covers more about the launchpad service and different types of launchers.</p>
+</blockquote>
+<p>The <code>@language</code> parameter is a required parameter.</p>
+<h2 id="script"><code>@script</code></h2>
+<p>The <code>@script</code> parameter defines the code the external engine executes, and is a required parameter:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>                  @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    iris_dataset &lt;- iris
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    setosa &lt;- iris[iris$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    meanSepWidth &lt;- mean(setosa$Sepal.Width)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Example of @script Parameter</em></p>
+<p>In <em>Code Snippet 4</em> we use the <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set"><em>Iris</em></a> dataset, and we calculate the mean of the <a href="https://en.wikipedia.org/wiki/Sepal">sepal</a> width for the setosa species. We pass the script as a literal in the <code>@script</code> parameter. Passing the script as a literal is quite common, and you can see it in most examples of <code>sp_execute_external_script</code>. It is however not required to pass the script as a literal; it can be passed as a variable as well as loaded from a source file. Code snippets 5 and 7 show examples of this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">scriptParam</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) =  
+</span></span><span style="display:flex;"><span>                    <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;iris_dataset &lt;- iris
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    setosa &lt;- iris[iris$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    meanSepWidth &lt;- mean(setosa$Sepal.Width)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>                      @<span style="color:#268bd2">script</span> = @<span style="color:#268bd2">scriptParam</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Script Passed in via a Variable</em></p>
+<p>So, in <em>Code Snippet 5</em> we see how the script is passed in as a variable (<code>@scriptParam</code>). A use case for this can be that you have scripts stored in a table in a database, and when you want to execute the script you load the particular script into a variable.</p>
+<p>Onto loading a script via a source file; let us assume we have an R source file named <code>iris_r.r</code> with code like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">iris_dataset</span> &lt;- <span style="color:#268bd2">iris</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">setosa</span> &lt;- <span style="color:#268bd2">iris[iris</span>$<span style="color:#268bd2">Species</span> == <span style="color:#2aa198">&#34;setosa&#34;</span>,<span style="color:#268bd2">]</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">meanSepWidth</span> &lt;- <span style="color:#268bd2">mean</span>(<span style="color:#268bd2">setosa</span>$<span style="color:#268bd2">Sepal.Width</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">cat</span>(<span style="color:#268bd2">paste</span>(<span style="color:#2aa198">&#34;Seposa sepal mean width: &#34;</span>, <span style="color:#268bd2">meanSepWidth</span>))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>R Source File Content</em></p>
+<p>The file is at: <code>c:\rscripts</code>. The way to execute <code>sp_execute_external_script</code> based on this looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>                      @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;source(&#34;c:/rscripts/iris_r.r&#34;)&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Script Passed in Through Source File</em></p>
+<p>We see in <em>Code Snippet 7</em> how we use the R command <code>source</code> to load the source code. The <code>source</code> command causes R to accept its input from the named file. Input is read and parsed from that file until the end of the file is reached, then the parsed expressions are evaluated sequentially in the chosen environment. When you use the <code>source</code> command, like in <em>Code Snippet 7</em>, the file path needs to be accessible by the external engine.</p>
+<p>You may note how, in <em>Code Snippet 7</em>, the file path is defined like you would do in Linux: <code>c:/rscripts/iris_r.r</code>. To do it this way is not required, you can use Windows path definitions, but you have to escape the <code>\</code>, like this: <code>c:\\rscripts\\iris_r.r</code>.</p>
+<p>Oh, something to keep in mind is that the values for <code>@language</code>, <code>@script</code>, <code>@input_data_1</code>, <code>@input_data_1_name</code>, <code>@output_data_1_name</code> and <code>@params</code> all have to be explicit <code>nvarchar</code>. What I mean with that is when you assign a value to the particular parameter, it has to be <code>DECLARE</code>:ed as an <code>nvarchar</code>. An example of this is <em>Code Snippet 5</em> and the <code>@scriptParam</code> parameter. If the parameter value is not <code>DECLARE</code>:ed as an <code>nvarchar</code>, it has to prepended with <code>N</code> as we see for example in <em>Code Snippet 7</em>: <code>@language = N'R'</code> and <code>@script = N'source(&quot;c:/rscripts/iris_r.r&quot;)</code>. If you do not <code>DECLARE</code> or prepend with <code>N</code> you get an error like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_nvarchar_error.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Error non nvarchar Parameter Value</em></p>
+<p>One final thing about the <code>@script</code> parameter. Remember how we, back in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, discussed how SQL Server sends the actual script to the SqlSatellite via a socket connection? When we supply the script through a file name, the data sent is: <code>source(&quot;c:/rscripts/iris_r.r&quot;)</code>. It may be obvious, but I thought I would mention it regardless.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Later on in this post we talk some more about what SQL Server sends to the SqlSatellite.</p>
+</blockquote>
+<h2 id="input_data_1"><code>@input_data_1</code></h2>
+<p>The <code>@input_data_1</code> parameter, which is optional, specifies the input data used by the external script. You can only use a T-SQL <code>SELECT</code> statement to generate the data; so no stored procedure calls, but <code>SELECT</code> against views or table-valued functions work fine:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>            @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Using @input_data_1 with straight SELECT</em></p>
+<p>In <em>Code Snippet 8</em> wee set how the <code>@input_data_1</code> parameter contains a <code>SELECT</code> statement against the <code>dbo.tb_irisdata_full</code> table, and the statement executes during the <code>sp_execute_external_script</code> execution (in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we discussed when the statement was executed). The dataset generated by the query is referred to in the script as <code>InputDataSet</code>, and we discuss the naming later in this post. The <code>SELECT</code> does not have to be against a table, it can be, as I mentioned above, against a view or a user-defined function as well.</p>
+<p>So this is straight-forward so far, but what about if you need multiple datasets loaded into the external engine? My first thought when I saw <code>sp_execute_external_script</code> and the <code>@input_data_1</code> parameter, was that if there is an <code>@input_data_1</code> parameter, then there surely must be <code>@input_data_2</code>, <code>@input_data_n</code> parameters as well. Well, there are not, bummer, so what do we do?</p>
+<p>A thought would be to try and execute multiple statements from the same parameter and then in the script, parse out the different datasets, something like this: `@input_data_1 = N&rsquo;SELECT * FROM dbo.tb_irisdata_even; SELECT * FROM dbo.tb_irisdata_uneven&rsquo;. Good suggestion but no cigar, because when you try - this happens:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_multi_error.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Multi Statement Error</em></p>
+<p>The error we see in <em>Figure 3</em> is not very descriptive, but what it means is that you cannot have multiple <code>SELECT</code> statements generating <strong>multiple</strong> datasets. What you can do however is to use <code>UNION</code> or <code>UNION ALL</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>            @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_even UNION ALL 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              SELECT * FROM dbo.tb_irisdata_uneven&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>SELECT with UNION ALL</em></p>
+<p>The code in <em>Code Snippet 9</em> uses the <code>UNION ALL</code> to combine the results of two or more queries into a single dataset. However, as useful as that is, sometimes that does not work: what if the two queries do not contain the same data types, or if you need two (or more) individual data-sets? In that case, the solution is to retrieve data from inside the script (in addition to the input data from <code>@input_data_1</code>).</p>
+<p>To retrieve data from within the external script, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package) or the highly optimized Microsoft <a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler"><strong><code>RevoScaleR</code></strong></a> package. In the following example I use <code>RevoScaleR</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>        @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>        @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # set up connection string       
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          sqlConnString &lt;- &#34;Driver=SQL Server;server=win10-dev;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                            database=IrisTestDb;uid=&lt;some_uid&gt;;pwd=&lt;some_pwd&gt;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # define the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          mydata &lt;- RxSqlServerData(table = NULL, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    sqlQuery = &#34;SELECT * 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    FROM dbo.tb_irisdata_uneven&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    connectionString = sqlConnString)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # open the dataset
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          rxOpen(mydata)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # read the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_uneven &lt;- rxReadNext(mydata)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          versicolor &lt;- iris_uneven[iris_uneven$Species == &#34;versicolor&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidthVersi &lt;- mean(versicolor$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # get the data from the input data set
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # output the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          cat(paste(&#34;Seposa sepal mean width:&#34;, meanSepWidth, &#34;.&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                     &#34;Versicolor sepal mean width:&#34;, meanSepWidthVersi))&#39;</span>,
+</span></span><span style="display:flex;"><span>        @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_even&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Multiple Data Sets using RevoScaleR</em></p>
+<p>The code in <em>Code Snippet 10</em> shows how we read in data within the script by the use of <code>RevoScaleR</code> functionality together with the data from the <code>@input_data_1</code> parameter, and how we subsequently calculate <code>mean</code> on the two data-sets.</p>
+<p>Cool, we have now seen how we pass data into the external script via the <code>@input_data_1</code> parameter, and how multiple data-sets can be used by querying data from inside the script. What about returning data to the caller, you know - like we quite often do from stored procedures?</p>
+<h2 id="input_data_1_name--output_data_1_name"><code>@input_data_1_name</code> &amp; <code>@output_data_1_name</code></h2>
+<p>You may now wonder what this section has to do with returning data to the caller? Don&rsquo;t worry; we get there soon!</p>
+<p>So, there are some parameters in <code>sp_execute_external_script</code> that we have not used yet, and <code>@input_data_1_name</code> and <code>@output_data_1_name</code>, which both are optional, are two of them.</p>
+<h4 id="input_data_1_name"><code>@input_data_1_name</code></h4>
+<p>We use this parameter to explicitly name the variable in the script that contains the data we pass into the external engine. But, hang on, we have not used the <code>@input_data_1_name</code> parameter in the various examples in this post where we pass data to the engine, and it still works? Ah, look in code snippets 8, 9 and 10, and you see a line of code: <code>iris_dataset &lt;- InputDataSet</code>. Here <code>InputDataSet</code> defines the input data, and it so happens that the default value of <code>@input_data_1_name</code> is <code>InputDataSet</code>.</p>
+<p>So, let us see what happens if we change some things. Copy the code in <em>Code Snippet 8</em> and change it to this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>            @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">input_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;MyDataSet&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Invalid Input Name</em></p>
+<p>As you see in <em>Code Snippet 11</em> we assign a name to the <code>@input_data_1_name</code> parameter, but in the script we still use <code>InputDataSet</code>. When we execute the following error happens:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_input_name_error.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Non Existent Input Data Object</em></p>
+<p>So the error is that the script cannot find the <code>InputDataSet</code> object. Change the line: <code>iris_dataset &lt;- InputDataSet</code> to: <code>iris_dataset &lt;- MyDataSet</code>, and execute again. Now all is OK.</p>
+<p>How does the script know what the input data is, e.g. how does it know in <em>Code Snippet 11</em> that the data belongs to the <code>MyDataSet</code> variable? Well this comes back to, at least indirectly, what we discussed in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> and how SQL Server sent the script, plus other information, to the SqlSatellite.</p>
+<p>Just for fun, let us revisit some of what we did in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>:</p>
+<ul>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> where we filtered for <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 8</em> and look at the output from <em>Process Monitor</em> to see what packets SQL Server sends:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Process Monitor Output</em></p>
+<p>The outlined packet in <em>Figure 4</em> is the packet containing the script SQL Server sent to the SqlSatallite. Notice the size of the packet and also make a note of the <code>Path</code> column and the last value (in the figure it is 50887). That value is the port with which SQL Server communicates with the SqlSatellite. We use this now in <em>WireShark</em> to try and see if we can get any more information about what is happening.</p>
+<p>So, let us switch over to <em>WireShark</em>:</p>
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on (the port you saw in the <code>Path</code> column). In this case, we want to sniff outgoing packets, and - if we used what we saw in <em>Figure 4</em> - the filter should subsequently be: <code>tcp.srcport==50887</code>.</li>
+<li>Apply the filter.</li>
+</ul>
+<p>Execute the code in <em>Code Snippet 8</em> again, and look at the output from <em>WireShark</em>. In the output is a packet with the same length as the highlighted packet in <em>Figure 4</em>. This packet is the packet SQL Server sends to the SqlSatellite with the script (as discussed above). When we look at the data part of that packet as a hex dump, the 64 first bytes look like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">48</span> <span style="color:#2aa198;font-weight:bold">03</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">46</span> <span style="color:#2aa198;font-weight:bold">19</span> <span style="color:#2aa198;font-weight:bold">98</span> <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">3f</span> <span style="color:#2aa198;font-weight:bold">9</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">4f</span>   ....<span style="color:#268bd2">H</span>... \<span style="color:#268bd2">F</span>..<span style="color:#268bd2">j</span>?.<span style="color:#268bd2">O</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">9</span><span style="color:#268bd2">d</span> <span style="color:#268bd2">b6</span> <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#2aa198;font-weight:bold">1f</span> <span style="color:#2aa198;font-weight:bold">62</span> <span style="color:#2aa198;font-weight:bold">7f</span> <span style="color:#2aa198;font-weight:bold">8</span><span style="color:#268bd2">b</span> <span style="color:#2aa198;font-weight:bold">50</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ..%.<span style="color:#268bd2">b</span>..<span style="color:#268bd2">P</span> ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">49</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">e</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">70</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>   ......<span style="color:#268bd2">I</span>. <span style="color:#268bd2">n</span>.<span style="color:#268bd2">p</span>.<span style="color:#268bd2">u</span>.<span style="color:#268bd2">t</span>.
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">44</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">53</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">65</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   <span style="color:#268bd2">D</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">t</span>.<span style="color:#268bd2">a</span>. <span style="color:#268bd2">S</span>.<span style="color:#268bd2">e</span>.<span style="color:#268bd2">t</span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>WireShark Output I</em></p>
+<p>In <em>Code Snippet 8</em> we did not define a name for the input data set, but in the script, we used <code>InputDataSet</code> as a variable name - as that is the default. When looking at the hex dump in <em>Code Snippet 12</em> we see the name <code>InputDataSet</code> 38 bytes into the packet. So it looks like the name we give the data set is being part of the script data SQL Server sends to the SqlSatellite. We can potentially prove that theory by executing the code in <em>Code Snippet 11</em> (remember to change the code that refers to the data set to: <code>iris_dataset &lt;- MyDataSet</code>) and see what <em>WireShark</em> outputs:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">03</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">82</span> <span style="color:#268bd2">a4</span> <span style="color:#2aa198;font-weight:bold">40</span> <span style="color:#2aa198;font-weight:bold">22</span> <span style="color:#268bd2">b4</span> <span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">b</span>   ....&lt;... ..@<span style="color:#2aa198">&#34;.:.K</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">9</span><span style="color:#268bd2">a</span> <span style="color:#268bd2">d0</span> <span style="color:#2aa198;font-weight:bold">03</span> <span style="color:#268bd2">f2</span> <span style="color:#268bd2">df</span> <span style="color:#2aa198;font-weight:bold">19</span> <span style="color:#2aa198;font-weight:bold">96</span> <span style="color:#2aa198;font-weight:bold">4f</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   .......<span style="color:#268bd2">O</span> ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">44</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>   ......<span style="color:#268bd2">M</span>. <span style="color:#268bd2">y</span>.<span style="color:#268bd2">D</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">t</span>.
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">53</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">65</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">4f</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">00</span>   <span style="color:#268bd2">a</span>.<span style="color:#268bd2">S</span>.<span style="color:#268bd2">e</span>.<span style="color:#268bd2">t</span>. ....
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>WireShark Output II</em></p>
+<p>Ok, so when we look at the code in <em>Code Snippet 13</em> we see how the input data set name that we assigned through the <code>@input_data_1_name</code> parameter is part of the packet.</p>
+<p>So we can answer the question how the script knows what variable contains input data by pointing to how SQL Server passes the name of the input data variable as part of the script. Worth noticing is how, in the two packets above, at 36 bytes into the packet, the size of the variable name (in double bytes) plus two bytes are defined. In <em>Code Snippet 12</em> it is hex: <code>1a</code> (decimal 26) , and in <em>Code Snippet 13</em> it is hex: <code>14</code> (decimal 20).</p>
+<h4 id="output_data_1_name"><code>@output_data_1_name</code></h4>
+<p>Finally, we get to how the script knows to return resultsets to the caller. Let us assume that you want to do some calculations on the data passed in through the <code>MyDataSet</code> variable in <em>Code Snippet 11</em> and then return that data. Maybe something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset &lt;- MyDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          multiplier &lt;- 5
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          OutputDataSet &lt;- data.frame(iris_dataset$SepalLength)&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;MyDataSet&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>Return a Result Set</em></p>
+<p>When you execute the code in <em>Code Snippet 14</em>, part of the resultset looks like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_output1.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Result Set</em></p>
+<p>In <em>Figure 5</em> we see how a resultset comes back, and looking at the code in <em>Code Snippet 14</em>, and knowing about <code>InputDataSet</code>, we assume that the reason a resultset comes back is that of the <code>OutputDataSet</code> variable in the script. It turns out that assumption is correct.</p>
+<p>Similar to the input data variable and its default name, the output data variable has a default name: <code>OutputDataSet</code>. You can change this name by setting the <code>@output_data_1_name</code> variable to a name of your choice, and reference that name in the script:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset &lt;- MyDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          multiplier &lt;- 5
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          SepalLengthMult &lt;- data.frame(iris_dataset$SepalLength)&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;MyDataSet&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">output_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SepalLengthMult&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Customised Result Set Name</em></p>
+<p>In <em>Code Snippet 15</em> we changed the name of the output data variable to <code>SepalLengthMult</code> and referenced it in the script.</p>
+<p>The script engine (and script) knows about the variable name in the same way as it does for the input data variable - it is part of the script packet that SQL Server sends to the SqlSatellite. Below is a partial hex dump of the packet SQL Server sends when we execute the code in <em>Code Snippet 15</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">66</span> <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#268bd2">e5</span> <span style="color:#268bd2">fe</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">a</span> <span style="color:#268bd2">d3</span> <span style="color:#2aa198;font-weight:bold">1f</span> <span style="color:#268bd2">e3</span> <span style="color:#2aa198;font-weight:bold">7</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">a</span>   ....<span style="color:#268bd2">f</span>... ..<span style="color:#268bd2">Z</span>...}<span style="color:#268bd2">J</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">8</span><span style="color:#268bd2">e</span> <span style="color:#2aa198;font-weight:bold">68</span> <span style="color:#2aa198;font-weight:bold">95</span> <span style="color:#268bd2">ee</span> <span style="color:#2aa198;font-weight:bold">31</span> <span style="color:#2aa198;font-weight:bold">59</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">38</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   .<span style="color:#268bd2">h</span>.<span style="color:#2aa198;font-weight:bold">.1</span><span style="color:#268bd2">Yu8</span> ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">44</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>   ......<span style="color:#268bd2">M</span>. <span style="color:#268bd2">y</span>.<span style="color:#268bd2">D</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">t</span>.
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">53</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">65</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">53</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">65</span> <span style="color:#2aa198;font-weight:bold">00</span>   <span style="color:#268bd2">a</span>.<span style="color:#268bd2">S</span>.<span style="color:#268bd2">e</span>.<span style="color:#268bd2">t</span>. .. .<span style="color:#268bd2">S</span>.<span style="color:#268bd2">e</span>.
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">70</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">65</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">e</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">67</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span>   <span style="color:#268bd2">p</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">l</span>.<span style="color:#268bd2">L</span>. <span style="color:#268bd2">e</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">g</span>.<span style="color:#268bd2">t</span>.
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">68</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">74</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">38</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   <span style="color:#268bd2">h</span>.<span style="color:#268bd2">M</span>.<span style="color:#268bd2">u</span>.<span style="color:#268bd2">l</span>. <span style="color:#268bd2">t</span>..<span style="color:#2aa198;font-weight:bold">.8</span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 16:</strong> <em>WireShark Output OutputData</em></p>
+<p>In the hex dump in <em>Code Snippet 16</em> we see the name of the output dataset variable starting at byte 60. We can also see at byte 58 how the length of the output data variable is defined, plus two bytes: hex <code>20</code>.</p>
+<p>So, <code>@output_data_1_name</code> specifies the name of the variable in the external script that contains the data to be returned to SQL Server when the stored procedure completes. There is an implicit expectation of the data type of the output; for R the expectation is a data frame, and for Python, it is a pandas data frame.</p>
+<p>Oh, a last thing about the output data. When you look at <em>Figure 5</em> you see that the resultset has no column names. By default <code>sp_execute_external_script</code> returns resultsets with unnamed columns as column names within a script are local. If you want to name columns you use the <code>WITH RESULTS SET</code> clause of the <code>EXECUTE</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset &lt;- MyDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          multiplier &lt;- 5
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset$SepalLength &lt;- iris_dataset$SepalLength * multiplier
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          SepalLengthMult &lt;- data.frame(iris_dataset$SepalLength)&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">input_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;MyDataSet&#39;</span>,
+</span></span><span style="display:flex;"><span>      @<span style="color:#268bd2">output_data_1_name</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SepalLengthMult&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">LengthMultiplied</span> <span style="color:#cb4b16">float</span>));
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 17:</strong> <em>Define Column Name</em></p>
+<p>In <em>Code Snippet 17</em> we defined the column coming back with a name of <code>LengthMultiplied</code> and that the column should have a data type of <code>float</code>. When we execute the code we see this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_script_output2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Result Set</em></p>
+<p>Looking at <em>Figure 6</em> we see how we received a result set consisting of one column named <code>LengthMultiplied</code>. <code>WITH RESULT SETS</code> is not something specific for <code>sp_execute_external_script</code> but an option on the <code>EXECUTE</code> statement. If you are interested in what happens when you execute <code>sp_execute_external_script</code> with the <code>WITH RESULT SETS</code> option, I covered it in <a href="/post/2018-01-10-microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a>.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we have looked at some of the parameters <code>sp_execute_external_script</code> expects:</p>
+<ul>
+<li><code>@language</code> - tells the launchpad service what external engine to use. At the moment R and Python are supported.</li>
+<li><code>@script</code> - defines the script which the external engine executes. The script can be loaded as a literal value, a parameter or through the R <code>source(file_name)</code> command.</li>
+<li><code>@input_data_1</code> - specifies the input data used by the external script in the form of a Transact-SQL query (<code>SELECT</code> only, no procedure calls). The query can only generate one dataset. If more datasets are required, they have to be retrieved from inside the script.</li>
+<li><code>@input_data_1_name</code> - specifies the name of the variable used to represent the query defined by @input_data_1. The parameter is optional, and defaults to <code>InputDataset</code>.</li>
+<li><code>@output_data_1_name</code> - specifies the name of the variable in the external script that contains the data to be returned to SQL Server when the stored procedure completes. The parameter is optional, and defaults to <code>OutputDataSet</code>.</li>
+</ul>
+<p>All of the above parameter values have to be of the  <code>NVARCHAR</code> data type.</p>
+<p>In next blog post we cover some of the remaining parameters for <code>sp_execute_external_script</code>.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-03-04-interesting-stuff---week-9/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 9">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-03-11-microsoft-sql-server-r-services---sp-execute-external-script---ii/" data-toggle="tooltip" data-placement="top" title="Microsoft SQL Server R Services - sp_execute_external_script - II">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - I" />
+    <meta property="og:title" content="How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - I" />
+    <meta property="twitter:title" content="How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - I" />
+    
+
+    
+    <meta name="description" content="In this post we look at how to configure Kafka Connect if we want to stream data to Event Hubs, using Debezium and Docker.">
+    <meta property="og:description" content="In this post we look at how to configure Kafka Connect if we want to stream data to Event Hubs, using Debezium and Docker." />
+    <meta property="twitter:description" content="In this post we look at how to configure Kafka Connect if we want to stream data to Event Hubs, using Debezium and Docker." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - I | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2022-01-10-how-to-stream-data-to-event-hubs-from-databases-using-kafka-connect--debezium-in-docker---i/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/cdc" title="CDC">
+                            CDC
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-event-hubs" title="Azure Event Hubs">
+                            Azure Event Hubs
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka-connect" title="Kafka Connect">
+                            Kafka Connect
+                        </a>
+                        
+                        <a class="tag" href="/tags/streaming" title="streaming">
+                            streaming
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka" title="Kafka">
+                            Kafka
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure" title="Azure">
+                            Azure
+                        </a>
+                        
+                    </div>
+                    <h1>How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - I</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, January 10, 2022
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post is the first of two looking at if and how we can stream data to Event Hubs from Debezium. Initially I had planned only one post covering this, but it turned out that the post would be too long, so therefore I split it in two.</p>
+<p>The second post in the series is:</p>
+<ul>
+<li><a href="/post/2022-01-14-how-to-stream-data-to-event-hubs-from-databases-using-kafka-connect--debezium-in-docker---ii/"><strong>How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - II</strong></a>. Here we look at the Debezium connector configuration needed if we want to stream data to Event Hubs.</li>
+</ul>
+<p>It started with the post, <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/"><strong>How to Use Kafka Client with Azure Event Hubs</strong></a>. In that post, I looked at how the Kafka client can publish messages to - not only - <strong>Apache Kafka</strong> but also <strong>Azure Event Hubs</strong>. In the post, I said something like:</p>
+<p><em>An interesting point here is that it is not only your Kafka applications that can publish to Event Hubs but any application that uses Kafka Client 1.0+, like Kafka Connect connectors!</em></p>
+<p>Obviously, for you who know me, I said that without having tested it properly, but: <em>how hard can it be? What could possibly go wrong?</em>. Well, I was called upon it by a guy who had read the post. He told me he had tried what I said at one time or the other, and it hadn&rsquo;t worked.</p>
+<p>In this post (the first), we look at configuring Kafka Connect to connect to Event Hubs.</p>
+<h2 id="background">Background</h2>
+<p>Let us look at some of the moving parts of this.</p>
+<h4 id="azure-event-hubs">Azure Event Hubs</h4>
+<p>Azure Event Hubs is a big data streaming platform and event ingestion service. It is a fully managed Platform-as-a-Service (PaaS) with little configuration or management overhead, very much like Apache Kafka in <strong>Confluent Cloud</strong>.</p>
+<p>The concepts are fairly similar between Event Hubs and Kafka, especially if we look at Apache Kafka in Confluent Cloud. There are however a couple of differences in terminology:</p>
+<ul>
+<li>In Kafka, we create/have a <em>cluster</em>, whereas, in Event Hubs, we have a <em>namespace</em>.</li>
+<li>When we publish messages to Kafka, we publish to a <em>Topic</em>, where the topic is part of a cluster. In Event Hubs we publish to an <em>Event Hub</em> in an Event Hubs namespace. Even though the names (topics, Event Hub) are different, the underlying concepts are the same. I.e. both have partitions, and messages are located based on offsets in a partition.</li>
+</ul>
+<p>An Event Hubs namespace exposes API endpoints to where clients can connect. One such endpoint is the Kafka client protocol endpoint (protocol version 1.0 and above) which is exposed on port <code>9093</code> of the host of the namespace.</p>
+<p>The previously mentioned <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">post</a> discusses this in more detail.</p>
+<h4 id="kafka-connect">Kafka Connect</h4>
+<p>Kafka Connect is a JVM process (worker process) running separately from a Kafka broker. It is used for streaming data between Apache Kafka and other systems in a scalable and reliable way. Kafka Connect moves the data using <strong>connectors</strong>, where a connector is a <code>.jar</code> file, and the connector is loaded by the Kafka Connect process. Basically the worker acts as a host for one or more connectors. The connectors come in two flavours:</p>
+<ul>
+<li>Source connectors, which understand how to interact with the source system, publish records to Kafka topics (Kafka acts as a sink).</li>
+<li>Sink connectors propagate records from Kafka topics to other systems.</li>
+</ul>
+<p>Connectors are Kafka specific, but since Event Hubs exposes the Kafka client endpoint, we can use (or at least supposedly can) connectors that use Kafka as a sink.</p>
+<h4 id="debezium">Debezium</h4>
+<p>Debezium is an open-source distributed platform for change data capture (CDC). It captures changes in your database(s) and publishes those changes to topics in Kafka.</p>
+<p>Debezium has Kafka Connect connectors for many source systems; Oracle, PostgresSQL, SQL Server, etc., and in this post, we use the Debezium SQL Server connector. As with other Kafka Connect connectors, the Debezium connectors are deployed to Kafka Connect.</p>
+<p>The post <a href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/"><strong>How to Deploy the Debezium SQL Server Connector to Docker</strong></a> looks at Kafka Connect, Debezium, and SQL Server in more detail.</p>
+<p>Having had some background information, let&rsquo;s see what you need if you want to follow along.</p>
+<h2 id="pre-reqs">Pre-reqs</h2>
+<p>The pre-reqs are the same (with a couple of additions) as in the <a href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/"><strong>How to Deploy the Debezium SQL Server Connector to Docker</strong></a> post, so look at that post to find out what you need. The additions are:</p>
+<ul>
+<li>As you&rsquo;ll be working with Event Hubs, you need an Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">free account</a>.</li>
+<li>An Event Hubs namespace to where the SQL data will be streamed.</li>
+</ul>
+<p>If you don&rsquo;t have an Event Hubs namespace and are unclear on how to create one, the Microsoft article <a href="https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create"><strong>Quickstart: Create an event hub using Azure portal</strong></a> covers it in detail. While creating the namespace, ensure you create it under the <em>Standard</em> pricing tier (or higher), as <em>Basic</em> does not support Kafka.</p>
+<p>The Event Hubs namespace I use in this post looks like so:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-namespace-1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Namespace</em></p>
+<p>In <em>Figure 1</em>, we see how the namespace is called <code>dbzeventhubs</code> (outlined in red) and that we don&rsquo;t have any Event Hub (topic) yet.</p>
+<p>After you have downloaded and set up the pre-reqs as per the above <a href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/">post</a>, as well as the Event Hubs namespace, we are ready to go. We  should have:</p>
+<ul>
+<li>A SQL Server database: <code>DebeziumTest</code> (or whatever you named it).</li>
+<li>A table in the database: <code>dbo.tb_CDCTab1</code>.</li>
+</ul>
+<p>We also have an Event Hubs namespace. I named it <code>dbzeventhubs</code> as in <em>Figure 1</em>.</p>
+<h2 id="event-hubs-security--authentication">Event Hubs Security &amp; Authentication</h2>
+<p>In the <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">Kafka Client and Event Hubs</a> post, I discussed how we need to configure Event Hubs security to allow Kafka clients to interact with Event Hubs. We did it by creating a Shared Access Signature (SAS) policy. We then used the policy&rsquo;s connection string as the <code>SASL</code> authentication password.</p>
+<p>In this post, we do the same, with one difference. In the <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">previous post</a>, we created the policy for the Event Hub (topic), whereas now we do it for the namespace. This is because both Kafka Connect and Debezium need permissions on the namespace level (create event hubs, etc.).</p>
+<p>For this post, I created the policy in the same way as I did in the <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">Kafka Client and Event Hubs</a> post, and during creation, I saw something like so:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-sas-create.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Create Policy</em></p>
+<p>In <em>Figure 2</em>, we see how I created a policy called <code>KafkaConnect</code> and how the policy has <code>Manage</code> permissions. The <code>Manage</code> permission allows the policy to manage the topology of the namespace, i.e. adding deleting entities.</p>
+<p>Having created the policy, you copy one of the policy&rsquo;s connection strings as that is what we use for the Kafka client configuration. My connection string looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#268bd2">Endpoint</span>=sb://dbzeventhubs.servicebus.windows.net/; <span style="color:#268bd2">SharedAccessKeyName</span>=KafkaConnect; <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span><span style="color:#268bd2">SharedAccessKey</span>=&lt;secret-key&gt;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>SAS Policy Connection String</em></p>
+<p>The string we see in <em>Code Snippet 1</em> acts as the password for authentication. When setting up Kafka Connect, we need to define the <code>bootstrap.servers</code> (the server(s) to connect to). We get that value from the <code>Endpoint</code> field, <code>dbzeventhubs.servicebus.windows.net</code>. We append it with the port, <code>9093</code>, for the Event Hubs Kafka API endpoint.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I am aware that I have &ldquo;glossed&rdquo; over the details of SAS policies. Please look at the <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">Kafka Client and Event Hubs</a> post if you need more information.</p>
+</blockquote>
+<p>Cool, we now have all we need to configure Kafka Connect in Docker.</p>
+<h2 id="kafka-connect--docker">Kafka Connect &amp; Docker</h2>
+<p>As mentioned before, we want to run Kafka Connect and the connector locally in Docker. We do it by using a <code>docker-compose.yml</code> file, similar to what we did in the post <a href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/"><strong>How to Deploy the Debezium SQL Server Connector to Docker</strong></a>. The difference here is that we only run Kafka Connect and the connector, no Kafka broker, etc.</p>
+<p>This part, configuring Kafka Connect: <em>how hard can it be? What could possibly go wrong?</em></p>
+<p>Needless to say, it was not as easy as I thought.</p>
+<h2 id="docker-compose">Docker Compose</h2>
+<p>As mentioned before, we use a <code>docker-compose.yml</code> and to make things a bit more readable, I have divided the file into three parts: <em>basics</em>, <em>security</em>, and <em>connector</em>. The three parts are represented by the figures below.</p>
+<h4 id="basics">Basics</h4>
+<p>The <em>basics</em> part looks like so:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-docker-compose-1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Docker Compose - I</em></p>
+<p>In <em>Figure 3</em>, you see the start of the <code>docker-compose.yml</code>. If you have done any work using Docker Compose before, nothing there should come as a surprise. Let&rsquo;s have a look at the outlined areas:</p>
+<ul>
+<li>Yellow: this is the image we use. As you see, I am using the Kafka Connect base image, which contains the bare minimum for Kafka Connect.</li>
+<li>Red: defines the Kafka endpoint for the worker process. This is the Kafka endpoint of the Event Hubs namespace. You get the endpoint from the SAS policy&rsquo;s connection string.</li>
+<li>Green: Kafka Connect uses topics to store connectors config, offsets, and statuses. As this is Event Hubs, we see the Event Hub names we want to use (they will be auto-created). We also define the replication factor for the event hubs (topics). In Kafka, the default is 3, but Event Hubs works somewhat differently, so we set the replication factor to 1.</li>
+</ul>
+<p>Let us go to the security part, where it got a bit interesting for me.</p>
+<h4 id="security">Security</h4>
+<p>In the <a href="/post/2022-01-02-how-to-use-kafka-client-with-azure-event-hubs/">Kafka Client and Event Hubs</a> post, I discussed using the <code>SASL_SSL</code> security protocol with <code>PLAIN</code> as the mechanism. Using <code>PLAIN</code> gives us a username/password authentication mechanism. I also mentioned how the password should be set to SAS policy&rsquo;s connection string value and the username to the &ldquo;magic&rdquo; string <code>$ConnectionString</code> (notice the dollar sign). Applying that to this post and the SAS policy we created above, the username password &ldquo;combo&rdquo; would look something like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#2aa198">&#39;sasl.username&#39;</span>: <span style="color:#2aa198">&#34;$ConnectionString&#34;</span>,
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;sasl.password&#39;</span>: <span style="color:#2aa198">&#34;Endpoint=sb://dbzeventhubs.servicebus.windows.net/; </span><span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span><span style="color:#2aa198">                  SharedAccessKeyName=KafkaConnect; SharedAccessKey=&lt;secret-key&gt;;&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>User Name &amp; Password</em></p>
+<p>In <em>Code Snippet 2</em> we see how I have taken the SAS policy&rsquo;s connection string and used that for the <code>sasl.password</code> value.</p>
+<p>Kafka (brokers, Connect, etc.) uses JAAS (Java Authentication and Authorization Service) for SASL configuration. So when we set up security for Kafka Connect, we must provide JAAS configurations for this, where part of the configuration is username and password. In addition to the JAAS configuration, we need the security protocol and mechanism. With this in mind, connecting to Event Hubs would look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>security.protocol=SASL_SSL
+</span></span><span style="display:flex;"><span>sasl.mechanism=PLAIN
+</span></span><span style="display:flex;"><span>sasl.jaas.config = org.apache.kafka.common.security.plain.PlainLoginModule <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                   required <span style="color:#268bd2">username</span>=<span style="color:#2aa198">&#34;</span><span style="color:#268bd2">$ConnectionString</span><span style="color:#2aa198">&#34;</span> <span style="color:#2aa198">\ </span>
+</span></span><span style="display:flex;"><span>                   <span style="color:#268bd2">password</span>=<span style="color:#2aa198">&#34;&lt;policy-connection-string&gt;&#34;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>JAAS Config</em></p>
+<p>We see in <em>Code Snippet 3</em> how we first set the security protocol and the mechanism, followed by the JAAS configuration. The <code>org.apache.kafka.common.security.plain.PlainLoginModule</code> in the JAAS configuration defines the class handling logins using the <code>PLAIN</code> mechanism.</p>
+<p>Wow, this was quite a detour; let us try to get back to track and talk about configuring this in a compose file. When configuring security in the compose file, we need to remember that we need to configure the security for the worker process and the connector, where the connector can be consumer, publisher or both.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In certain circumstances, you do not need to configure the connectors security in the compose file, as you can override it in the connector&rsquo;s configuration. Since I had quite a lot of problems with the security configuration, I did it in the compose file.</p>
+</blockquote>
+<p>OK, so with all of the above in mind, the security configuration should look something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># connect worker</span>
+</span></span><span style="display:flex;"><span>CONNECT_SECURITY_PROTOCOL: SASL_SSL
+</span></span><span style="display:flex;"><span>CONNECT_SASL_MECHANISM: PLAIN
+</span></span><span style="display:flex;"><span>CONNECT_SASL_JAAS_CONFIG: <span style="color:#2aa198">\ </span>
+</span></span><span style="display:flex;"><span>         <span style="color:#2aa198">&#34;org.apache.kafka.common.security.plain.PlainLoginModule \ 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          required username=\&#34;</span><span style="color:#268bd2">$ConnectionString</span><span style="color:#2aa198">\&#34; \ 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                   password=\&#34;&lt;connection-string-from-policy&gt;\&#34;;&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Security Config Compose</em></p>
+<p>In <em>Code Snippet 4</em>, we see the security configuration for the Kafka Connect worker process. This looks good; just be aware of the <code>\</code> as line continuations and being used for escaping double quotes <code>&quot;</code> inside the JAAS configuration.</p>
+<p>I thought this looked good. However, when I tried to &ldquo;spin up&rdquo; the Kafka Connect process, I got strange errors saying the <code>ConnectionString</code> (notice without <code>$</code>) was blank. This was followed by the log file reporting authentication issues.</p>
+<p>After a lot of head-scratching, I finally figured out that the problem was <code>$ConnectionString</code>, more specifically the <code>$</code> sign. The dollar sign indicates variable substitution in <code>docker-compose</code>, and when the file is parsed, there is no variable named <code>$ConnectionString</code>. Having finally figured out the issue, it was pretty simple to fix by using <code>$$</code>, which says I actually want to use <code>$</code> as a literal sign.</p>
+<p>After all this the security part of the compose file looks like this:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-docker-compose-2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Docker Compose - II</em></p>
+<p>We see in <em>Figure 4</em> how we configure security for the worker process <code>CONNECT_xxx</code> (outlined in red) and the connector, which acts as a producer: <code>CONNECT_PRODUCER_xxx</code> (outlined in yellow). As discussed earlier, <code>username</code> is set to <code>$$ConnectionString</code>.</p>
+<h4 id="connector">Connector</h4>
+<p>The connector is the last piece of the <code>docker-compose.yml</code> file, and I looked in the <a href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/"><strong>How to Deploy the Debezium SQL Server Connector to Docker</strong></a> post at various ways of running the connector in Kafka Connect. In this post, I use the ability to in a <code>docker-compose.yml</code> file to execute arbitrary commands, using the <code>command</code> option:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-docker-compose-3.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Docker Compose - III</em></p>
+<p>In the <code>command</code> option (outlined in blue) in <em>Figure 5</em> we install the Debezium SQL Server connector.</p>
+<blockquote>
+<p><em>NOTE:</em>* If you wonder about <code>confluent-hub</code>, then read more about it <a href="https://docs.confluent.io/home/connect/confluent-hub/">here</a>.</p>
+</blockquote>
+<p>When you have come this far, you can do a test run. Before you run this, make sure your Event Hubs namespace does not have any event hubs (topics), or at least none with the same names as your storage topics.</p>
+<h2 id="test-run">Test Run</h2>
+<p>The test run is to ensure that the Docker container &ldquo;comes up&rdquo; properly and the connector is loaded into the Kafka Connect worker.</p>
+<p>So:</p>
+<ul>
+<li>Ensure that Docker is running on your box</li>
+<li>Start the container with: <code>docker-compose up -d</code>.</li>
+</ul>
+<p>To check what is happening, you can use the Docker Desktop app. When you open it up:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-docker-app-1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Docker Desktop App - I</em></p>
+<p>When the container starts up, you see what is in <em>Figure 6</em>. More specifically, if you click on the <em>Container / Apps</em> outlined in red, you see the running containers. In our case, it is the <code>dbz-eventhub-cont</code> outlined in red. If you want to drill down further, you click on the container (outlined in red):</p>
+<p>
+  <img src="/images/posts/dbz-evthub-docker-app-log.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Docker Desktop App - II</em></p>
+<p>Having clicked on the container, you now see the log for the container as in <em>Figure 7</em>. This is a great help when trying to figure out issues.</p>
+<p>OK, so looking at the logs, we do not see anything strange, so let us check two more things: that event hubs have been created, and the connector has loaded.</p>
+<h4 id="event-hubs-topics">Event Hubs (topics)</h4>
+<p>In the Azure portal, browse to your namespace and click on the Event Hubs menu:</p>
+<p>
+  <img src="/images/posts/dbz-evthub-topics-1.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Created Event Hubs</em></p>
+<p>In <em>Figure 8</em>, we see that the event hubs we defined for configs, offsets and status have all been created when the container started. Looking good so far.</p>
+<h4 id="connector-1">Connector</h4>
+<p>The last thing we want to check is whether the connector is loaded. Kafka Connect exposes a REST API allowing us to configure/manage/etc. our connectors. To check whether the SQL Server connector is loaded, we use a <code>GET</code> call:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>GET http://127.0.0.1:8083/connector-plugins
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>GET Connectors</em></p>
+<p>In <em>Code Snippet 5</em> we see how we execute a <code>GET</code> call into <code>localhost</code> (as we host Kafka Connect on our box):</p>
+<p>
+  <img src="/images/posts/dbz-evthub-installed-connectors.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>GET Installed Connectors</em></p>
+<p>The result of the call in <em>Code Snippet 5</em> is what we see in <em>Figure 9</em>: we see &ldquo;our&rdquo; SQL Server connector together with three other connectors. These other three connectors are all part of the base image we use.</p>
+<p>The container is up and running, the event hubs for the Kafka Connect worker has been successfully created, and the connector has loaded! What remains to be done is configuring the connector to capture data from our table. I leave that to the next post, so let us just sum up what we have done so far.</p>
+<h2 id="summary">Summary</h2>
+<p>We set out to prove/disprove the ability to stream data from Debezium to Azure Event Hubs. We still haven&rsquo;t proven that it is possible, but we have come a bit on the way.</p>
+<p>The main takeaways from this post are:</p>
+<ul>
+<li>When configuring the security, you do it both for the Kafka Connect worker process and the connector.</li>
+<li>When setting up a username/password, you use a JAAS configuration.</li>
+<li>When using SASL with Event Hubs, the username is hard-coded to <code>$ConnectionString</code>. Using <code>docker-compose.yml</code> you need to use two dollar signs: <code>$$ConnectionString</code>. You can read more about it <a href="https://docs.docker.com/compose/environment-variables/#substitute-environment-variables-in-compose-files">here</a>.</li>
+</ul>
+<p>In the <a href="/post/2022-01-14-how-to-stream-data-to-event-hubs-from-databases-using-kafka-connect--debezium-in-docker---ii/">next post</a>, we look at configuring the connector, and we will see whether Debezium to Event Hubs actually works.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2022-01-09-interesting-stuff---week-1-2022/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 1, 2022">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2022-01-14-how-to-stream-data-to-event-hubs-from-databases-using-kafka-connect--debezium-in-docker---ii/" data-toggle="tooltip" data-placement="top" title="How to Stream Data to Event Hubs from Databases Using Kafka Connect &amp; Debezium in Docker - II">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

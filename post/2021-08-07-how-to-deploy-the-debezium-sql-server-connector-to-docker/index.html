@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="How to Deploy the Debezium SQL Server Connector to Docker" />
+    <meta property="og:title" content="How to Deploy the Debezium SQL Server Connector to Docker" />
+    <meta property="twitter:title" content="How to Deploy the Debezium SQL Server Connector to Docker" />
+    
+
+    
+    <meta name="description" content="We learn how to deploy the Debezium SQL Server Connector to Docker.">
+    <meta property="og:description" content="We learn how to deploy the Debezium SQL Server Connector to Docker." />
+    <meta property="twitter:description" content="We learn how to deploy the Debezium SQL Server Connector to Docker." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>How to Deploy the Debezium SQL Server Connector to Docker | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2021-08-07-how-to-deploy-the-debezium-sql-server-connector-to-docker/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/kafka" title="Kafka">
+                            Kafka
+                        </a>
+                        
+                        <a class="tag" href="/tags/cdc" title="CDC">
+                            CDC
+                        </a>
+                        
+                        <a class="tag" href="/tags/docker" title="Docker">
+                            Docker
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                    </div>
+                    <h1>How to Deploy the Debezium SQL Server Connector to Docker</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, August 7, 2021
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>I have been doing a couple of conference talks lately (virtual, of course) about streaming data from SQL Server to Kafka. The title of the presentation is <strong>Free Your SQL Server Data With Kafka</strong>.</p>
+<p>In the presentation, I talk (and show) various ways of getting data from SQL Server to Kafka. One of the ways I cover is Microsoft CDC, together with Debezium.</p>
+<p>When I do the presentation, I always have a SQL Server installed locally, and I run Kafka in Docker. Without fail, every time I set up the environment, I cannot remember how to deploy the Debezium SQL Server Connector into Docker. Therefore I decided to write this post to have something to go back to for next time.</p>
+<blockquote>
+<p><strong>NOTE:</strong> This post does not cover the intricacies of how to configure Debezium for SQL Server. I leave that for a future post.</p>
+</blockquote>
+<h2 id="background">Background</h2>
+<p>Before diving into how to do this, let us look at the moving parts of this.</p>
+<h4 id="kafka-connect">Kafka Connect</h4>
+<p>Kafka Connect is a tool for streaming data between Apache Kafka and other systems in a scalable and reliable way. The way you move data between systems and Kafka is using connectors, and there are two flavors of connectors:</p>
+<ul>
+<li>Source connectors which understand how to interact with the source system send records into Kafka</li>
+<li>Sink connectors that propagate records from Kafka topics to other systems.</li>
+</ul>
+<p>Kafka Connect is a JVM process, and it operates separately from the Kafka Broker. Connectors are <code>.jar</code> files loaded by the connect process. The diagram below shows a high-level overview of what it looks like:</p>
+<p>
+  <img src="/images/posts/kafka-connect-1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Kafka Connect Overview</em></p>
+<p>In <em>Figure 1</em> we see, (from left to right):</p>
+<ul>
+<li>Source systems, i.e. systems we want to get data from. These systems can be databases, Hadoop, files, etc.</li>
+<li>The Kafka Connect worker with source connectors. The connectors know how to interact with the source system, whether querying a database, using CDC, reading from a filesystem, etc. The connectors publish data to Kafka topics.</li>
+<li>The Kafka broker(s). The broker(s) contain topics that are the &ldquo;sinks&rdquo; for the source connectors.</li>
+<li>Kafka Connect worker with sink connectors. Source and sink connectors can be in the same Kafka Connect worker. The sink connectors know how to consume events from Kafka topics and ingest them into sink systems.</li>
+<li>Sink systems. These are systems we ingest data into. As with source systems, these can be databases, Hadoop, files, etc.</li>
+</ul>
+<h4 id="debezium">Debezium</h4>
+<p>Debezium is an open source distributed platform for change data capture, (I &ldquo;stole&rdquo; the preceding shamelessly from <a href="https://debezium.io/">here</a>). It captures changes in your database(s) and publishes those changes to topics in Kafka.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Debezium <em>can</em> work without a Kafka cluster, in which case it is embedded in your application, and the application receives the change notifications. Read more about that <a href="https://debezium.io/documentation/reference/1.4/development/engine.html">here</a>.</p>
+</blockquote>
+<p>Debezium has Kafka Connect connectors for a multitude of source systems. When interacting with Kafka, the connector(s) is deployed to Kafka Connect.</p>
+<p>With the above in mind, let us look at how this works with SQL Server.</p>
+<h4 id="sql-server-debezium-and-kafka">SQL Server, Debezium, and Kafka</h4>
+<p>As I mentioned at the beginning of this post, the aim is to get data out of some table(s) in a database(s) and stream it to a topic(s) in Kafka.</p>
+<p>We do not necessarily need to use Debezium as there are other Kafka Connect connectors. We could, for example, use the Confluent SQL Server connector. However, as we want to stream the data in near real-time, with the least amount of work on our side, the Debezium connector is our choice. Coming back to <em>Figure 1</em> it would look something like so:</p>
+<p>
+  <img src="/images/posts/kafka-connect-cdc.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Kafka Connect SQL Server &amp; Debezium</em></p>
+<p>We see in <em>Figure 2</em> how the source system is SQL Server and how the source connector is the Debezium SQL Server connector. In the diagram we publish to one topic as we only retrieve data from one table. If we were to retrieve data from multiple tables, we&rsquo;d publish to multiple topics.</p>
+<p>We have several sink connectors reading from our topic and ingest into various sink systems.</p>
+<p>Ok, enough background; before we get into the &ldquo;nitty-gritty&rdquo;, let&rsquo;s see what you need if you want to follow along.</p>
+<h2 id="pre-reqs--code">Pre-reqs &amp; Code</h2>
+<p>There are not many pre-reqs, but here goes:</p>
+<ul>
+<li><strong>SQL Server</strong>: well, duh - as we want to set up CDC and Debezium to stream data from SQL Server, we would need SQL Server installed somewhere. I have SQL Server 2019 installed on my local dev machine.</li>
+<li><strong>Docker Desktop</strong>: another duh - this post is all about how to set up Kafka Connect and Debezium in Docker, so yes - we need Docker Desktop.</li>
+</ul>
+<h4 id="test-code">Test Code</h4>
+<p>I mentioned in the beginning that this post is not about configuring Debezium to read data from SQL Server, so I won&rsquo;t discuss CDC in any detail. However, we need something to test that what we are doing works, so here&rsquo;s some code to set up a database on SQL Server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--  to start from scratch drop the database if exists
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">databases</span> <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;DebeziumTest&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ALTER</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DebeziumTest</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">SINGLE_USER</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#859900">ROLLBACK</span> <span style="color:#859900">IMMEDIATE</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DebeziumTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- create the database
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DebeziumTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">DebeziumTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- this statement just if we don&#39;t want to drop the db, 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- but still start over with the table
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- DROP TABLE dbo.tb_CDCTab1;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- table which we later will CDC enable
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_CDCTab1</span> (<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>,
+</span></span><span style="display:flex;"><span>                      <span style="color:#268bd2">Col1</span> <span style="color:#cb4b16">int</span>,
+</span></span><span style="display:flex;"><span>                      <span style="color:#268bd2">Col2</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">25</span>));
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>DB Objects Creation Script</em></p>
+<p>The code in <em>Code Snippet 1</em> creates a database, <code>DebeziumTest</code> and a table, <code>dbo.tb_CDCTab1</code> in the database. Later in the post, we enable the table for CDC. Enabling it allows us to check that our Kafka Connect/Debezium &ldquo;stuff&rdquo; works as expected. So, if you want to follow along, run the script, and after you have run it, ensure you have the database and the table.</p>
+<p>Now, let us get into what we are supposed to do; to set this up in Docker.</p>
+<h2 id="docker">Docker</h2>
+<p>Let us start with getting the necessary Docker images and compose files.</p>
+<h4 id="docker-kafka-image">Docker Kafka Image</h4>
+<p>There are quite a few Docker images, and Docker composes files around for setting up Kafka and Kafka Connect. The ones I usually use are from Confluent&rsquo;s <a href="https://github.com/confluentinc/cp-all-in-one/"><code>cp-all-in-one</code></a> repository.</p>
+<p>Let us get started:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir kafka
+</span></span><span style="display:flex;"><span><span style="color:#cb4b16">cd</span> kafka
+</span></span><span style="display:flex;"><span>git clone https://github.com/confluentinc/cp-all-in-one.git
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Clone the Repo</em></p>
+<p>In <em>Code Snippet 2</em>, we create a directory for the repo files and clone the <a href="https://github.com/confluentinc/cp-all-in-one/"><code>cp-all-in-one</code></a>. After cloning, we have a directory named <code>cp-all-in-one</code> under the <code>kafka</code> directory. The <code>cp-all-in-one</code> directory looks like so:</p>
+<p>
+  <img src="/images/posts/kafka-connect-docker-1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Kafka Connect SQL Server &amp; Debezium</em></p>
+<p>In <em>Figure 3</em>, we see that <code>cp-all-in-one</code> (outlined in red) has some sub-directories. These directories contain Docker Compose files for various setups of Kafka. We are interested in the directory outlined in blue: <code>cp-all-in-one</code>, (yeah I know - the same name as the parent directory).</p>
+<p>A quick side note here about <code>cp-all-in-one</code>. This directory contain the image for Confluent Platform, which is the enterprise edition of Confluent. As with most enterprise editions this requires a licennse. However, with the introduction of Confluent Platform 5.2 &ldquo;back in the day&rdquo;, Confluent <a href="https://www.confluent.io/blog/introducing-confluent-platform-5-2">announced</a> that Confluent Platform is &ldquo;free forever&rdquo; on a single Kafka broker! In other words, it is like a &ldquo;Developer Edition&rdquo; of Confluent Platform. The benefit of using Confluent Platform is that you get ALL the goodies, including <strong>Control Center</strong>, which is the WEB UI for Confluent Platform.</p>
+<p>When going into that directory, we see a <code>docker-compose.yml</code>. Opening it in an editor, we see the various images deployed as services when running the <code>docker-compose</code> command. From a Kafka Connect perspective, we are interested in the <code>connect</code> service (and image):</p>
+<p>
+  <img src="/images/posts/kafka-connect-docker-connect-yml.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Docker Compose - Connect Service</em></p>
+<p>What <em>Figure 3</em> shows is a &ldquo;condensed&rdquo; part of the <code>yml</code> for the Kafka Connect image. There are three outlined section in the figure:</p>
+<ul>
+<li>Outlined in green: <code>image</code>, the image the service is built on.</li>
+<li>Yellow: <code>CONNECT_REST_PORT</code>, the port to access the service on.</li>
+<li>Red: <code>CONNECT_PLUGIN_PATH</code>, the path from where the service loads plugins (connectors).</li>
+</ul>
+<p>We see in <em>Figure 3</em> how the image is <code>cp-server-connect-datagen</code>. That image is an image containing some &ldquo;base&rdquo; connectors and also tools for generating data. There are other Connect images, and we see one other later in this post. But for now, let us use this image.</p>
+<h2 id="run-kafka--connect">Run Kafka &amp; Connect</h2>
+<p>Having retrieved the required files as in <em>Code Snippet 2</em> it is time to &ldquo;spin up&rdquo; the Kafka cluster, including Kafka Connect. We do that by <code>cd</code>:ing into the directory where the <code>docker-compose.yml</code> file is and execute: <code>docker-compose up -d</code>.</p>
+<p>When running the code you see how Docker is pulling images, starts up the various services, and finally:</p>
+<p>
+  <img src="/images/posts/kafka-connect-docker-compose-up.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Kafka Started</em></p>
+<p>We see in <em>Figure 4</em> how all services have started. Well, that is not exactly true - some services are still &ldquo;spinning&rdquo; up, but after a minute or two, you can browse to the Confluent Control Center and see your Kafka cluster in all its &ldquo;glory&rdquo;:</p>
+<p>
+  <img src="/images/posts/kafka-connect-control-center.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Confluent Control Center</em></p>
+<p>In <em>Figure 5</em>, we see the overview page for the Kafka cluster. Outlined in red at the top, we see how we access it from port 9021 on the box where Docker runs. Outlined in blue, we see that we have one Connect cluster.</p>
+<h4 id="installed-connectors">Installed Connectors</h4>
+<p>I mentioned above that the Connect image has some connectors installed by default. To see what connectors are pre-installed, we use the Kafka REST API:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>GET http://127.0.0.1:8083/connector-plugins
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>GET Connectors</em></p>
+<p>We can use whatever tool we are comfortable with to call the REST API (<code>curl</code>, Postman, etc.). Personally, I prefer Postman, and in <em>Code Snippet 3</em> we see how we call into the <code>connector-plugins</code> endpoint and how we use the port I mentioned above: <code>8083</code>:</p>
+<p>
+  <img src="/images/posts/kafka-connect-get-connectors.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Installed Connectors</em></p>
+<p>Executing the code in <em>Code Snippet 3</em> I get the result we see in <em>Figure 6</em>. We see various Connect connectors, but nothing for SQL Server. So, we need to install it somehow.</p>
+<h2 id="installing-debezium-sql-server-connector">Installing Debezium SQL Server Connector</h2>
+<p>How do we go about installing a connector into the Connect service? Above I mentioned how a connector is a <code>.jar</code> file, which the service (JVM process) loads. I also mentioned the <code>CONNECT_PLUGIN_PATH</code>, which indicates where the service loads connectors from. So, with that in mind, we can imagine the process to install a connector being:</p>
+<ol>
+<li>Get the specific connector from &ldquo;somewhere&rdquo;.</li>
+<li>Copy it into the path where the service loads connectors from.</li>
+<li>Restart the service.</li>
+</ol>
+<p>If we ran the Kafka cluster as a local install, installing a connector would be as easy as above, but what about installing it when running Kafka in Docker containers?</p>
+<p>Well, we could do something similar:</p>
+<ol>
+<li>Download the connector we want to install (the file is most likely &ldquo;tar&rdquo;:ed).</li>
+<li>&ldquo;spin up&rdquo; the Kafka cluster.</li>
+<li>Use <code>docker cp</code> to copy the connector into the connect container.</li>
+<li>Use <code>docker exec</code> to get to the bash shell in the connect container.</li>
+<li>Un-tar the file to the plugin load path.</li>
+<li>Back out from the container and <code>docker commit</code> the changes to a new image name.</li>
+<li>Tear down the running Kafka cluster: <code>docker-compose down</code>.</li>
+<li>Use that image in the docker compose file in place of the &ldquo;original&rdquo; connect image.</li>
+</ol>
+<p>Yes, we could do something like that, and that is how I did it initially (yeah I know - I am a &ldquo;noob&rdquo;, so sue me). There are however better ways of doing it:</p>
+<ul>
+<li>Confluent Hub</li>
+<li>Create a new image from a <code>Dockerfile</code>.</li>
+</ul>
+<p>Let us look at the two options.</p>
+<h4 id="confluent-hub">Confluent Hub</h4>
+<p>Confluent is like the App Store (or NuGet), but for Kafka. The <a href="https://docs.confluent.io/home/connect/confluent-hub/">home page</a> expresses it a lot better than what I can do:</p>
+<p><em>Confluent Hub is an online library of pre-packaged and ready-to-install extensions or add-ons for Confluent Platform and Apache Kafka. You can browse the large ecosystem of connectors, transforms, and converters to find the components that suit your needs and easily install them into your local Confluent Platform environment.</em></p>
+<p>Using Confluent Hub, you can install Kafka Connect connectors, whether you do it locally or in Docker. This is made possible via the <a href="https://docs.confluent.io/home/connect/confluent-hub/client.html">Confluent Hub Client</a>. The client is part of the Confluent Platform and is located in the <code>/bin</code> directory. If you are not using the Confluent Platform, you can download and install the client locally. Since I am using Confluent Platform, all is good.</p>
+<p>Right, so we want to install the Debezium SQL Server connector. Let us go to the hub and look for it. Browse to <a href="https://www.confluent.io/hub/">here</a>, and in the search box, enter &ldquo;SQL Server&rdquo;, followed by a carriage return:</p>
+<p>
+  <img src="/images/posts/kafka-connect-confl-hub-dbz.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Debezium SQL Server Connector</em></p>
+<p>The result coming back from the search looks like what we see in <em>Figure 7</em>; one entry: <strong>Debezium SQL Server CDC Source Connector</strong>. When you click on the result, you end up at a page with some more information about the connector, and more importantly, the syntax of how to install the connector:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>confluent-hub install debezium/debezium-connector-sqlserver:1.6.0
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Install SQL Server Connector</em></p>
+<p>Ok, cool - so we see the syntax to install a connector in <em>Code Snippet 4</em>, but this looks suspiciously like how we do it from a bash shell. How do I do it for a Docker container without resorting to the &ldquo;hack&rdquo; I mentioned at the beginning of this section?</p>
+<p>Ah, that&rsquo;s where the &ldquo;magic&rdquo; of Docker compose files comes in. It turns out that when you define a container, you can also specify configuration options. One such option is the <code>command</code> option, which allows you to execute arbitrary commands.</p>
+<p>Let us edit our <code>docker-compose.yml</code> file and add the command configuration:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>connect:
+</span></span><span style="display:flex;"><span>    image: cnfldemos/cp-server-connect-datagen:0.5.0-6.2.0
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    [snip]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    environment:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      [snip]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      CONNECT_PLUGIN_PATH: <span style="color:#2aa198">&#34;/usr/share/java,/usr/share/confluent-hub-components&#34;</span>
+</span></span><span style="display:flex;"><span>      CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
+</span></span><span style="display:flex;"><span>    command: 
+</span></span><span style="display:flex;"><span>      - bash 
+</span></span><span style="display:flex;"><span>      - -c 
+</span></span><span style="display:flex;"><span>      - |
+</span></span><span style="display:flex;"><span>        <span style="color:#cb4b16">echo</span> <span style="color:#2aa198">&#34;Installing connector plugins&#34;</span>
+</span></span><span style="display:flex;"><span>        confluent-hub install --no-prompt debezium/debezium-connector-sqlserver:latest
+</span></span><span style="display:flex;"><span>        <span style="color:#93a1a1;font-style:italic">#</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#cb4b16">echo</span> <span style="color:#2aa198">&#34;Launching Kafka Connect worker&#34;</span>
+</span></span><span style="display:flex;"><span>        /etc/confluent/docker/run &amp; 
+</span></span><span style="display:flex;"><span>        <span style="color:#93a1a1;font-style:italic">#</span>
+</span></span><span style="display:flex;"><span>        sleep infinity
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Installing Connector from Confluent Hub in Container</em></p>
+<p>In <em>Code Snippet 5</em>, we see how we use the <code>docker-compose.yml</code> file from before (heavily &ldquo;snipped&rdquo;), but we have added the <code>command</code> configuration option.</p>
+<p>In the code, we see how we:</p>
+<ul>
+<li>&ldquo;spin up&rdquo; the bash shell.</li>
+<li>set some options, <code>-c</code> and <code>|</code>.</li>
+<li>executing the <code>install</code> command.</li>
+<li>making sure we start up the worker process</li>
+<li>we finally do <code>sleep infinity</code> to keep the container alive.</li>
+</ul>
+<p>It is worth noting that instead of a version number of the connector, I say <code>latest</code> to always get the latest release. Having edited the <code>docker-compose.yml</code> file, we now start the cluster: <code>docker-compose up -d</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Above I say <em>&hellip; get the latest <strong>release</strong> &hellip;</em>. What to be aware of is that the Confluent Hub only contains released versions of connectors (AFAIK).</p>
+</blockquote>
+<p>Wait a little while for the cluster to start up, and then use Postman to retrieve the installed connectors as in <em>Code Snippet 3</em>. Executing the Postman <code>GET</code> command, we see:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-sql-conn.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Installed Debezium SQL Server Connector</em></p>
+<p>Yay, the Debezium SQL Server Connector is now deployed to Kafka Connect, as we see in <em>Figure 8</em> (outlined in red). What you see outlined in yellow is the datagen connector which is one of the extra parts of the <code>cp-server-connect-datagen</code> image.</p>
+<h4 id="dockerfile">Dockerfile</h4>
+<p>Ok, so we have seen how we can install a connector using <code>confluent-hub install</code> in the <code>command</code> option in the <code>docker-compose.yml</code>. That is awesome; however, this requires you to have an internet connection every time you &ldquo;spin up&rdquo; the Kafka cluster.</p>
+<p>So, what you can do instead is build your own connect worker image, include the connector(s) you want and use that image in your compose file. To do this we need a base image and a file that tells Docker what to do to build our own image. For the base image, we can definitely use the image we have seen so far, the <code>cp-server-connect-datagen</code> image, but in reality, you want an image containing the bare minimum as the base. For that, we use the <code>cp-server-connect-base</code> image.</p>
+<p>I mentioned above that we need a file telling Docker what to do. This file is essentially a build file. It is common practice to name that file <code>Dockerfile</code>. To achieve what we did above in <em>Code Snippet 5</em>, we create an empty file, name it <code>Dockerfile</code> and add the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>FROM confluentinc/cp-server-connect-base:6.2.0
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>RUN confluent-hub install --no-prompt <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>            debezium/debezium-connector-sqlserver:latest
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>File to Create Image</em></p>
+<p>In <em>Code Snippet 6</em>, we see how we first define what image to use, and then we tell Docker we want to run the command to add the connector. Having saved the <code>Dockerfile</code>, we now build the image:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker build . -t dbz-sql-conn
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Docker Build</em></p>
+<p>The code in <em>Code Snippet 7</em> shows the syntax to build the image, where:</p>
+<ul>
+<li><code>docker build</code> is the build command.</li>
+<li>the <code>.</code> tells docker to pick the file named <code>Dockerfile</code>.</li>
+<li>the <code>-t dbz-sql-conn</code> tags the image with a name. Here we can also assign a version number.</li>
+</ul>
+<p>After having run the code in <em>Code Snippet 7</em>, you can execute <code>docker images</code>, and in the list of images being returned, you should now see the <code>dbz-sql-conn</code>. Notice how it automatically has been assigned the <code>latest</code> tag, as we did not give it a version.</p>
+<p>If the Kafka cluster is still up bring it down. Edit the <code>docker-compose.yml</code> file and replace the <code>cnfldemos/cp-server-connect-datagen:0.5.0-6.2.0</code> image with the image we just built: <code>dbz-sql-conn</code>, and bring up the cluster again. We do as we did before; wait a while for the cluster to come up and then use Postman to see the installed connectors. If everything has gone according to plan you now - once again - see the SQL Server connector. This time though, you will not see the datagen connector as it is not part of the <code>cp-server-connect-base</code> image.</p>
+<h4 id="pre-release-connector-versions">Pre-Release Connector Versions</h4>
+<p>I mentioned previously that Confluent Hub contains released versions of connectors. What if you want to use an Alpha/Beta version of a connector? For example, the latest release of the Debezium SQL Server connector is version 1.6.0, but there is a version 1.7.0 in testing, and I would like to test that version.</p>
+<p>First of all, how do you know what versions there are? Well, browse to <a href="https://debezium.io/releases/">Debezium Releases Overview</a>, where you see what version is in development and what version is released:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-release-overview.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Installed Debezium SQL Server Connector</em></p>
+<p>Click on the <em>More Info</em> button, which you see outlined in red in <em>Figure 9</em>. That takes you to the <a href="https://debezium.io/releases/1.7/">Debezium Release Series</a> page, where you at the bottom of the page have a <em>Downloads</em> button. Click on that button and then right-click on the connector for the product you want (SQL Server Connector Plug-in), and copy the link. The link for the latest development release for the SQL Server Connector Plug-in at the time of me writing this post (August 2021) is:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>https://repo1.maven.org/maven2/io/debezium/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>       debezium-connector-sqlserver/1.7.0.Alpha1/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>       debezium-connector-sqlserver-1.7.0.Alpha1-plugin.tar.gz
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Link to Connector Plugin</em></p>
+<p>When you look at <em>Code Snippet 8</em> beware of the line continuations <code>\</code>. As the connector is not available via Confluent Hub, how do we get it?</p>
+<p>The answer to that is that nothing much changes. We can either install it via the <code>docker-compose.yml</code> file similar to what we did in <em>Code Snippet 5</em> or what we did in <em>Code Snippet 6</em>. The only difference is that we cannot use <code>confluent-hub install</code>, but we have to:</p>
+<ul>
+<li>download it using <code>wget</code>.</li>
+<li>un-tar it into the plugin path.</li>
+</ul>
+<p>I will do it by building a new image, and the code in <code>Dockerfile</code> for this looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>FROM confluentinc/cp-server-connect-base:6.2.0
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>RUN wget https://repo1.maven.org/maven2/io/debezium/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>        debezium-connector-sqlserver/1.7.0.Alpha1/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>        debezium-connector-sqlserver-1.7.0.Alpha1-plugin.tar.gz <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>    &amp;&amp; tar -xvf ./debezium-connector-sqlserver-1.7.0.Alpha1-plugin.tar.gz <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>     -C /usr/share/java/
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Dockerfile Downloading Connector</em></p>
+<p>As with <em>Code Snippet 8</em>, beware of the line continuations in <em>Code Snippet 9</em>. In <em>Code Snippet 9</em>, we see how we download it using <code>wget</code> and then un-tar it into the plugin path. Having edited and saved the <code>Dockerfile</code>, we build it like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker build . -t dbz-sql-conn:1.7.Alpha1
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Building Alpha Release</em></p>
+<p>As we see in <em>Code Snippet 10</em>, I have given the image a tag of <code>1.7.Alpha1</code>. To ensure that it works we:</p>
+<ul>
+<li>replace the <code>dbz-sql-conn</code> image in the <code>docker-compose.yml</code> file with dbz-sql-conn:1.7.Alpha1</li>
+<li>tear down the Kafka cluster</li>
+<li>spin up the Kafka cluster again.</li>
+</ul>
+<p>When we use Postman to get installed connectors, we see the following:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-sql-conn-alpha.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Installed Debezium SQL Server Connector 1.7.0</em></p>
+<p>We see in <em>Figure 10</em> how we indeed have installed a pre-release version of the connector - yay!</p>
+<h2 id="test">Test</h2>
+<p>So far, we have seen that the SQL Server connector is installed, but we have not made sure it does what it is supposed to do, i.e. retrieve data into a Kafka topic.</p>
+<p>As I mentioned initially, this post is not about SQL Server CDC or configuring the Debezium connector. In any case, let us quickly go over how to test it works. We start with enabling SQL Server, and we use the database and table we created above:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">DebeziumTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- before we enable CDC ensure the SQL Server Agent is started
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- we need first to enable CDC on the database
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">sp_cdc_enable_db</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- then we can enable CDC on the table
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">sp_cdc_enable_table</span> @<span style="color:#268bd2">source_schema</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;dbo&#39;</span>,
+</span></span><span style="display:flex;"><span>                               @<span style="color:#268bd2">source_name</span>   = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;tb_CDCTab1&#39;</span>,
+</span></span><span style="display:flex;"><span>                               @<span style="color:#268bd2">role_name</span> = <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>                               @<span style="color:#268bd2">supports_net_changes</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Enabling Database and Table for CDC</em></p>
+<p>The code comments in <em>Code Snippet 10</em> should be pretty self-explanatory. The only thing to think about is that the SQL Server Agent needs to be started for this to work.</p>
+<p>Having enabled CDC, we now configure and create the connector instance. We do it using Postman, <code>POST</code>:ing to the <code>connectors</code> endpoint:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-create-connector.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Create Connector</em></p>
+<p>In <em>Figure 11</em>, we see a straightforward connector configuration. You can find out more about the various configuration properties <a href="https://debezium.io/documentation/reference/connectors/sqlserver.html#sqlserver-example-configuration">here</a>. When looking at the Kafka topics in Control Center after sending the <code>POST</code> request, you see something like so:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-topics.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Debezium Topics</em></p>
+<p>We see in <em>Figure 12</em> how two new topics were automatically created when we created the connector. These topics are Debezium specific topics, and you as a user would not do much with them. When you look at the topics in Kafka at this stage, you do not see any topic related to the table we want to stream data from. That changes as soon as you insert some data into the table:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">DebeziumTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_CDCTab1</span>(<span style="color:#268bd2">Col1</span>, <span style="color:#268bd2">Col2</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#39;Hello Number 1&#39;</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Ingest Data</em></p>
+<p>When you refresh the Topics page in Control Center after executing the code in <em>Code Snippet 12</em>, you see this:</p>
+<p>
+  <img src="/images/posts/kafka-connect-dbz-table-topic.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Table Topic</em></p>
+<p>Cool, in <em>Figure 13</em>, outlined in red, we see a new topic. This is the topic for the table we want to stream data from into Kafka. If you now were to look at the messages in the topic, you would see the data we just inserted. I leave that for you, my dear readers, to do on your own. We have now confirmed that everything works!</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, I describe what to do if you want to run the Debezium SQL Server connector in a Docker environment.</p>
+<p>We started by looking at what Kafka Connect and Debezium is. We said that:</p>
+<ul>
+<li>Kafka Connect is a JVM process allowing us to stream data between Apache Kafka and other systems. It works by the use of connectors which are <code>.jar</code> files. There are two types of connectors:
+<ul>
+<li>source connectors that understand how to retrieve data from a system and publish it to Kafka.</li>
+<li>sink connectors that read data from Kafka topics and ingests that data into target systems.</li>
+</ul>
+</li>
+<li>Debezium is a distributed platform with connectors for a multitude of database systems. It uses the underlying system&rsquo;s CDC functionality to capture database changes and publish those changes to topics in Kafka.</li>
+</ul>
+<p>We then looked at how to deploy a Debezium connector, more specifically the SQL Server connector, to a Kafka Connect Docker container. We saw there are two main ways to get a connector into the Kafka Connect container, and both ways use the Confluent Hub client:</p>
+<ul>
+<li>In the <code>command</code> option for the Kafka Connect container, run the install command.</li>
+<li>Create your own image, and in the <code>Dockerfile</code> file, run the install command.</li>
+</ul>
+<p>That was about it. Once again, this post was not about how CDC works or the various Debezium configuration options. That may be covered in a future post.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2021-08-01-interesting-stuff---week-31-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 31, 2021">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2021-08-08-interesting-stuff---week-32-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 32, 2021">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

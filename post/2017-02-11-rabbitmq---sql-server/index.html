@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="RabbitMQ - SQL Server" />
+    <meta property="og:title" content="RabbitMQ - SQL Server" />
+    <meta property="twitter:title" content="RabbitMQ - SQL Server" />
+    
+
+    
+    <meta name="description" content="SQL Server to RabbitMQ. A post about how SQL Server can communicate with RabbitMQ to push data out of the database.">
+    <meta property="og:description" content="SQL Server to RabbitMQ. A post about how SQL Server can communicate with RabbitMQ to push data out of the database." />
+    <meta property="twitter:description" content="SQL Server to RabbitMQ. A post about how SQL Server can communicate with RabbitMQ to push data out of the database." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>RabbitMQ - SQL Server | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-02-11-rabbitmq---sql-server/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/rabbitmq" title="RabbitMQ">
+                            RabbitMQ
+                        </a>
+                        
+                        <a class="tag" href="/tags/message-brokers" title="message brokers">
+                            message brokers
+                        </a>
+                        
+                        <a class="tag" href="/tags/streaming" title="streaming">
+                            streaming
+                        </a>
+                        
+                    </div>
+                    <h1>RabbitMQ - SQL Server</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, February 11, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A week or two ago I came across a <a href="https://groups.google.com/forum/#!searchin/rabbitmq-users/sql$20server%7Csort:relevance/rabbitmq-users/T8fA1KdVtYE/bkRz3JkOCwAJ">post</a> on the <a href="https://groups.google.com/forum/#!forum/rabbitmq-users">RabbitMQ Users</a> forum, about how to communicate from SQL Server to RabbitMQ. Seeing that we do that a lot at <a href="/Derivco">Derivco</a>, I came with some suggestions, and also said that I was writing a blog-post about how it can be done. The part of writing was not entirely correct - at least not until now (sorry Jim, it&rsquo;s been hectic at work).</p>
+<p><strong>SQL Server</strong> is awesome, and it is super easy to get data into the database. Getting data out is easy as well by querying the database. What is a bit tricker though is to get data out at the time the data is inserted or updated. Think real-time events; a purchase is made - someone needs to be notified about it at the very second it happens. We can arguable say that the data we are interested in should not be pushed out from the database, but from somewhere else. Sure, that is true - but quite often you don&rsquo;t have a choice.</p>
+<p>This was the case for <a href="/Derivco">us</a> - we needed to send events out of the database for some further processing, and the question was how to do it.</p>
+<h2 id="sql-server-and-external-communication">SQL Server and External Communication</h2>
+<p>There has been a couple of initiatives in SQL Server to allow for communication out of the database; <strong>SQL Server Notification Services</strong> (NS), which was introduced in SQL Server 2000, and more recently <strong>SQL Server Service Broker</strong> (SSB) introduced in SQL Server 2005. I covered both NS and SSB in the book I wrote together with Bob Beauchemin and Dan Sullivan - <a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A+First+Look+at+SQL+Server+2005+for+Developers"><em>A First Look at SQL Server 2005 for Developers</em></a>. NS was introduced in SQL Server 2000, as I mentioned, and had an overhaul in the beta releases for SQL Server 2005. However, NS was cut before SQL Server 2005 went RTM.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you read the <a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A+First+Look+at+SQL+Server+2005+for+Developers">book</a>, you can find us covering a couple of features that never made it to RTM.</p>
+</blockquote>
+<p>SSB survived, and in SQL Server 2008 Feature Pack, Microsoft introduced <a href="https://blogs.msdn.microsoft.com/sql_service_broker/2008/11/21/announcing-service-broker-external-activator/"><strong>Service Broker External Activator</strong></a> (EA). This is a way through SSB to be able to communicate outside of the local database. The theory sounds good, but in reality, it is cumbersome and convoluted. We did some tests with it, but we quickly realized it didn&rsquo;t do what we wanted. Also, SSB did not give us the performance we needed, so we had to come up with something else.</p>
+<h2 id="sqlclr">SQLCLR</h2>
+<p>What we came up with was based on <strong>SQLCLR</strong>. SQLCLR is where the .NET framework is embedded in the SQL engine, and you execute .NET code in the SQL Server process. Since you execute .NET code, you can <em>almost</em> do anything you can in a &ldquo;normal&rdquo; .NET application.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I wrote &ldquo;almost&rdquo; above, as there actually are certain limitations. For this discussion however, the limitations have <strong>almost</strong> no impact on what we want to do.</p>
+</blockquote>
+<p>The way SQLCLR works is that you compile your code into a dll, and you then register the <strong>assembly</strong> with SQL Server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> [<span style="color:#268bd2">RabbitMQ</span>.<span style="color:#268bd2">SqlServer</span>]
+</span></span><span style="display:flex;"><span><span style="color:#859900">AUTHORIZATION</span> <span style="color:#268bd2">rmq</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198">&#39;F:\some_path\RabbitMQSqlClr4.dll&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#268bd2">PERMISSION_SET</span> = <span style="color:#268bd2">UNSAFE</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Creating an Assembly from Absolute Path</em></p>
+<p>The code does the following:</p>
+<ul>
+<li><code>CREATE ASSEMBLY</code> - creates an assembly with a given name (whatever you want it to be).</li>
+<li><code>AUTHORIZATION</code> - indicates the <em>owner</em> of the assembly. In this case <code>rmq</code> is a pre-defined SQL Server role.</li>
+<li><code>FROM</code> - defines where the original assembly lives. The <code>FROM</code> statement can also take an UNC patch or a binary definition of the assembly. The installation files for this project uses the binary representation.</li>
+<li><code>WITH PERMISSION_SET</code> - sets the permissions. <code>UNSAFE</code> is the least restrictive, and needed in this case.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> Whatever role/login the <code>AUTHORIZATION</code> sets, will also cause an appdomain to be created with that name, as well as loading the assembly into that domain, when the assembly is loaded. It is good practice to try and keep your assemblies separated in different appdomains to prevent an error in one assembly taking down multiple assemblies. If the assemblies have dependencies on each other however, they cannot be separated in different appdomains.</p>
+</blockquote>
+<p>When the assembly is created you create wrappers around the .NET methods in your assembly:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">rmq</span>.<span style="color:#268bd2">pr_clr_PostRabbitMsg</span> @<span style="color:#268bd2">EndpointID</span> <span style="color:#cb4b16">int</span>, @<span style="color:#268bd2">Message</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">NAME</span>  [<span style="color:#268bd2">RabbitMQ</span>.<span style="color:#268bd2">SqlServer</span>].[<span style="color:#268bd2">RabbitMQSqlClr</span>.<span style="color:#268bd2">RabbitMQSqlServer</span>].[<span style="color:#268bd2">pr_clr_PostRabbitMsg</span>];
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>.NET Method Wrappers</em></p>
+<p>The code above does:</p>
+<ul>
+<li>Create a T-SQL stored procedure named <code>rmq.pr_clr_PostRabbitMsg</code>, and it takes two parameters; @EndpointID and @Message.</li>
+<li>Instead of having a body, the procedure is created against an external source, which consists of:
+<ul>
+<li>An assembly named <code>RabbitMQ.SqlServer</code>, i.e. the assembly we created above in <em>Code Snippet 1</em>.</li>
+<li>A fully qualified type (name-space and class): <code>RabbitMQSqlClr.RabbitMQSqlServer</code></li>
+<li>A method in the above name-space and class: <code>pr_clr_PostRabbitMsg</code>.</li>
+</ul>
+</li>
+</ul>
+<p>When executing  the procedure <code>rmq.pr_clr_PostRabbitMsg</code>, the method <code>pr_clr_PostRabbitMsg</code> will be called.</p>
+<blockquote>
+<p><strong>NOTE:</strong> When creating the procedure, the assembly name is not case sensitive, however the fully qualified type and method name are. There is no requirement that the procedure name being created are the same as the method name. However, the eventual data types for the parameters have to match.</p>
+</blockquote>
+<p>As I mentioned before, at <a href="/Derivco">Derivco</a> we have the requirement to send data out of SQL server, and for that we use SQLCLR and <strong><a href="http://www.rabbitmq.com/">RabbitMQ</a></strong> (RMQ).</p>
+<h2 id="rabbitmq">RabbitMQ</h2>
+<p>RMQ is an open source message broker software that implements the Advanced Message Queuing Protocol (AMQP), and is written in the Erlang programming language. As the RMQ is  a message broker, you need AMQP client libraries to connect to the broker. Your application references the client libraries, opens a connection and send messages - think ADO.NET to SQL Server. As opposed to ADO.NET, where you most likely opens a connection each time you communicate with the database, you will keep the connection open for the lifetime of the application.</p>
+<p>So, in order to be able to communicate from the database to RabbitMQ we need an application and the .NET client library for RabbitMQ.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In the rest of this post three will be some code snippets showing RabbitMQ code, but there won&rsquo;t be much explanation what they do. If you are new to RabbitMQ I suggest you have a look at the various <a href="http://www.rabbitmq.com/getstarted.html">RabbitMQ Tutorials</a>, to get a feel for what the code is doing. The <a href="http://www.rabbitmq.com/tutorials/tutorial-one-dotnet.html"><em>Hello World</em></a> tutorial for <em>C#</em> is a good place to start. One thing different between the tutorials and the demo code is that in the demo code no exchanges are declared. The expectation is that they are pre-defined.</p>
+</blockquote>
+<h2 id="rabbitmqsqlserver">RabbitMQ.SqlServer</h2>
+<p><strong>RabbitMQ.SqlServer</strong> is an assembly that uses the .NET client library for RabbitMQ and exposes functionality to post messages from the database to one or more RabbitMQ endpoints (VHosts and Exchanges). The code can be downloaded/forked from my GitHub repository <a href="https://github.com/nberglund/RabbitMQ-SqlServer">RabbitMQ-SqlServer</a>. It contains source code of assemblies as well as install files (so you don&rsquo;t have to build from source).</p>
+<blockquote>
+<p><strong>NOTE: This is demo code, to give an idea how SQL Server can call RabbitMQ. This is NOT production ready code in any shape or form. If the code burns down your house and kills your cat - don&rsquo;t blame me - it is DEMO code.</strong></p>
+</blockquote>
+<h3 id="functionality">Functionality</h3>
+<p>When the assembly is being loaded, either due to en explicit call to initialize it - or implicit by calling wrapper procedure, the assembly loads the connection-string to the local database where the assembly is installed, as well as RabbitMQ endpoints, to which it also connects:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cs" data-lang="cs"><span style="display:flex;"><span><span style="color:#859900">internal</span> <span style="color:#859900;font-weight:bold">bool</span> <span style="color:#268bd2">InternalConnect</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">try</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">_connFactory</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">ConnectionFactory</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">_connFactory</span>.<span style="color:#268bd2">Uri</span> = <span style="color:#268bd2">_connString</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">_connFactory</span>.<span style="color:#268bd2">AutomaticRecoveryEnabled</span> = <span style="color:#859900">true</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">_connFactory</span>.<span style="color:#268bd2">TopologyRecoveryEnabled</span> = <span style="color:#859900">true</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">RabbitConn</span> = <span style="color:#268bd2">_connFactory</span>.<span style="color:#268bd2">CreateConnection</span>();
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">for</span> (<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">0</span>; <span style="color:#268bd2">x</span> &lt; <span style="color:#268bd2">_channels</span>; <span style="color:#268bd2">x</span>++)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">ch</span> = <span style="color:#268bd2">RabbitConn</span>.<span style="color:#268bd2">CreateModel</span>();
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">_rabbitChannels</span>.<span style="color:#268bd2">Push</span>(<span style="color:#268bd2">ch</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">return</span> <span style="color:#859900">true</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">catch</span>(<span style="color:#268bd2">Exception</span> <span style="color:#268bd2">ex</span>)
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">return</span> <span style="color:#859900">false</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Connection to an Endpoint</em></p>
+<p>While part of connecting to the endpoint it also creates <code>IModel</code>s on the connection, and these are used when posting messages:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cs" data-lang="cs"><span style="display:flex;"><span><span style="color:#859900">internal</span> <span style="color:#859900;font-weight:bold">bool</span> <span style="color:#268bd2">Post</span>(<span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">exchange</span>, <span style="color:#859900;font-weight:bold">byte</span>[] <span style="color:#268bd2">msg</span>, <span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">topic</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">IModel</span> <span style="color:#859900">value</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">channelTryCount</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">try</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">while</span> ((!<span style="color:#268bd2">_rabbitChannels</span>.<span style="color:#268bd2">TryPop</span>(<span style="color:#859900">out</span> <span style="color:#859900">value</span>)) &amp;&amp; <span style="color:#268bd2">channelTryCount</span> &lt; <span style="color:#2aa198;font-weight:bold">100</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">channelTryCount</span> += <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Thread</span>.<span style="color:#268bd2">Sleep</span>(<span style="color:#2aa198;font-weight:bold">50</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span> (<span style="color:#268bd2">channelTryCount</span> == <span style="color:#2aa198;font-weight:bold">100</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">errMsg</span> = <span style="color:#2aa198">$&#34;Channel pool blocked when trying to post message to Exchange: {exchange}.&#34;</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">ApplicationException</span>(<span style="color:#268bd2">errMsg</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">value</span>.<span style="color:#268bd2">BasicPublish</span>(<span style="color:#268bd2">exchange</span>, <span style="color:#268bd2">topic</span>, <span style="color:#859900">false</span>, <span style="color:#859900">null</span>, <span style="color:#268bd2">msg</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">_rabbitChannels</span>.<span style="color:#268bd2">Push</span>(<span style="color:#859900">value</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">return</span> <span style="color:#859900">true</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">catch</span> (<span style="color:#268bd2">Exception</span> <span style="color:#268bd2">ex</span>)
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span> (<span style="color:#859900">value</span> != <span style="color:#859900">null</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">_rabbitChannels</span>.<span style="color:#268bd2">Push</span>(<span style="color:#859900">value</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">throw</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Sending a Message Using an IModel</em></p>
+<p>The <code>Post</code> method is called via the method <code>pr_clr_PostRabbitMsg(int endPointId, string msgToPost)</code> which is exposed as a procedure to the <code>CREATE PROCEDURE</code> statement in <em>Code Snippet 2</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cs" data-lang="cs"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">pr_clr_PostRabbitMsg</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">endPointId</span>, <span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">msgToPost</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">try</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span>(<span style="color:#268bd2">endPointId</span> == <span style="color:#2aa198;font-weight:bold">0</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">ApplicationException</span>(<span style="color:#2aa198">&#34;EndpointId cannot be 0&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span> (!<span style="color:#268bd2">_isInitialised</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">pr_clr_InitialiseRabbitMq</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">msg</span> = <span style="color:#268bd2">Encoding</span>.<span style="color:#268bd2">UTF8</span>.<span style="color:#268bd2">GetBytes</span>(<span style="color:#268bd2">msgToPost</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span> (<span style="color:#268bd2">endPointId</span> == -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">foreach</span> (<span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">rep</span> <span style="color:#859900">in</span> <span style="color:#268bd2">_remoteEndpoints</span>)
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">exch</span> = <span style="color:#268bd2">rep</span>.<span style="color:#268bd2">Value</span>.<span style="color:#268bd2">Exchange</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">topic</span> = <span style="color:#268bd2">rep</span>.<span style="color:#268bd2">Value</span>.<span style="color:#268bd2">RoutingKey</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#859900">foreach</span> (<span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">pub</span> <span style="color:#859900">in</span> <span style="color:#268bd2">_rabbitPublishers</span>.<span style="color:#268bd2">Values</span>)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">pub</span>.<span style="color:#268bd2">Post</span>(<span style="color:#268bd2">exch</span>, <span style="color:#268bd2">msg</span>, <span style="color:#268bd2">topic</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">else</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">RabbitPublisher</span> <span style="color:#268bd2">pub</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">if</span> (<span style="color:#268bd2">_rabbitPublishers</span>.<span style="color:#268bd2">TryGetValue</span>(<span style="color:#268bd2">endPointId</span>, <span style="color:#859900">out</span> <span style="color:#268bd2">pub</span>))
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">pub</span>.<span style="color:#268bd2">Post</span>(<span style="color:#268bd2">_remoteEndpoints</span>[<span style="color:#268bd2">endPointId</span>].<span style="color:#268bd2">Exchange</span>, <span style="color:#268bd2">msg</span>, <span style="color:#268bd2">_remoteEndpoints</span>[<span style="color:#268bd2">endPointId</span>].<span style="color:#268bd2">RoutingKey</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">else</span>
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">ApplicationException</span>(<span style="color:#2aa198">$&#34;EndpointId: {endPointId}, does not exist&#34;</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">catch</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">throw</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}  
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Method to be Exposed as Procedure</em></p>
+<p>When executing the method the assumption is that the caller sends in the id of the endpoint to which to send the message, as well as the actual message. If -1 is sent in as endpoint id, we loop through all endpoints and send it to all. The message comes in as a string and from the string we are getting bytes by using <code>Encoding.UTF8.GetBytes</code>. Calling <code>Encoding.UTF8.GetBytes</code> should in a production environment be replaced with some type of serialization.</p>
+<h3 id="installation">Installation</h3>
+<p>In the <em>src\sql</em> folder are all files needed for installing and running this demo code. To install:</p>
+<ol>
+<li>Run the <code>01.create_database_and_role.sql</code> file. This creates:
+<ul>
+<li>the test database <code>RabbitMQTest</code> where the assembly will be created.</li>
+<li>a SQL Server <code>ROLE</code>: <code>rmq</code>, which will own the assembly when it is created.</li>
+<li>a <code>SCHEMA</code>, also called <code>rmq</code>. The various database objects are created in this schema.</li>
+</ul>
+</li>
+<li>Run <code>02.create_database_objects.sql</code>. This script creates:
+<ul>
+<li>a table <code>rmq.tb_RabbitSetting</code>, in which the local database connection string will be stored.</li>
+<li>a table <code>rmq.tb_RabbitEndpoint</code>, in which one or more RabbitMQ endpoints is stored.</li>
+</ul>
+</li>
+<li>Edit the <code>@connString</code> variable in <code>03.create_localhost_connstring.sql</code> to the correct connection string for the <code>RabbitMQTest</code> database created in step 1. Then run the script.</li>
+</ol>
+<p>Before continuing, you need to have an RabbitMQ broker up and running and a VHost (the default VHost <code>/</code> will do). We tend to have quite a few VHosts, purely for isolation purposes. The VHost also needs an exchange, in the demo code we use <code>amq.topic</code>. When you have a RabbitMQ broker you edit the parameters in the <code>rmq.pr_UpsertRabbitEndpoint</code> procedure which is in the <code>04.upsert_rabbit_endpoint.sql</code> file:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">rmq</span>.<span style="color:#268bd2">pr_UpsertRabbitEndpoint</span> @<span style="color:#859900">Alias</span> = <span style="color:#2aa198">&#39;rabbitEp1&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">ServerName</span> = <span style="color:#2aa198">&#39;RabbitServer&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">Port</span> = <span style="color:#2aa198;font-weight:bold">5672</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">VHost</span> = <span style="color:#2aa198">&#39;testHost&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">LoginName</span> = <span style="color:#2aa198">&#39;rabbitAdmin&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">LoginPassword</span> = <span style="color:#2aa198">&#39;some_secret_password&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">Exchange</span> = <span style="color:#2aa198">&#39;amq.topic&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">RoutingKey</span> = <span style="color:#2aa198">&#39;#&#39;</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">ConnectionChannels</span> = <span style="color:#2aa198;font-weight:bold">5</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">IsEnabled</span> = <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Creating a RabbitMQ Endpoint</em></p>
+<p>At this stage it is time to deploy the assemblies. What we deploy is different if the SQL Server version is pre SQL Server 2014 (2005, 2008, 2008R2, 2012), or version 2014 or later. The difference comes what version of CLR is supported. Pre SQL Server 2014, the .NET framework ran on version 2 of CLR, whereas for SQL Server 2014, and later, it is version 4.</p>
+<h4 id="sql-server-2005---2012">SQL Server 2005 - 2012</h4>
+<p>Let us start with the SQL server versions that run on CLR 2, as it is not completely straight forward what to do. We know that we need to deploy the assembly we wrote, and we also need to deploy the .NET client library assembly for RabbitMQ (<code>RabbitMQ.Client</code>). The RabbitMQ client library should be referenced from our assembly. As we target CLR 2, our assembly as well as the <code>RabbitMQ.Client</code> need to be compiled against no later .NET version than 3.5. This is where there are some issues.</p>
+<p>All the later versions of the <code>RabbitMQ.Client</code> libraries are compiled against CLR 4, which means they cannot be used by our assembly. The latest version of the client libraries compiled against CLR 2 is 3.4.3. However, if we try to deploy that assembly we get a &ldquo;nasty&rdquo; error message:</p>
+<p>
+  <img src="/images/posts/missing_assembly_servicemodel.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Missing Assembly System.ServiceModel</em></p>
+<p>This version of the <code>RabbitMQ.Client</code> references an assembly which is not part of CLR inside SQL Server. It is a WCF assembly, and when I - above - wrote of certain limitations in SQLCR, this is one of them: that particular assembly are for all intents and purposes not allowed to run within SQL Server. The latest versions of <code>RabbitMQ.Client</code> does not have this reference, and can therefore be used without any issues - apart from that &ldquo;pesky&rdquo; CLR 4 requirement. What to do?</p>
+<p>Well, RabbitMQ is open source, and we are developers so, let&rsquo;s recompile from source. Before the latest releases of <code>RabbitMQ.Client</code> (i.e for versions &lt;3.5.0) I removed the <code>System.ServiceModel</code> reference, and re-compiled. I did have to change a couple of lines of code which used functionality from <code>System.ServiceModel</code>, but it was minor changes.</p>
+<p>For this demo code I did not use the 3.4.3 version, but grabbed the <a href="https://github.com/rabbitmq/rabbitmq-dotnet-client/tree/stable">3.6.6 stable release</a>, and recompiled using .NET 3.5 (CLR 2). That almost worked :), except for that later releases of <code>RabbitMQ.Client</code> uses <code>Task</code>&rsquo;s, which are not part of .NET 3.5 natively.</p>
+<p>Fortunately there is a version of <a href="https://www.nuget.org/packages/System.Threading.dll/"><code>System.Threading.dll</code></a> for .NET 3.5 which includes <code>Task</code>. I downloaded that, referenced it and all is good! The implication this has is that <code>System.Threading.dll</code> need to be installed as well as an assembly.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The source for the <code>RabbitMQ.Client</code> from which I built the .NET 3.5 version is in my <a href="https://github.com/nberglund/rabbitmq-dotnet-client-3.6.6-stable_net_3.5"><strong>RabbitMQ Client 3.6.6 .NET 3.5</strong></a> GitHub repository. The compiled dll together with the <code>System.Threading.dll</code> for .NET 3.5 is also in the <em>lib\NET3.5</em> folder in the <a href="https://github.com/nberglund/RabbitMQ-SqlServer">demo code (RabbitMQ-SqlServer)</a> repo.</p>
+</blockquote>
+<p>To install the necessary assemblies (System.Threading, RabbitMQ.Client, and RabbitMQ.SqlServer) run the install scripts from <em>src\sql</em>, in following order:</p>
+<ol>
+<li><code>05.51.System.Threading.sql2k5-12.sql</code> - System.Threading</li>
+<li><code>05.52.RabbitMQ.Client.sql2k5-12.sql</code> - RabbitMQ.Client</li>
+<li><code>05.53.RabbitMQ.SqlServer.sql2k5-12.sql</code> - RabbitMQ.SqlServer</li>
+</ol>
+<h4 id="sql-server-2014">SQL Server 2014+</h4>
+<p>For SQL Server 2014 and later, you compile your assembly as .NET 4.xx (the demo code is 4.5.2), and you can reference any of the later <code>RabbitMQ.Client</code> versions, which you can get from <a href="https://www.nuget.org/packages/RabbitMQ.Client">NuGet</a>. For the demo code I use 4.1.1. The <code>RabbitMQ.Client</code> is also in the <em>lib\NET4</em> folder in the <a href="https://github.com/nberglund/RabbitMQ-SqlServer">demo code (RabbitMQ-SqlServer)</a> repo.</p>
+<p>To install you run the install scripts from <em>src\sql</em>, in following order:</p>
+<ol>
+<li><code>05.141.RabbitMQ.Client.sql2k14+.sql</code> - RabbitMQ.Client</li>
+<li><code>05.142.RabbitMQ.SqlServer.sql2k14+.sql</code> - RabbitMQ.SqlServer</li>
+</ol>
+<h4 id="sql-method-wrappers">SQL Method Wrappers</h4>
+<p>To create procedures that can be used from created assemblies (3.5 or 4), you run the <code>06.create_sqlclr_procedures.sql</code> script which creates T-SQL procedures for the three .NET methods:</p>
+<ul>
+<li><code>rmq.pr_clr_InitialiseRabbitMq</code> calls <code>pr_clr_InitialiseRabbitMq</code>. Used to load and initialize the <code>RabbitMQ.SqlServer</code> assembly.</li>
+<li><code>rmq.pr_clr_ReloadRabbitEndpoints</code> calls <code>pr_clr_ReloadRabbitEndpoints</code>. Loads the various RabbitMQ endpoints.</li>
+<li><code>rmq.pr_clr_PostRabbitMsg</code> calls <code>pr_clr_PostRabbitMsg</code>. Used to post a message to RabbitMQ.</li>
+</ul>
+<p>The script also creates a &ldquo;pure&rdquo; T-SQL procedure - <code>rmq.pr_PostRabbitMsg</code> - which executes against the <code>rmq.pr_clr_PostRabbitMsg</code>. This procedure is a &ldquo;wrapper&rdquo;, which knows what to do with the data and handles errors etc. In production we have multiple procedures like this, handling different types of messages. More about that in <strong>Usage</strong> below.</p>
+<h3 id="usage">Usage</h3>
+<p>From all of the above we can see that to post a message to RabbitMQ we call the <code>rmq.pr_PostRabbitMsg</code> or <code>rmq.pr_clr_PostRabbitMsg</code> with an endpoint id and the message in string format. That is cool, but how would it be used in the &ldquo;real world&rdquo;.</p>
+<p>What <a href="/Derivco">we</a> do in the production systems - in the stored procedures that processes data and the data should be sent to RabbitMQ - is to build up the data we want to send and then in a &ldquo;hook point&rdquo; we call the equivalent of <code>rmq.pr_PostRabbitMsg</code>. Below is a very simplified example of such a procedure:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SomeProcessingStuff</span> @<span style="color:#268bd2">id</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">--create a variable for the endpoint
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">endPointId</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">--create a variable for the message
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">msg</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = <span style="color:#2aa198">&#39;{&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">--do important stuff, and collect data for the message
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">SET</span> @<span style="color:#268bd2">msg</span> = @<span style="color:#268bd2">msg</span> + <span style="color:#2aa198">&#39;&#34;Id&#34;:&#39;</span> + <span style="color:#859900">CAST</span>(@<span style="color:#268bd2">id</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">10</span>)) + <span style="color:#2aa198">&#39;,&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">-- do some more stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">SET</span> @<span style="color:#268bd2">msg</span> = @<span style="color:#268bd2">msg</span> + <span style="color:#2aa198">&#39;&#34;FName&#34;:&#34;Hello&#34;,&#39;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">SET</span> @<span style="color:#268bd2">msg</span> = @<span style="color:#268bd2">msg</span> + <span style="color:#2aa198">&#39;&#34;LName&#34;:&#34;World&#34;&#39;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">SET</span> @<span style="color:#268bd2">msg</span> = @<span style="color:#268bd2">msg</span> + <span style="color:#2aa198">&#39;}&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">--do more stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#93a1a1;font-style:italic">-- get the endpoint id from somewhere, based on something
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">endPointId</span> = <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic">--here is the hook-point
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#93a1a1;font-style:italic">--call the procedure to send the message
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">EXEC</span> <span style="color:#268bd2">rmq</span>.<span style="color:#268bd2">pr_PostRabbitMsg</span> @<span style="color:#268bd2">Message</span> = @<span style="color:#268bd2">msg</span>, @<span style="color:#268bd2">EndpointID</span> = @<span style="color:#268bd2">endPointId</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errMsg</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errLine</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">errMsg</span> = <span style="color:#268bd2">ERROR_MESSAGE</span>(), @<span style="color:#268bd2">errLine</span> = <span style="color:#268bd2">ERROR_LINE</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;Error: %s at line: %d&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>, @<span style="color:#268bd2">errMsg</span>, @<span style="color:#268bd2">errLine</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Procedure with Hook-point</em></p>
+<p>In <em>Code Snippet 7</em> we see how the data to be sent is captured in the procedure, and when processing is done the data is sent. To use this procedure execute the <code>07.create_processing_procedure.sql</code> script in the <em>src\sql</em> folder.</p>
+<h3 id="make-it-all-happen">Make it All Happen</h3>
+<p>At this stage you should now be ready to send some messages. Before you test it, make sure you have a RabbitMQ queue bound to the exchange your end-point in <code>rmq.tb_RabbitEndpoint</code> points to.</p>
+<p>So, to test this:</p>
+<ul>
+<li>Open the script file <code>99.test_send_message.sql</code>.</li>
+<li>Execute <code>EXEC rmq.pr_clr_InitialiseRabbitMq;</code>, to initialize the assembly and load the RabbitMQ endpoints. This is not necessarily required, but it is good practice to &ldquo;pre-load&rdquo; the assembly after it has been created or altered.</li>
+<li>Execute <code>EXEC dbo.pr_SomeProcessingStuff @id = 101</code> (use any id value you want).</li>
+</ul>
+<p>If no errors happened you should now see a message in your bound queue in the RabbitMQ broker! Congratulations, you have now used SQLCLR to send a message to a RabbitMQ broker.</p>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-02-05-interesting-stuff---week-5/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 5">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-02-12-interesting-stuff---week-6/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 6">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

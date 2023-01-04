@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals IX" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals IX" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals IX" />
+    
+
+    
+    <meta name="description" content="Where we look at SqlSatellite and communication between SQL Server R Services components">
+    <meta property="og:description" content="Where we look at SqlSatellite and communication between SQL Server R Services components" />
+    <meta property="twitter:description" content="Where we look at SqlSatellite and communication between SQL Server R Services components" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals IX | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxlserver.exe" title="BxlServer.exe">
+                            BxlServer.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite.dll" title="SqlSatellite.dll">
+                            SqlSatellite.dll
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals IX</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, August 18, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the tenth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the ninth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>We are now nearing the end of the Internals part of this series (you probably say &ldquo;about time&rdquo;). When I started this series way back in March this year, I thought that the Internals would be two, maximum three episodes. Boy was I wrong!</p>
+<p>In this post we&rsquo;ll look at how the various components are communicating with each other.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> we looked at what different components are involved when we execute <code>sp_execute_external_script</code>:</p>
+<ul>
+<li>SQL Server calls into the launchpad service.</li>
+<li>The launchpad service calls into the <code>Rlauncher.dll</code>.</li>
+<li>The <code>Rlauncher.dll</code> creates Rterm processes.</li>
+<li>Through Rterm, the <code>R.dll</code> is loaded together with <code>RxLink.dll</code>.</li>
+<li>The <code>RxLink.dll</code> creates the <code>BxlServer.exe</code> process.</li>
+<li>To coordinate with SQL Server, <code>BxlServer.exe</code> loads <code>BxServerLink.dll</code>.</li>
+</ul>
+<p>The above can be illustrated as in <em>Figure 1</em> below</p>
+<p>
+  <img src="/images/posts/sql_r_services_8_arch_overview.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Components In Play</em></p>
+<p>The questions are though how the components are communicating and what is involved in getting back to SQL Server after <code>BxlServer.exe</code> and <code>BxServerLink.dll</code> have done their &ldquo;magic&rdquo;?</p>
+<h2 id="demo-code">Demo Code</h2>
+<p>Before we drill into the questions above, let&rsquo;s look at the demo code we&rsquo;ll use. Let&rsquo;s start with setting up the database and a table with some data we can use. All in all 1 million rows:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">y</span> <span style="color:#cb4b16">bigint</span>, 
+</span></span><span style="display:flex;"><span>                          <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">bigint</span>, <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">bigint</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">bigint</span>, <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">bigint</span>, 
+</span></span><span style="display:flex;"><span>                          <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">bigint</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">bigint</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Setup of Database, Table and Data</em></p>
+<p>The data is more or less the same data we used in <a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">Internals - V</a>, and the code to execute looks also almost the same:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>          @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>        , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             #Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             pid &lt;- Sys.getpid()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             d &lt;- getwd()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(paste0(&#34;ProcessId: &#34;, pid))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(&#34;\n&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(paste0(&#34;WorkDir: &#34;, d))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(&#34;\n&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             r &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                           data=InputDataSet)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             coef &lt;- r$coefficients
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             icept &lt;- coef[1];
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             OutputDataSet &lt;- data.frame(pid=pid, nRows=r$nValidObs, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                          intercept=icept)&#39;</span>
+</span></span><span style="display:flex;"><span>       , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              SELECT y, rand1, rand2, rand3, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      rand4, rand5 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              FROM dbo.rand_10M&#39;</span>
+</span></span><span style="display:flex;"><span>       
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">pid</span> <span style="color:#cb4b16">BIGINT</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">nRows</span> <span style="color:#cb4b16">BIGINT</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>                   <span style="color:#268bd2">intercept</span> <span style="color:#cb4b16">FLOAT</span> <span style="color:#859900">NULL</span>)); 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Code to Execute</em></p>
+<p>In <em>Code Snippet 2</em> we see how we read in data from the statement in the <code>@input_data_1</code> parameter. The actual R code retrieves the process id and work directory and assigns them to the <code>pid</code> and  <code>d</code> variables which then are printed out through the <code>cat</code> statements. After a model has been created in <code>rxLinMod</code> some information about the model is returned as a resultset from the <code>OutputDataSet</code> variable. The schema of the resultset is defined in <code>WITH RESULT SETS ...</code>. For us to be able to determine what is happening when executing the code, there is a <code>Sys.sleep</code> statement, which for now is commented out. Before we go any further, let&rsquo;s make sure it works:</p>
+<ol>
+<li>Restart the launchpad service (stop and start).</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ol>
+<p>If everything has worked OK, the Results tab in SSMS should look something like in <em>Figure 2</em>, and the Message tab like in <em>Figure 3</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_test_result.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Results from Running the Code</em></p>
+<p>
+  <img src="/images/posts/sql_r_services_9_test_msgs.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Message Output from Running the Code</em></p>
+<p>As we know that the execution of the R code happens outside of SQL Server, the question is what component(s) are responsible for returning results and messages to SQL Server. Before looking at that, let&rsquo;s look at how communication happens between the various components.</p>
+<h2 id="communication">Communication</h2>
+<p>The components we are interested in the communication between are:</p>
+<ul>
+<li>SQL Server -&gt; Launchpad</li>
+<li>launchpad -&gt; Rterm</li>
+<li>Rterm -&gt; BxlServer</li>
+</ul>
+<h4 id="sql-server---launchpad">SQL Server -&gt; Launchpad</h4>
+<p>So, let&rsquo;s start with the communication between SQL Server and the launchpad service. In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> we used WinDbg and we saw how SQL Server calls (among other things) <code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code> to create and open a named pipe to the launchpad service. Let us make double sure that there really is named pipe involved, and the way we&rsquo;ll do that is by using <strong>WinDbg</strong> and <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><strong>Process Explorer</strong></a>.</p>
+<p>What we&rsquo;ll do is:</p>
+<ol>
+<li>Restart SQL Server and the launchpad service (please, do not do this on a production server :) ).</li>
+<li>Start WinDbg and Process Explorer as admin.</li>
+<li>In Process Explorer, ensure that the lower pane is visible (Ctrl + L).</li>
+</ol>
+<p>To begin we&rsquo;ll see what named pipes SQL Server has created &ldquo;out of the box&rdquo; so to speak. Named pipes are exposed as handles in Process Explorer, so by clicking on the <code>sqlserver.exe</code> process in Process Explorer and then Ctrl + H you should see handles in the lower pane. By ordering on name and scrolling down to <code>Device\Named</code> pipe, you should see something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_sql_named_pipes1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>SQL Server Initial Named Pipes</em></p>
+<p>As we see in <em>Figure 4</em>, we have (at least on my machine) six named pipes. There is nothing that would indicate a named pipe to the launchpad service.</p>
+<p>Now you can go on and see what named pipes (if any) the launchpad service (<code>launchpad.exe</code>) has. On my machine it looks like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_launchpad_named_pipes1.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Launchpad Named Pipes</em></p>
+<p>Hmm, that is interesting - there are two named pipes with a name similar to what we have seen in previous posts: <em>sqlsatellite</em>. However, since the launchpad service is inactive right now, it seems those two named pipes are not connected to anything.</p>
+<p>So far we do not have any evidence of named pipes between SQL Server and the launchpad service, but on the other hand we have not executed anything yet either (since the restart). Let us now go on and execute the code in <em>Code Snippet 2</em> again, but before we do that let us do what we did in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and set a breakpoint at <code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code>. So attach WinDbg to the <code>sqlserver.exe</code> process and set the breakpoint.</p>
+<p>Before you execute the code, uncomment the <code>Sys.sleep</code> call and change the time to sleep to 30 seconds (<code>Sys.sleep(30)</code>), so you can investigate what is happening. Now, go ahead and execute.</p>
+<p>The breakpoint is hit and execution stops. Look in Process Explorer and see what named pipes there are both for SQL Server as well as the launchpad service. At this stage there should not be any more named pipes than what you see in <em>Figure 4</em> and <em>Figure 5</em>. Continue execution of the code, and look again in Process Explorer. You should now see for SQL Server something like in <em>Figure 6</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_sql_named_pipes2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>SQL Server Named Pipes</em></p>
+<p>For the launchpad service it looks something like <em>Figure 7</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_launchpad_named_pipes2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Launchpad Named Pipes During Execution</em></p>
+<p>We see now how for SQL Server we have a new named pipe: <code>\Device\NamedPipe\sqlsatellitelaunch</code>, and for the launchpad service a corresponding additional named pipe: <code>\Device\NamedPipe\sqlsatellitelaunch</code>. By now we should be fairly certain that communication between SQL Server and the launchpad service is through named pipes.</p>
+<h4 id="launchpad---rterm">Launchpad -&gt; Rterm</h4>
+<blockquote>
+<p><strong>NOTE:</strong> The heading above is somewhat misleading as it is not <code>Launchpad.exe</code> that connects to Rterm but <code>Rlauncher.dll</code>, however we&rsquo;ll use launchpad for now.</p>
+</blockquote>
+<p>When I started writing this section, I thought: &ldquo;how hard can this be, the launchpad service obviously talks to Rterm via named pipes&rdquo;. It turned out to be not that simple. The way I went about &ldquo;proving&rdquo; (or not) that named pipes were used was similar to what we did above between SQL Server and the launchpad service, but initially I didn&rsquo;t use WinDbg:</p>
+<ol>
+<li>Restart SQL Server and the launchpad service.</li>
+<li>Make sure Process Explorer is up and running.</li>
+<li>Set a sufficiently high <code>Sys.sleep</code> value in the code (I ended up using 120 seconds).</li>
+<li>Execute the code.</li>
+</ol>
+<p>When I at this stage looked at the handles for the launchpad service, I saw the three named pipes we saw in <em>Figure 7</em>. That would make sense, we know that one of them is the named pipe connection from SQL Server, and then one of the other two would be used between the launchpad service and Rterm.</p>
+<blockquote>
+<p><strong>NOTE:</strong> When using named pipes, and you look at them in Process Explorer, you should see the same name in both source as well as destination.</p>
+</blockquote>
+<p>The problem was that I did not see a named pipe in the executing Rterm process, with the same name as in the launchpad service. Hmm, there went that theory. Well, if named pipes are not used, what about TCP/IP and sockets? So I noted the PID of the launchpad service, executed the code again, and while the code was running I (from command line) used <code>netstat</code> to see what socket connections there were. The command I used was <code>netstat -a -n -o</code>, which means:</p>
+<ul>
+<li>show all connections and listening ports (<code>-a</code>).</li>
+<li>display addresses and port numbers in in numerical form (<code>-n</code>).</li>
+<li>display the owning PID associated with each connection (<code>-o</code>).</li>
+</ul>
+<p>I looked for the PID of the launchpad service to see if there were any connections, but none could be found. Now the original question of &ldquo;how hard can this be&rdquo; had an answer - &ldquo;actually, pretty hard&rdquo;! At this stage I resorted to some WinDbg <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a>, and looked for &ldquo;promising&rdquo; routine names. Seeing that a lot of the routines we have seen so far in this series comes from classes with &ldquo;satellite&rdquo; in them I executed: <code>x *!*satellite*</code>. Eish, that returned a <strong>lot</strong>. However, while scrolling through the output, I came across following routine: <code>launchpad!CSQLSatelliteConnection::AddProviderDoneIOCPCallback</code>. Hmm, something that has to do with callback from <code>IOCP</code>, could it be that the launchpad service connects via IO Completion Ports (IOCP)? Only one way to find out - set some breakpoints in WinDbg.</p>
+<p>In <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> where we discussed what happens inside the launchpad service, we had a diagram of the flow of a call looking like so:</p>
+<p>
+  <img src="/images/posts/sql-launchpad-r-post.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Launchpad Service Call Flow</em></p>
+<p>In <em>Figure 8</em> we see how the communication to Rterm is done in the <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> call, so the setup of the IOCP should be done before the <code>WriteMessage</code> call, and most likely after the <code>LaunchServTask</code> call. So in the already attached WinDbg, I set three breakpoints:</p>
+<ul>
+<li><code>bp launchpad!CLaunchContext::LaunchServTask</code></li>
+<li><code>bp KERNELBASE!CreateIoCompletionPort</code> (I had read documentation of IOCP and saw that this was a likely call).</li>
+<li><code>bp launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ul>
+<p>If my theory was to be correct, I would see the execution first stop at <code>LaunchServTask</code>, followed by <code>CreateIoCompletionPort</code> and then finally at <code>WriteMessage</code>. I executed the code in <em>Code Snippet 2</em> with <code>Sys.sleep(10)</code> and this is what I saw in WinDbg:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">02</span><span style="color:#2aa198;font-weight:bold">8</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">3</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">00</span><span style="color:#2aa198;font-weight:bold">9</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateIoCompletionPort</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">011</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">00</span><span style="color:#2aa198;font-weight:bold">9</span>&gt; <span style="color:#268bd2">g</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Launchpad Breakpoints being Hit</em></p>
+<p>This to me indicates that yes, IOCP is being used as communication mechanism between the launchpad service and Rterm.</p>
+<h4 id="rterm---bxlserver">Rterm -&gt; BxlServer</h4>
+<p>In <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> we spoke about <code>BxlServer.exe</code>, how it hosts RevoScaleR code and how it also coordinates with the R runtime in order to manage exchanges of data with SQL Server. The <code>BxlServer.exe</code> process is created by the Rterm process via the <code>RxLink.dll</code> which acts as a conduit. The source code for <code>RxLink.dll</code> is <a href="https://packages.revolutionanalytics.com/tools/src/rre-gpl-src.8.0.3.tar.gz">available</a>, and when I had a look at the source, I saw quite a lot of code related to named pipes. So my assumption is that communication between the Rterm process (via <code>RxLink.dll</code>) and the BxlServer process happens through named pipes.</p>
+<p>Seeing that I don&rsquo;t have any debug symbols for <code>Rterm.exe</code>, <code>R.dll</code>, <code>RxLink.dll</code> or <code>BxlServer.exe</code> we&rsquo;ll try and use other methods to prove (or disprove) that named pipes are used. The way we&rsquo;ll do it is to use Process Explorer as we did with the communication between SQL Server and the launchpad service. Now is probably a good time to restart both the SQL Server service as well as the launchpad service (just to start afresh).</p>
+<p>After the SQL Server and the launchpad service has been restarted bring back Process Explorer again (as admin). This time though we&rsquo;ll look at the Rterm process and the hosted BxlServer process:</p>
+<ol>
+<li>In Process Explorer navigate to the launchpad process.</li>
+<li>Set big enough <code>Sys.sleep</code> value in the code. 90 seconds worked fine for me.</li>
+</ol>
+<p>When executing the code, look in Process Explorer for the Rterm process and BxlServer process where you have a <code>CPU</code> value greater than 0:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_rterm_bxlserver.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Rterm and BxlServer Processes</em></p>
+<p>In <em>Figure 8</em> we see the Rterm and BxlServer processes that are active. When you have found the active processes check if there are any named pipe handles for those two processes (Ctrl+H):</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_rterm_nps.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Rterm Named Pipes</em></p>
+<p>
+  <img src="/images/posts/sql_r_services_9_bxlserver_nps.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>BxlServer Named Pipes</em></p>
+<p><em>Figure 9</em> and <em>Figure 10</em> show the named pipes file handles for the Rterm process (<em>Figure 9</em>), and BxlServer process (<em>Figure 10</em>). As we can, the same named pipes exists in both processes (they have the same names), so we can with some certainty say that communication between Rterm and BxlServer is done via named pipes. With this in mind we can enhance <em>Figure 1</em> and show the communication mechanisms:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_comms1.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Communication Mechanisms</em></p>
+<p>In <em>Figure 11</em> the numbers indicate:</p>
+<ul>
+<li>1 - named pipe.</li>
+<li>2 - IOCP.</li>
+<li>3 - named pipe.</li>
+</ul>
+<h2 id="sqlsatellite">SqlSatellite</h2>
+<p>Now, we&rsquo;ve seen how the various components are communicating with each other, but - how is data exchanged? E.g, how does a resultset get back to SQL Server, and does the print (<code>cat</code>) statements travel back the same way? In <em>Figure 11</em> wee see how the BxlServer is doing &ldquo;stuff&rdquo; and then interacts with BxServerLink, but it kind of stops there. Surely a dataset like in our code wouldn&rsquo;t go back over the IOCP? Would there be any other components in play? Let&rsquo;s see what we can find out.</p>
+<p>Once again use the Process Explorer, but now we are interested in what dll&rsquo;s the BxlServer loads while it&rsquo;s running. Execute the code again, and when you have found the &ldquo;active&rdquo; BxlServer process do a Ctrl+D to find the loaded dlls, and see what &ldquo;pops up&rdquo;:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_sqlsatellite.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>SqlSatellite.dll</em></p>
+<p>When we look at the various dll&rsquo;s that are loaded by BxlServer we come across a name we have seen and briefly mentioned before: <code>SqlSatellite.dll</code>. In Internals <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">II</a>, <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">III</a> and <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">VII</a> we saw how paths were set, pointing to where the <code>sqlsatellite.dll</code> is located. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we also mentioned how SqlSatellite is an API to support external code and external run times. It is loaded by the BxlServer process and it handles data transfers between SQL Server and external languages (in this case R).</p>
+<h4 id="communication-1">Communication</h4>
+<p>Now we have an idea who handles data exchange (at least some of it), but what mechanism is used? Named pipes could be an option, and we saw in SQL Server that named pipe: <code>\Device\NamedPipe\sqlsatellitelaunch</code>. However, that pipe is used by SQL Server for communication with the launchpad service, and there were really no other named pipes that seemed to fit in. How about sockets and TCP/IP? That could be an option, let&rsquo;s see.</p>
+<p>Once again, do a restart of SQL Server as well as the launchpad service to make sure we are in a clean state. Make a note of the process id (PID) of SQL Server, well use it to see what socket connections SQL Server has. If Process Explorer is not running, start it up as admin. When SQL Server is restarted check what TCP connections we have by running the <code>netstat -a -n -o -p TCP</code> command.</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">1434</span>         <span style="color:#2aa198;font-weight:bold">0.0.0.0</span>:<span style="color:#2aa198;font-weight:bold">0</span>              <span style="color:#268bd2">LISTENING</span>       <span style="color:#2aa198;font-weight:bold">2900</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">52637</span>        <span style="color:#2aa198;font-weight:bold">0.0.0.0</span>:<span style="color:#2aa198;font-weight:bold">0</span>              <span style="color:#268bd2">LISTENING</span>       <span style="color:#2aa198;font-weight:bold">2900</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>TCP Connections SQL Server</em></p>
+<p>The PID for SQL Server after I restarted was 2900, and from <em>Code Snippet 4</em> we can see two listening connections, with no source as of yet. The listener for port 1434 is for the SQL Server Browser Service, whereas port 52637 is something of a mystery. Let&rsquo;s now execute our code and see if anything changes (I set <code>Sys.sleep</code> to 90 seconds to make sure I had enough time to see what happens). While the code is executing run <code>netstat -a -n -o -p TCP -b</code> (<code>-b</code> will display the executable involved in creating the connection). When I executed the code and ran the netstat command I saw the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">1434</span>         <span style="color:#2aa198;font-weight:bold">0.0.0.0</span>:<span style="color:#2aa198;font-weight:bold">0</span>              <span style="color:#268bd2">LISTENING</span>       <span style="color:#2aa198;font-weight:bold">2900</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">sqlservr</span>.<span style="color:#268bd2">exe</span>]
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">52637</span>        <span style="color:#2aa198;font-weight:bold">0.0.0.0</span>:<span style="color:#2aa198;font-weight:bold">0</span>              <span style="color:#268bd2">LISTENING</span>       <span style="color:#2aa198;font-weight:bold">2900</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">sqlservr</span>.<span style="color:#268bd2">exe</span>]
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">52637</span>        <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">64511</span>        <span style="color:#268bd2">ESTABLISHED</span>     <span style="color:#2aa198;font-weight:bold">2900</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">sqlservr</span>.<span style="color:#268bd2">exe</span>]
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">TCP</span>    <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">64511</span>        <span style="color:#2aa198;font-weight:bold">127.0.0.1</span>:<span style="color:#2aa198;font-weight:bold">52637</span>        <span style="color:#268bd2">ESTABLISHED</span>     <span style="color:#2aa198;font-weight:bold">8088</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">BxlServer</span>.<span style="color:#268bd2">exe</span>]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>TCP Connections SQL Server while Executing</em></p>
+<p>That is interesting! From <em>Code Snippet 5</em> we see how SQL Server now has an established TCP connection on port 52637, and the connection originates from PID 8088. That PID is <code>BxlServer.exe</code>, and - as we know from earlier - <code>BxlServer.exe</code> loads <code>SqlSatellite.dll</code>. We now have a TCP/IP connection from SqlSatellite to SQL Server, and it is over that connection data is exchanged.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Not all data is exchanged over the TCP/IP socket connection, as we will see in next post.</p>
+</blockquote>
+<p>Finally, let&rsquo;s do some more WinDbg &ldquo;spelunking&rdquo; in order to understand how and when the TCP connection is established:</p>
+<ol>
+<li>Restart SQL Server and the launchpad service, to clean things up.</li>
+<li>Attach WinDbg to the SQL Server process</li>
+<li>Browse symbols with the name TCP</li>
+</ol>
+<p>When browsing for the symbols, you can use this command: <code>x /1 *!TCP*</code>. By using the option <code>/1</code> you&rsquo;ll only see the names, and no addresses. On my machine that gives me quite a lot, but there are two entries that catch my eye: <code>sqllang!Tcp::AcceptConnection</code> and <code>sqllang!Tcp::Close</code>. So let us set breakpoints at those two symbols, and see what happens when we execute our code.</p>
+<p>The result when executing the code is that we initially break at <code>sqllang!Tcp::AcceptConnection</code>. Followed somewhat later by breaking at <code>sqllang!Tcp::Close</code>. Cool, this seems to work - let us set some more breakpoints and try to figure out the flow of events.</p>
+<p>To be able to see the flow, we need to involve the launchpad service as well, as it is that service who &ldquo;spins up&rdquo; the Rterm process who in turn creates the BxlServer process who loads BxServerLink as well as SqlSatellite. So, remember from <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> what the code looked like (from a very high level) to create the executing Rterm processes, it was something like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CreateProcessForSatelliteSession</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">PhysicalUserContext</span>::<span style="color:#268bd2">LaunchProcess</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateProcessInternalW</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">Satellite_ResourceManager</span>::<span style="color:#268bd2">AssociateProcessToJobObject</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteJobObject</span>::<span style="color:#268bd2">AssociateProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendResumeWithLoginInfo</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Launchpad Code Flow</em></p>
+<p>As discussed in <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internal - II</a> and <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, when an external script is executed 6 different Rterm processes are &ldquo;spun&rdquo; up, bit only one will be the executing process, and the code in <em>Code Snippet 6</em> illustrates the code creating the executing Rterm process.</p>
+<p>With this in mind, let us:</p>
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do <strong>NOT</strong> delete the user account folders themselves.</li>
+<li>Restart the launchpad service.</li>
+<li>Attach WinDbg to the launchpad process.</li>
+</ol>
+<p>Set breakpoints in the attached launchpad process at (make sure that the SQL Server breakpoints are enabled):</p>
+<ul>
+<li><code>bp launchpad!SatelliteJobObject::AssociateProcess</code>.</li>
+<li><code>bp launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code>.</li>
+<li><code>bp launchpad!CSQLSatelliteConnection::WriteMessage</code>.</li>
+</ul>
+<p>What we now want to do is to run the two WinDbg instances side by side and see when the individual breakpoints are hit, and in what order. Before we begin, clear out the WinDbg command output (<code>.cls</code>). Execute the code and look closely at what happens in the two WinDbg instances.</p>
+<p>What I see on my machine is that I break two or three times in launchpad at <code>launchpad!SatelliteJobObject::AssociateProcess</code>, and after the second or third break, I break at <code>sqllang!Tcp::AcceptConnection</code> in SQL Server. That is followed by <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> and <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>, plus more <code>launchpad!SatelliteJobObject::AssociateProcess</code>. After a while I receive two more <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> in the launchpad service and a <code>sqllang!Tcp::Close</code> in SQL Server.</p>
+<p>The conclusion I draw from this is that after the executing Rterm process has been created (and BxlServer, BxLinkServer and SqlSatellite), SqlSatellite connects into SQL Server.</p>
+<p>You may notice that the <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> breakpoint will be hit a couple of times after the SQL Server <code>sqllang!Tcp::AcceptConnection</code>. We&rsquo;ll discuss that in the next Internals blogpost.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we set out trying to determine what communication mechanisms there are between the various components interacting when <code>sp_execute_external_script</code> is called. We also saw how a &ldquo;new&rdquo; component <code>sqlsatellite.dll</code> is in the mix, and in the next blogpost in the Internals series we&rsquo;ll look more in detail what it does.</p>
+<p>So, <em>Figure 13</em> below illustrates quite well the communication mechanisms between the various components:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_comms2.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>How Communication Happens</em></p>
+<p>The figure looks quite like <em>Figure 11</em> and the numbers indicate:</p>
+<ul>
+<li>1 - named pipe.</li>
+<li>2 - IOCP.</li>
+<li>3 - named pipe.</li>
+<li>4 - TCP/IP</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-08-13-interesting-stuff---week-32/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 32">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-08-20-interesting-stuff---week-33/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 33">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

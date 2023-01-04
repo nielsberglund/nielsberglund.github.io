@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="More T-SQL Error Functionality in Denali / SQL 11" />
+    <meta property="og:title" content="More T-SQL Error Functionality in Denali / SQL 11" />
+    <meta property="twitter:title" content="More T-SQL Error Functionality in Denali / SQL 11" />
+    
+
+    
+    <meta name="description" content="Blog by Niels Berglund">
+    <meta property="og:description" content="Blog by Niels Berglund" />
+    <meta property="twitter:description" content="Blog by Niels Berglund" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>More T-SQL Error Functionality in Denali / SQL 11 | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2010-11-12-more-t-sql-error-functionality-in-denali-sql-11/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/denali" title="denali">
+                            denali
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-11" title="SQL 11">
+                            SQL 11
+                        </a>
+                        
+                        <a class="tag" href="/tags/t-sql" title="t-sql">
+                            t-sql
+                        </a>
+                        
+                    </div>
+                    <h1>More T-SQL Error Functionality in Denali / SQL 11</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, November 12, 2010
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>In my previous <a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/">post</a> I wrote about the new <code>THROW</code> keyword in Denali / SQL 11. Having played around a bit more with Denali, I wanted to write some additional things about <code>THROW</code> and it&rsquo;s relation to <code>RAISERROR</code>.</p>
+<h3 id="raiserror">RAISERROR</h3>
+<p>First some background / overview of RAISERROR:</p>
+<ul>
+<li><code>RAISERROR</code> allows you to throw an error based on either an error number or a message, and you can define the severity level and state of that error:</li>
+<li>If you call <code>RAISERROR</code> with an error number, that error number has to exist in sys.messages.</li>
+<li>You can use error numbers between 13001 and 2147483647 (it cannot be 50000) with <code>RAISERROR</code>.</li>
+</ul>
+<p>As I mentioned in my previous <a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/">post</a>, <code>RAISERROR</code> has been around since forever - and it works fairly well. One of the major drawbacks with <code>RAISERROR</code> - as I also wrote in my previous post; is that it cannot be used to re-throw an error we might have trapped in a structured error handling block. Or rather, this may not be that much a <code>RAISERROR</code> issue, as an issue that SQL Server has not previously supported the notion of re-throwing an error. Be as it may with that, there are other drawbacks with <code>RAISERROR</code> which I will mention later in this post.</p>
+<h3 id="throw">THROW</h3>
+<p>In Denali / SQL 11 Microsoft introduces the <code>THROW</code> keyword, which allows us to re-throw an exception caught in an exception handling block. Some characteristics of <code>THROW</code>:</p>
+<ul>
+<li>Using <code>THROW</code> you can throw a specific error number as well as message:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">THROW</span> <span style="color:#2aa198;font-weight:bold">50000</span>, <span style="color:#2aa198">&#39;Ooops&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><ul>
+<li>When using <code>THROW&gt;</code> you have to define both an error number as well as a message (and state), unless you re-throw an exception.</li>
+<li>The error number does not have to exist in sys.messages but, it has to be between 50000 and 2147483647.</li>
+</ul>
+<p>So, <code>THROW</code> looks fairly cool, but what are the drawbacks with <code>RAISERROR</code> I mentioned above? <del>Well, for one - beginning with Denali / SQL 11 RAISERROR is being deprecated, i.e. it will eventually be removed from SQL Server</del>. Another reason has to do with transactions and error handling.</p>
+<p><strong>UPDATE:</strong> According to <a href="http://sqlblog.com/blogs/aaron_bertrand/">Aaron Bertrand</a>, in his <a href="http://sqlblog.com/blogs/aaron_bertrand/archive/2010/11/22/sql-server-v-next-denali-using-throw-instead-of-raiserror.aspx">post</a>, it is only some very old <code>RAISERROR</code> syntax that is being deprecated.</p>
+<h3 id="xact_abort">XACT_ABORT</h3>
+<p>As every T-SQL programmer worth his (or her) salt should know, an exception does not roll back a transaction by default (ok, ok, it does depend on severity level to an extent - but a &ldquo;normal&rdquo; exception does not roll back a tran). I.e. the following code would cause two rows to be inserted in the table <code>t1</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--first create a test table which we will use throughout the code samples
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span> <span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">t1</span> (<span style="color:#268bd2">id</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">col1</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">15</span>));
+</span></span><span style="display:flex;"><span> <span style="color:#93a1a1;font-style:italic">--now onto the &#39;meat&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span> <span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span> <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#39;row1&#39;</span>);
+</span></span><span style="display:flex;"><span> <span style="color:#93a1a1;font-style:italic">--emulate some error, this will indeed cause an exception to happen,
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span> <span style="color:#93a1a1;font-style:italic">--but the processing will continue
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span> <span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> / <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span> <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#2aa198">&#39;row2&#39;</span>)
+</span></span><span style="display:flex;"><span> <span style="color:#859900">COMMIT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>We can indicate to SQL Server that we want &ldquo;automatic&rdquo; rollback of transactions when an exception happens by setting <code>XACT_ABORT</code>. This will cause a rollback to happen if a system exception happens. So based on the example above, no rows will be inserted when the code below executes:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">XACT_ABORT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">3</span>, <span style="color:#2aa198">&#39;row3&#39;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> / <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">T1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">4</span>, <span style="color:#2aa198">&#39;row4&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>However, what happens if the user throws an exception using <code>RAISERROR</code>? In that case no rollback happens, i.e. <code>RAISERROR</code> does not honor the <code>XACT_ABORT</code> setting:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">XACT_ABORT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">5</span>, <span style="color:#2aa198">&#39;row5&#39;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--the user raises an error, but the tx will not roll back
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;Oooops&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">6</span>, <span style="color:#2aa198">&#39;row6&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This can catch developers out and is in my opinion a fairly severe drawback. So with the introduction of Denali / SQL 11 and the <code>THROW</code> keyword, Microsoft has tried to fix this by making <code>THROW</code> honor <code>XACT_ABORT</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">XACT_ABORT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">7</span>, <span style="color:#2aa198">&#39;row7&#39;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--the user raises an error, and the tx will roll back
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">THROW</span> <span style="color:#2aa198;font-weight:bold">50000</span>, <span style="color:#2aa198">&#39;Ooops&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">t1</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">8</span>, <span style="color:#2aa198">&#39;row8&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>When you run the code above, you will see that the transaction is indeed rolled back and no rows are inserted.</p>
+<p>So developers, &ldquo;go forth&rdquo; and <code>THROW</code> exceptions in SQL Server Denali / SQL 11.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/" data-toggle="tooltip" data-placement="top" title="New T-SQL Features in SQL 11 / Denali - Error Handling">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2010-11-13-beginners-fsharp-resources/" data-toggle="tooltip" data-placement="top" title="Beginners F# Resources">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server 2017 SQLCLR - Whitelisting Assemblies" />
+    <meta property="og:title" content="SQL Server 2017 SQLCLR - Whitelisting Assemblies" />
+    <meta property="twitter:title" content="SQL Server 2017 SQLCLR - Whitelisting Assemblies" />
+    
+
+    
+    <meta name="description" content="SQL Server 2017 RC1 has added new functionality for SQLCLR security; sp_add_trusted_assembly.">
+    <meta property="og:description" content="SQL Server 2017 RC1 has added new functionality for SQLCLR security; sp_add_trusted_assembly." />
+    <meta property="twitter:description" content="SQL Server 2017 RC1 has added new functionality for SQLCLR security; sp_add_trusted_assembly." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server 2017 SQLCLR - Whitelisting Assemblies | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-07-23-sql-server-2017-sqlclr-white-listing-assemblies/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-2017" title="SQL Server 2017">
+                            SQL Server 2017
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlclr" title="SQLCLR">
+                            SQLCLR
+                        </a>
+                        
+                        <a class="tag" href="/tags/permissions" title="permissions">
+                            permissions
+                        </a>
+                        
+                        <a class="tag" href="/tags/clr-strict-security" title="clr strict security">
+                            clr strict security
+                        </a>
+                        
+                        <a class="tag" href="/tags/trustworthy" title="TRUSTWORTHY">
+                            TRUSTWORTHY
+                        </a>
+                        
+                        <a class="tag" href="/tags/sys.sp_add_trusted_assembly" title="sys.sp_add_trusted_assembly">
+                            sys.sp_add_trusted_assembly
+                        </a>
+                        
+                        <a class="tag" href="/tags/hashbytes" title="HASHBYTES">
+                            HASHBYTES
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server 2017 SQLCLR - Whitelisting Assemblies</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, July 23, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A little while ago I wrote a <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">blog-post</a> about the changes in the SQLCLR security model in SQL Server 2017. I wrote about how Microsoft has changed the relation between CAS and security boundaries, and CAS is no longer supported as a boundary! And also how Microsoft introduced an <code>sp_configure</code> option called <code>clr strict security</code>, which by default is set to 1 (on). When the setting is on, SQL Server treats all assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) as if they were marked <code>UNSAFE</code>.</p>
+<p>The release I wrote the post against was CTP 2.1, and earlier this week Microsoft released SQL Server 2017 RC1. Some days ago I received a comment from <em>Paul Vestuto</em> on my <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">post</a>, pointing out that in RC1 there has been some more changes to the security model. I thought those changes would earn their own blog-post, instead of just editing the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">previous post</a>.</p>
+<p>Let&rsquo;s look back at what the changes were in SQL 2017, to the SQLCLR permissions.</p>
+<h2 id="recap">Recap</h2>
+<p>In SQL Server 2017, Microsoft now by default requires that all type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) are authorized for <code>UNSAFE</code> access, by:</p>
+<ul>
+<li>The database is set to be <code>TRUSTWORTHY</code>, <em>OR</em></li>
+<li>The assembly is signed with a certificate that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission, <em>OR</em></li>
+<li>The assembly is signed with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
+</ul>
+<p>The implication of the above is that, unless you want to mark your database <code>TRUSTWORTHY</code>, you can no longer &ldquo;just&rdquo; deploy a <code>SAFE</code> assembly, it has to be signed!</p>
+<p>You may say that: &ldquo;signing is not that bad - what&rsquo;s the big deal&rdquo;. Sure, sign one or two assemblies may not be that bad, but if you have, like <a href="/derivco">us</a>, 50 - 60 assemblies then it can become a chore. Especially since there is no real tooling for this.</p>
+<p>So, in SQL Server 2017 RC1, Microsoft has tried to make things somewhat simpler.</p>
+<h2 id="assembly-whitelisting">Assembly Whitelisting</h2>
+<p>What Microsoft introduces in SQL Server 2017 RC1, is something I refer to as <a href="https://en.wikipedia.org/wiki/Whitelist">whitelisting</a>. It is somewhat similar to the <code>TRUSTWORTHY</code> setting, where you indicate that a database is to be trusted. But instead of doing it on the database level, you do it per assembly.</p>
+<p>To whitelist in SQL Server 2017 RC1, you use the system stored procedure <code>sys.sp_add_trusted_assembly</code>. As the name implies the procedure adds an assembly to a list of &ldquo;trusted&rdquo; assemblies. By marking an assembly as trusted, SQL Server will allow it to be loaded when <code>clr strict security</code> is on (on by default), even if:</p>
+<ul>
+<li>the assembly is not signed, <em>and</em></li>
+<li>the database where you want to deploy it to is not <code>TRUSTWORTHY</code>.</li>
+</ul>
+<h4 id="demo-code">Demo Code</h4>
+<p>Before we start to look into how this works, let&rsquo;s look at the demo code we&rsquo;ll be using. If you read the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post, the code should look fairly familiar. So, on a SQL Server 2017 RC1 installation, let us first make sure that we are correctly configured:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_configure</span> <span style="color:#2aa198">&#39;show advanced options&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RECONFIGURE</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sp_configure</span> <span style="color:#2aa198">&#39;clr_enabled&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RECONFIGURE</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sp_configure</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Check Configuration</em></p>
+<p>In <em>Code Snippet 1</em> we ensure that we can see all the various options that exist, and then we enable SQLCLR. Finally we see what values we have for the options and that should result in something like so:</p>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_options.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Configuration Settings</em></p>
+<p>From <em>Figure 1</em> we see that SQLCLR is enabled as well as that <code>clr strict security</code> is on. We can now create the databases we need (yes, databases as in plural - will explain later):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">DeployDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">TrustedAsmDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DeployDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DeployDB</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">TRUSTWORTHY</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">TrustedAsmDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Create Databases</em></p>
+<p>For now, don&rsquo;t worry about the <code>DeployDB</code> database, the database that will be the &ldquo;production&rdquo; database and to where we want to deploy an assembly is <code>TrustedAsmDB</code>.</p>
+<p>With the databases created, the CLR code we will use is some of what we used in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c#" data-lang="c#"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading.Tasks</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">Sql2k17TrustedAsm1</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">class</span> <span style="color:#cb4b16">Functions</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">fn_clr_Adder</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">fn_clr_LongRunningAdder</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">t</span> = <span style="color:#268bd2">Task</span>.<span style="color:#268bd2">Factory</span>.<span style="color:#268bd2">StartNew</span>(() =&gt; <span style="color:#268bd2">LongRunning</span>(<span style="color:#268bd2">x</span>, <span style="color:#268bd2">y</span>));
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">t</span>.<span style="color:#268bd2">Result</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">LongRunning</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">wait</span> = (<span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>) * <span style="color:#2aa198;font-weight:bold">100</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Thread</span>.<span style="color:#268bd2">Sleep</span>(<span style="color:#268bd2">wait</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>C# Code to Use</em></p>
+<p>After having compiled the code in <em>Code Snippet 3</em> we can now try and deploy the assembly to our production database (which is not <code>TRUSTWORTHY</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">TrustedAsmDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> <span style="color:#268bd2">Sql2k17TrustedAsm</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198">&#39;W:\\&lt;path_to_dll&gt;\\Sql2k17TrustedAsm1.dll&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Create Assembly</em></p>
+<p>When executing the code in <em>Code Snippet 4</em>, you&rsquo;ll get almost the same error message as we initially saw in <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a>, when we tried an deploy an assembly without the assembly being signed:</p>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_creation_fail.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Error Deploying Assembly</em></p>
+<p>The only difference is the last part of the error message: <em>Alternatively, you can trust the assembly using sp_add_trusted_assembly</em>.</p>
+<h2 id="syssp_add_trusted_assembly">sys.sp_add_trusted_assembly</h2>
+<p>Above we mentioned how <code>sys.sp_add_trusted_assembly</code> adds an assembly to a list of &ldquo;trusted&rdquo; assemblies. We also said that by marking an assembly as trusted, SQL Server will allow it to be loaded when <code>clr strict security</code> is on, even though the assembly in question is not signed, and the database where you want to deploy it to is not <code>TRUSTWORTHY</code>.</p>
+<p>How do we use <code>sys.sp_add_trusted_assembly</code>? Well, the signature looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_add_trusted_assembly</span> 
+</span></span><span style="display:flex;"><span>    [ @<span style="color:#268bd2">hash</span> = ] <span style="color:#2aa198">&#39;value&#39;</span>
+</span></span><span style="display:flex;"><span>    [ , [ @<span style="color:#268bd2">description</span> = ] <span style="color:#2aa198">&#39;description&#39;</span> ]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Signature of sys.sp_add_trusted_assembly</em></p>
+<p>As we see in <em>Code Snippet 5</em>, the procedure takes two parameters:</p>
+<ul>
+<li><code>@hash</code> - this is the <code>SHA2_512</code> hash value of the binary representation of the assembly.</li>
+<li><code>@description</code> - an optional description of the assembly. It is recommended that the description is the same as you would see in the <code>clr_name</code> column in <code>sys.assemblies</code>.</li>
+</ul>
+<p>That seems straightforward enough, grab the binary, hash it and off you go! But wait a second, how do you get the binary representation of the assembly, and how do you hash it?</p>
+<p>Well, there are various way you can get the binary representation; write some C# code that reads out the binary value of the dll, is one way - and then when you have it, you can run some C# code to create the hash.</p>
+<p>Me, I am a lazy guy, and I am a database developer at heart, so I use the database for this, and this is now where that second database in <em>Code Snippet 2</em> comes in. The <code>DeployDB</code> which was marked as <code>TRUSTWORTHY</code>.</p>
+<p>What I do is:</p>
+<ul>
+<li>Create the assembly in the <code>TRUSTWORTHY</code> database.</li>
+<li>In SQL Server Management Studio&rsquo;s (SSMS) <strong>Object Explorer</strong> I script out the assembly as <code>CREATE</code> to the clipboard, or a new query window:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_binary.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Scripting the Assembly</em></p>
+<p>Scripting the assembly gives you the <code>CREATE</code> statement of the assembly based on the binary representation:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> [<span style="color:#268bd2">Sql2k17TrustedAsm</span>]
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">x4D5A90000300000004000000FFFF00</span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Create Assembly from Binary</em></p>
+<p>Instead of scripting it out, I could have done a <code>SELECT</code> against the <code>sys.assembly_files</code> table and the <code>content</code> column, but I rather do it using the scripting option. I finally grab the <code>clr_name</code> value from the <code>sys.assemblies</code> table for the assembly:</p>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_clr_name.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Clr Name</em></p>
+<p>Equipped with this I can now add the assembly as a trusted assembly. You may ask how do I get the hash value of the assembly? Fortunately SQL Server has a handy function called <code>HASHBYTES</code> which looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">HASHBYTES</span> ( <span style="color:#2aa198">&#39;&lt;algorithm&gt;&#39;</span>, { @<span style="color:#859900">input</span> | <span style="color:#2aa198">&#39;input&#39;</span> } )
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>T-SQL Hashbytes Function</em></p>
+<p>The function takes two parameters as you can see from <em>Code Snippet 7</em>:</p>
+<ul>
+<li><code>'&lt;algorithm&gt;'</code> - That is the hashing algorithm to use. In our case, <code>sys.sp_add_trusted_assembly</code> requires <code>SHA2_512</code>.</li>
+<li><code>{@input|'input'}</code> - This is either a <code>varchar</code>, <code>nvarchar</code> or <code>varbinary</code> variable, (<code>@input</code>), or an expression that results in a <code>varchar</code>, <code>nvarchar</code> or <code>varbinary</code>, (<code>'input'</code>). An example of the latter could be a column in a <code>SELECT</code> statement.</li>
+</ul>
+<p>When using the <code>SHA2_512</code> algorithm, the return value is 64 bytes, and an example of executing it based on the binary value of our assembly looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">asmBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>) = <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">x4D5A90000300000004000000FFFF00</span>...;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">hash</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#2aa198;font-weight:bold">64</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">hash</span> = <span style="color:#268bd2">HASHBYTES</span>(<span style="color:#2aa198">&#39;SHA2_512&#39;</span>, @<span style="color:#268bd2">asmBin</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">hash</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Usage of HASHBYTES</em></p>
+<p>In <em>Code Snippet 8</em> above, the <code>@asmBin</code> variable is obviously truncated for readability.</p>
+<p>Now, when we have the various pieces of the puzzle we can execute <code>sys.sp_add_trusted_assembly</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">clrName</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">4000</span>) = <span style="color:#2aa198">&#39;sql2k17trustedasm1, ...&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">asmBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>) = <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">x4D5A90000300000004000000FFFF00</span>...;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">hash</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#2aa198;font-weight:bold">64</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">hash</span> = <span style="color:#268bd2">HASHBYTES</span>(<span style="color:#2aa198">&#39;SHA2_512&#39;</span>, @<span style="color:#268bd2">asmBin</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">sp_add_trusted_assembly</span> @<span style="color:#268bd2">hash</span> = @<span style="color:#268bd2">hash</span>,
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">description</span> = @<span style="color:#268bd2">clrName</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Adding Trusted Assembly</em></p>
+<p>The code in <em>Code Snippet 9</em> should succeed, and to ensure that is the case you can do: <code>SELECT * FROM sys.trusted_assemblies</code>:</p>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_trusted_assemblies.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Content of sys.trusted_assemblies</em></p>
+<p>So, everything looks OK. We can now go to the production database where we started this journey and try and deploy the assembly. You can deploy it either using the code in <em>Code Snippet 4</em>, where it is being deployed from a path, or the code in <em>Code Snippet 6</em>, using the binary representation. The <code>CREATE ASSEMBLY</code> should now succeed.</p>
+<p>Having created the assembly, let&rsquo;s create a function against the <code>fn_clr_Adder</code> method, and then execute the function - just to ensure everything is OK:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">FUNCTION</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_Adder</span>(@<span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, @<span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">RETURNS</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">NAME</span> <span style="color:#268bd2">Sql2k17TrustedAsm</span>.
+</span></span><span style="display:flex;"><span>                   [<span style="color:#268bd2">Sql2k17TrustedAsm1</span>.<span style="color:#268bd2">Functions</span>].
+</span></span><span style="display:flex;"><span>                   <span style="color:#268bd2">fn_clr_Adder</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_Adder</span>(<span style="color:#2aa198;font-weight:bold">21</span>, <span style="color:#2aa198;font-weight:bold">21</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Create and Test Function</em></p>
+<p>Running the code in <em>Code Snippet 10</em> should succeed, and you should get back a result of <code>42</code>. Just for &ldquo;fun&rdquo; you could create a new database, and try and deploy the assembly to that database. That should just work, seeing that <code>sys.sp_add_trusted_assembly</code> marks the assembly as trusted on the server instance.</p>
+<h4 id="permission-sets">Permission Sets</h4>
+<p>When we created the assembly from the code above, it was created with the default permission set <code>SAFE</code>. When you look at the C# code you see how there is a method - <code>fn_clr_LongRunningAdder</code> - which internally uses a <code>Task</code>. Using a <code>Task</code> is not considered <code>SAFE</code> in any shape or form, so what happens if you create a T-SQL function against that method and then try to execute:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">FUNCTION</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_LongRunningAdder</span>(@<span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, @<span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">RETURNS</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">NAME</span> <span style="color:#268bd2">Sql2k17TrustedAsm</span>.
+</span></span><span style="display:flex;"><span>                  [<span style="color:#268bd2">Sql2k17TrustedAsm1</span>.<span style="color:#268bd2">Functions</span>].
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">fn_clr_LongRunningAdder</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_LongRunningAdder</span>(<span style="color:#2aa198;font-weight:bold">21</span>, <span style="color:#2aa198;font-weight:bold">21</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong>  <em>Create and Execute an Unsafe Function</em></p>
+<p>Ouch, the creation of the function succeeded, but when you executed the function you received an error that we also saw in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post. The error says something about not having necessary permissions to do the operation. This normally happens if the assembly has not been assigned the correct <code>PERMISSION_SET</code> when it was created.</p>
+<p>So, if you drop the functions and the assembly, and recreate the assembly with <code>PERMISSION_SET = UNSAFE</code>, then when you have recreated the functions, all should work.</p>
+<p>The slightly interesting thing with this is that even when you mark an assembly as trusted, it still has to be created with the correct permission set.</p>
+<h2 id="dropping-a-trusted-assembly">Dropping a Trusted Assembly</h2>
+<p>As with most database objects, if you can create them - then you can also <code>DROP</code> them. The question is if you have a trusted assembly, which you have deployed to the database and subsequently created functions etc., against - if you <code>DROP</code> the trusted assembly, what effect, if any, will it have on the existing assemblies in the various databases on the server? Let&rsquo;s find out.</p>
+<p>To drop a trusted assembly you use the proc <code>sys.sp_drop_trusted_assembly</code>. The proc takes one parameter, the hash value of the trusted assembly, and in our example the code would look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">sp_drop_trusted_assembly</span> @<span style="color:#268bd2">hash</span> = <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">xCDFEFD60682FBB0182</span>...;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Drop Trusted Assembly</em></p>
+<p>Executing the code in <em>Code Snippet 12</em> works just fine, and when you look in <code>sys.trusted_assemblies</code> afterward, your trusted assembly is gone. However, if you check in <code>sys.assemblies</code> in the database where you deployed the actual assembly to, the assembly still exists. Isn&rsquo;t this now a big security hole? What happens when we execute one of our functions now, <code>SELECT dbo.fn_clr_Adder(21, 21)</code>:</p>
+<p>
+  <img src="/images/posts/sql2k17_trust_asms_no_trust.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Assembly Not Trusted</em></p>
+<p>Based on the error message we get, it definitely seems like SQL Server checks whether the assembly is either signed or trusted during execution. So, no security hole.</p>
+<h2 id="summary">Summary</h2>
+<p>In the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post I summarized the new SQL Server 2017 SQLCLR security requirements with: <em>All type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) have to be authorized for <code>UNSAFE</code> access.</em></p>
+<p>With the release of SQL Server 2017 RC1 there is another option and that is, that the assembly is marked as trusted. You mark an assembly as trusted by the stored procedure <code>sys.sp_add_trusted_assembly</code>.</p>
+<p>The security choices you now have for an assembly in SQL Server 2017 are:</p>
+<ul>
+<li>The database is set to be <code>TRUSTWORTHY</code>, <em>OR</em></li>
+<li>The assembly is signed with a certificate that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission, <em>OR</em></li>
+<li>The assembly is signed with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission, <em>OR</em></li>
+<li>The assembly is marked as trustworthy by the <code>sys.sp_add_trusted_assembly</code> procedure.</li>
+</ul>
+<p>Marking an assembly as trusted does not mean that you can do whatever you want in the assembly, you still need to deploy the assembly with the correct permission set based on your operations in the assembly.</p>
+<p>I&rsquo;m finishing this summary with the same caveat as I had in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post: Bear in mind that all the above are based on SQL Server 2017 RC1. Things may change up until release.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/" data-toggle="tooltip" data-placement="top" title="Microsoft SQL Server R Services - Internals VIII">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-07-23-interesting-stuff---week-29/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 29">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

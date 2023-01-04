@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Install Confluent Platform (Kafka) on Windows" />
+    <meta property="og:title" content="Install Confluent Platform (Kafka) on Windows" />
+    <meta property="twitter:title" content="Install Confluent Platform (Kafka) on Windows" />
+    
+
+    
+    <meta name="description" content="We look at how we can install Kafka on Windows in Windows Subsystem for Linux.">
+    <meta property="og:description" content="We look at how we can install Kafka on Windows in Windows Subsystem for Linux." />
+    <meta property="twitter:description" content="We look at how we can install Kafka on Windows in Windows Subsystem for Linux." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Install Confluent Platform (Kafka) on Windows | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-07-10-install-confluent-platform-kafka-on-windows/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/streaming" title="streaming">
+                            streaming
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka" title="kafka">
+                            kafka
+                        </a>
+                        
+                        <a class="tag" href="/tags/control-center" title="Control Center">
+                            Control Center
+                        </a>
+                        
+                        <a class="tag" href="/tags/wsl" title="WSL">
+                            WSL
+                        </a>
+                        
+                    </div>
+                    <h1>Install Confluent Platform (Kafka) on Windows</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Tuesday, July 10, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>You who follows my blog and have read my weekly roundups you know that I am quite (that is an understatement) interested in Apache Kafka and I am curious to find out what &ldquo;cool&rdquo; things one can do with it. For that, I want to be able to test &ldquo;stuff&rdquo; quickly. When I test and try out new things, I usually do it on my development box which contains everything I need: <strong>SQL Server</strong>, <strong>RabbitMQ</strong>, <strong>RStudio</strong>, <strong>Microsoft Machine Learning Server</strong>, <strong>Visual Studio</strong> and the list goes on.</p>
+<p>So seeing that I have most of my &ldquo;tools of the trade&rdquo; on my machine I obviously also would like to have Kafka on the box. Herein lies a problem, I am a Windows dude and Kafka, and Windows do not gel. Yes, some people are running Kafka on Windows, but it is a chore. OK, so what to do? Sure, I could potentially run Kafka on a virtual machine, or in a Docker image, but it is not as transparent as I would like it to be (yeah, I am lazy).</p>
+<p>Hmm, Microsoft did introduce the ability to run Linux binary executables (in ELF format) natively on Windows 10 in Windows 10 version 1607. The feature is called <strong>Windows Subsystem for Linux</strong> (WSL), and since I am now running version 1803, maybe I should try and install Kafka in <em>WSL</em>.</p>
+<h2 id="pre-reqs">Pre-reqs</h2>
+<p>To install and run the <strong>Confluent Platform</strong>, (which contains Kafka), on <em>WSL</em> there are some pre-reqs:</p>
+<ul>
+<li><em>WSL</em> installed (fairly obvious).</li>
+<li>Java 1.7 or later.</li>
+</ul>
+<h2 id="windows-subsystem-for-linux">Windows Subsystem for Linux</h2>
+<p><em>WSL</em> is primarily aimed at developers, and it allows you to run Linux environments directly on Windows in a native format and without the overhead of a virtual machine. Let us retake a look at that statement: <em>run Linux environments directly on Windows in a native format</em>. Yes native format, <em>WSL</em> is not a UNIX-like environment like Cygwin, which wraps non-Windows functionality in Win32 system calls but it serves Linux programs as special, isolated minimal processes (<em>pico-processes</em>) attached to kernel-mode <em>pico-providers</em>. If you want to read all the &ldquo;gory&rdquo; details about <em>WSL</em>: <a href="https://blogs.msdn.microsoft.com/wsl/2016/04/22/windows-subsystem-for-linux-overview/">Windows Subsystem for Linux Overview</a> gives you an excellent introduction.</p>
+<p>Installing <em>WSL</em> is very easy; you first enable <em>WSL</em> either via a Powershell command: <code>Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux</code> or by switching it on from &ldquo;Turn Windows features on or off&rdquo; via &ldquo;Control Panel | Programs and Features&rdquo;:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_enable_wsl.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Enable WSL</em></p>
+<p>You should restart the machine after enabling <em>WSL</em>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> So I have enabled <em>WSL</em> a few times now, and some of the times I have not had to restart.</p>
+</blockquote>
+<p>When <em>WSL</em> is enabled you need to download and install a distro from the Windows Store. When <em>WSL</em> first was introduced the only distro available was Ubuntu, since then quite a few have been added, and now the distro list looks like so:</p>
+<ul>
+<li>Ubuntu</li>
+<li>OpenSUSE</li>
+<li>SLES</li>
+<li>Kali Linux</li>
+<li>Debian GNU/Linux</li>
+</ul>
+<p>I started with <em>WSL</em> when Ubuntu was the only distro available, so I have &ldquo;stuck&rdquo; with it, but I do not think the distros are that different. To continue, you choose a distro and let it install. Finally, you start the command shell for the distro from the Windows &ldquo;Start&rdquo; menu:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_start_distro.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Start the Distro</em></p>
+<p>When you start up the distro for the first time the setup finishes, and you are prompted to enter a root password. Now is probably a good time to run <code>sudo apt-get update -y &amp;&amp; sudo apt-get upgrade -y</code> where <code>sudo apt-get update -y</code> updates the list of all current program packages in the repositories to determine which packages are candidates for upgrading. The command <code>sudo apt-get upgrade -y</code> upgrades all current program packages in the operating system.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The above commands are for Ubuntu, so if you have another distro installed check the commands for that particular distro.</p>
+</blockquote>
+<h4 id="java">Java</h4>
+<p>When your distro is up and running, you can now install Java. When reading the documentation about <a href="https://docs.confluent.io/current/installation/versions-interoperability.html#java">supported Java versions</a>, you see that <strong>Confluent Platform</strong> 4.1 is the last version with support for Java 1.7. The <strong>Confluent Platform</strong> version I use is the latest preview (version 5.x), so I install 1.8. Oh, and do not try with 1.9 -  it does not work.</p>
+<p>The <a href="https://docs.confluent.io/current/installation/versions-interoperability.html#java">docs</a> mention the JDK, but I have found that the JRE works as well (since I am not writing any Java code) and I use the open source version of Java - OpenJDK. So to install you run the following from the bash shell:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>&gt; sudo apt install openjdk-8-jre-headless 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Install JRE</em></p>
+<p>As <em>WSL</em> has no GUI, I choose to install the headless version of the JRE as we see in <em>Code Snippet 1</em>. Finally, to check that it installed correctly I do <code>&gt; java -version</code> and the result is like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openjdk version <span style="color:#2aa198">&#34;1.8.0_171&#34;</span>
+</span></span><span style="display:flex;"><span>OpenJDK Runtime Environment (build 1.8.0_171-8u171-b11-0ubuntu0.18.04.1-b11)
+</span></span><span style="display:flex;"><span>OpenJDK 64-Bit Server VM (build 25.171-b11, mixed mode)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> Java Version Output*.</p>
+<p>In <em>Code Snippet 2</em> everything looks OK, so we can now go ahead with the main attraction.</p>
+<h2 id="confluent-platform">Confluent Platform</h2>
+<p>By now you may ask yourself what is this thing <strong>Confluent Platform</strong>? Well, <a href="https://confluent.io">Confluent</a> is a company founded by the guys (and girls) that originally built Kafka back at LinkedIn. The company is now focusing on building a streaming platform to help other companies get easy access to enterprise data as real-time streams.</p>
+<p>The <strong>Confluent Platform</strong> improves Apache Kafka by expanding its integration capabilities, adding tools to optimise and manage Kafka clusters, and methods to ensure the streams are secure. <strong>Confluent Platform</strong> makes Kafka easier to build and easier to operate. The <strong>Confluent Platform</strong> comes in two flavours:</p>
+<ul>
+<li><a href="https://www.confluent.io/product/confluent-open-source/">Confluent Open Source</a> is freely downloadable.</li>
+<li><a href="https://www.confluent.io/product/confluent-enterprise/">Confluent Enterprise</a> is available on a subscription basis.</li>
+</ul>
+<p>Back in April Confluent started releasing preview versions of the <strong>Confluent Platform</strong> with the latest and the greatest and that is what I am using. At the time I write this the June preview has just been released, and that is what I am installing here.</p>
+<h4 id="installation">Installation</h4>
+<p>Before we can install, we need to download the install media which you do from <a href="https://www.confluent.io/preview-release">here</a>. When clicking the &ldquo;Download &hellip;&rdquo; button, a form &ldquo;pops up&rdquo; where you choose your download format and enter your details. I usually choose <code>tar.gz</code>, and that is what I base the following instructions on. Download the file to your PC and then in the bash shell:</p>
+<ul>
+<li>Create a directory where to extract the files to.</li>
+<li><code>cd</code> to the download directory:</li>
+</ul>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_mkdir.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Make Kafka Directory</em></p>
+<p>In <em>Figure 3</em> we see how I create the <code>/opt/kafka</code> directory, and how I <code>cd</code> to the Windows directory where my downloaded files are. One of the cool things with <em>WSL</em> is that the local Windows drives gets automatically mounted under the <code>/mnt</code> folder. I can now extract the files:</p>
+<blockquote>
+<p><strong>NOTE:</strong> The only reason I chose to create the <code>kafka</code> directory under <code>/opt</code> is that traditionally <code>/opt</code> is for third-party applications.</p>
+</blockquote>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_untar.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Extract Files</em></p>
+<p>So I <code>tar</code> the files, and we see in <em>Figure 4</em> how the files are extracted. To extract the files takes a couple of minutes and when done we can drill down into the extracted directories and files:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_kafka_dirs_files.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Directory and File Structure</em></p>
+<p>In <em>Figure 5</em> we see how directories and files ended up under a <code>confluent-version...</code> directory (outlined in white) and when we <code>ls</code> into that directory we see sub-directories (also outlined in white), and amongst them a <code>bin</code> directory.</p>
+<p>When we drill down into the <code>bin</code> directory and list the content we see a file named <code>confluent</code>. This is an executable file, and we use this file to start and stop all the Confluent components. The <code>bin</code> directory also contains executable files to start and stop individual components, such as <code>kafka-server-start</code>, <code>kafka-server-stop</code> and <code>zookeeper-server-start</code>, and so forth.</p>
+<p>Right, enough of this - let us see if we can get the show on the road and spin up all components:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_start_kafka.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Start Confluent</em></p>
+<p>To start all the Confluent components, we use the command <code>sudo ./confluent start (from the </code>bin` directory) and in <em>Figure 6</em> we see how the various components startup, awesome!</p>
+<h4 id="control-center">Control Center</h4>
+<p>Part of the <strong>Confluent Platform</strong> installation (Enterprise version) is the <em>Control Center</em>. The <em>Control Center</em> (I copied the text from the <a href="https://www.confluent.io/confluent-control-center/">Control Center</a> site) &ldquo;gives the administrator monitoring and management capabilities, delivering automated, curated dashboards so that Kafka experts can easily understand what is happening without tweaking dashboards&rdquo;. So let us see if we can connect with the <em>Control Center</em>. If we connect from the same machine as we installed <strong>Confluent Platform</strong> on, the address is <code>http://localhost:9021</code>:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_control_center.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Confluent Control Center</em></p>
+<p>Cool, <em>Control Center</em> seems to be up and running, let us now use it to create a <em>Topic</em> so we can do a final test.</p>
+<h4 id="topics">Topics</h4>
+<p>When you send messages to a Kafka broker, you typically send it to a &ldquo;Topic&rdquo;, which is like a collection point in the broker for &ldquo;like-minded&rdquo; messages. If you are a database dude like me, you can see it as a table in a database where you keep records of the same type.</p>
+<p>Typically you create multiple topics in you Kafka cluster to cater for multiple message types, and <em>Control Center</em> can help you with that. In <em>Figure 7</em> we see at the bottom left corner, outlined in red, &ldquo;Topics&rdquo;. Click on that, and you see existing default topics. Click on, in the far right corner, the &ldquo;Create topic&rdquo; button and you see something like so:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_create_topic.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Topics</em></p>
+<p>In the topic name box enter &ldquo;testing&rdquo; and then click &ldquo;Create with defaults&rdquo; and we are back seeing the existing topics as well as the newly created &ldquo;testing&rdquo; topic:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_topic_created.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>New Topic</em></p>
+<p>When we have a topic, we can now see whether we can publish and consume messages.</p>
+<h2 id="test-send--receive">Test Send &amp; Receive</h2>
+<p><strong>Confluent Platform</strong> is now up and running, and you can now start doing &ldquo;cool&rdquo; stuff. However, to make sure everything works let us use the built-in command line clients to send and receive some test messages.</p>
+<p>What we do is that in the open bash shell we <code>cd</code> to the <code>/opt/kafka/confluent-xxx/bin/</code> directory. We use the command line producer <code>kafka-console-producer</code> to send messages:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo ./kafka-console-producer --broker-list localhost:9092 --topic testing
+</span></span><span style="display:flex;"><span>&gt;Hello World!
+</span></span><span style="display:flex;"><span>&gt;Life Is Awesome!
+</span></span><span style="display:flex;"><span>&gt;We Have Installed Kafka on Windows!
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Publishing Messages</em></p>
+<p>We see in <em>Code Snippet 3</em> how we target the local broker on port 9092, and the topic we send to is the &ldquo;testing&rdquo; topic we created above. After hitting enter, we create one message after each other (hit enter in between).</p>
+<p>To consume messages we open a second bash shell and <code>cd</code> into the <code>/bin</code> directory as before, and to receive messages we use the <code>kafka-console-consumer</code> command line client:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo ./kafka-console-consumer --bootstrap-server localhost:9092 --topic testing --from-beginning
+</span></span><span style="display:flex;"><span>Hello World!
+</span></span><span style="display:flex;"><span>Life Is Awesome!
+</span></span><span style="display:flex;"><span>We Have Installed Kafka on Windows!
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Consume Messages</em></p>
+<p>When running the consumer we see in <em>Code Snippet 4</em> how we receive the messages we just sent. If we were to go back to the publisher and create some more messages we immediately see them in the consumer bash shell. It works! So now we can start creating streaming applications using proper <a href="https://cwiki.apache.org/confluence/display/KAFKA/Clients">clients</a>. If you write .NET applications, I suggest you look at the <a href="https://github.com/confluentinc/confluent-kafka-dotnet">Confluent client</a> which is very feature rich.</p>
+<p>When we are done with the <strong>Confluent Platform</strong>, we stop it from the <code>/bin</code> directory:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_stop_kafka.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Stopping Kafka</em></p>
+<p>We stop Kafka by calling <code>sudo ./confluent stop</code> and then as <em>Figure 10</em> shows, all components shut down in an orderly fashion.</p>
+<p>We have installed <strong>Confluent Platform</strong> on <em>WSL</em>, started it, published and consumed some messages and stopped it. All is good! Or is it?</p>
+<h2 id="issue">ISSUE</h2>
+<p>So what happens when you try to start the platform again:</p>
+<p>
+  <img src="/images/posts/inst_kafka_wsl_start_error.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Error at Start Up</em></p>
+<p>That is not good! We get an error when we try to start the platform after a shutdown. What we see here is a &ldquo;half&rdquo; known issue which is most prevalent on Windows machines, and it has to do with Kafka trying to clean up old log files. If you drill down in the Kafka log files you see an error looking something like this: <code>FATAL Shutdown broker because all log dirs in &lt;path_to_logs&gt; have failed (kafka.log.LogManager)</code>.</p>
+<p>At the moment I do not have a solution for it other than that before each startup run something like so: <code>sudo rm -fr /tmp/confl*</code> which removes all Kafka related log directories. This is obviously not a solution in a production environment or a &ldquo;proper&rdquo; test/dev environment but for us just wanting to do some &ldquo;quick and dirty&rdquo; testing on <em>WSL</em> it is sufficient.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, we discussed a little bit what <em>WSL</em> is and how we can install <strong>Confluent Platform</strong> on <em>WSL</em>. We looked at we can test the installation by creating a topic and then publish and consume messages using the command line publish and consume clients.</p>
+<p>Having <strong>Confluent Platform</strong> installed we can now use a <a href="https://cwiki.apache.org/confluence/display/KAFKA/Clients">client of choice</a> to start doing &ldquo;cool&rdquo; stuff. Keep an eye on my blog for future <strong>Confluent Platform</strong> and Kafka posts!</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-07-08-interesting-stuff---week-27/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 27">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-07-15-interesting-stuff---week-28/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 28">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

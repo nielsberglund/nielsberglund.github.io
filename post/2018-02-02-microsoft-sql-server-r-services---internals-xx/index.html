@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XX" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XX" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XX" />
+    
+
+    
+    <meta name="description" content="A drill down, using WinDbg, WireShark, Process Monitor, into how error messages in the external engine is handled by SQL Server.">
+    <meta property="og:description" content="A drill down, using WinDbg, WireShark, Process Monitor, into how error messages in the external engine is handled by SQL Server." />
+    <meta property="twitter:description" content="A drill down, using WinDbg, WireShark, Process Monitor, into how error messages in the external engine is handled by SQL Server." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XX | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-02-02-microsoft-sql-server-r-services---internals-xx/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxl" title="BXL">
+                            BXL
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                        <a class="tag" href="/tags/wireshark" title="WireShark">
+                            WireShark
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XX</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, February 2, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 21:th post in a series about <strong>Microsoft SQL Server R Services</strong>, (it is now called <strong>Microsoft SQL Server Machine Learning Services</strong>), and the 20:th post that drills down into the internal of how it works.</p>
+<p>Wow, 20 posts about internals - when I started this <strong>Microsoft SQL Server R Services</strong> series, I thought I might achieve five or six posts. I would never have - in my wildest fantasies - thought I would reach twenty!</p>
+<p>To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>We are however now coming closer to the end of this whole series, and this post is the last for <strong>Internals</strong>. After this post, I foresee one, possibly two, more posts about other things related to <strong>Microsoft SQL Server R Services</strong>  - and then we are done!</p>
+<p>In the last post: <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> we discussed how &ldquo;print&rdquo; statements and acks came back to SQL Server from the external engine. When I started writing that post, I intended to cover error messages as well, but as I was investigating what happens, I realised it was more to error messages than what I initially thought. So in this post, we talk about how SQL Server and the launchpad service handle errors.</p>
+<h2 id="recap">Recap</h2>
+<p>Before we go into the details about errors, let us do a recap of the <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post, as there are many similarities between the handling of error messages and &ldquo;print&rdquo;/ack messages are.</p>
+<p>The easiest way to recap is to use the two figures we had in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> which illustrated the flow of the launchpad service as well as SQL Server.</p>
+<h4 id="launchpad-service">Launchpad Service</h4>
+<p>This is the flow (on a high level) in the launchpad service:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_launchpad_flow.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Launchpad Flow</em></p>
+<p>In <em>Figure 1</em> we see the main calls of leading up to and including when messages come back from the external engine. The numbered arrows show some of the calls and the communication in the launchpad service:</p>
+<ol>
+<li>During startup, an IOCP &ldquo;listener&rdquo; is set up.</li>
+<li>Creates supporting directories and process, and initiates the connection to the external engine.</li>
+<li>A call comes back from the external engine when work finishes.</li>
+<li>The call causes the &ldquo;listener&rdquo; to call <code>Read...</code> routines.</li>
+<li><code>LaunchServTask</code> is signalled.</li>
+<li>Execution in <code>LaunchServTask</code> continues into launchpad!CLaunchContext::Cleanup.</li>
+<li>A call to  <code>launchpad!CSatelliteCargoContext::SendLogMessage</code> happens if a &ldquo;print&rdquo; message has been passed back from the external engine, eventually <code>launchpad!CSatelliteCargoContext::SendLogMessage</code> is called.</li>
+<li><code>launchpad!CSatelliteCargoContext::SendLogMessage</code> sends the message to SQL Server.</li>
+<li><code>LaunchServTask</code> continues into <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code>, which sends an ack that the &ldquo;job is done&rdquo; to SQL Server.</li>
+</ol>
+<h4 id="sql-server">SQL Server</h4>
+<p>This is the high level flow in SQL Server:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_sql_flow.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>SQL Server Flow</em></p>
+<p>The numbered arrows in <em>Figure 2</em> illustrates:</p>
+<ol>
+<li>During the launch of the launchpad service, an IOCP &ldquo;listener&rdquo; is set up.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends authentication packets and script packet to the SqlSatellite.</li>
+<li>If there is data for <code>@input_data_1</code>, it is sent, together with two end packets.</li>
+<li>Packets are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signalled, and processing of meta-data as well as result rows continues.</li>
+<li>The launchpad service sends &ldquo;print&rdquo;/ack messages to SQL Server. In the figure, they appear as one packet, but there is one message for &ldquo;print&rdquo; and one for ack.</li>
+<li><code>ErsqExecuteQuery</code> is signalled.</li>
+<li>Execution continues by calling into <code>sqllang!CXStmtQuery::ShutdownNormal</code>, which calls into <code>FinalCleanup, </code>ShutdownService, and a call to <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> is made followed by <code>sqllang!CSQLSatelliteConnection::GetNextMessage</code>.</li>
+<li>If a &ldquo;print&rdquo; message has is sent to SQL Server, <code>ReadPayload</code> is called and then <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>.  The code loops on <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> if there is no &ldquo;print&rdquo; message.</li>
+<li>SQL Server loops on <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> and waits for the ack message,</li>
+<li>After receiving the ack message, SQL Server sends relevant messages to the calling code.</li>
+</ol>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code and the tools we use today. This section is here for those of who want to follow along in what we are doing in the posts.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we use <em>Process Monitor</em>, <em>WinDbg</em> and <em>WireShark</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> as my debugger, but in this post, I am reverting to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, I covered that in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>In this post we won&rsquo;t need a specific database, we&rsquo;ll just some basic code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Base Code to Execute</em></p>
+<p>The code in <em>Code Snippet 1</em> is the code we use for &ldquo;base-lining&rdquo;, e.g. what it looks like when everything works. The <code>Sys.sleep</code> is in the script to make it easier for us to see what happens, and in what order.</p>
+<p>We also use variants of that code to create errors:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             #the function below does not exist
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             nonExistFunc(d)&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Script with Missing Function</em></p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(1)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42&#39;</span>,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 1/ 0&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Error When Selecting Data</em></p>
+<p>We talk more about the two code snippets below.</p>
+<h2 id="error">Error</h2>
+<p>When we discuss error messages, there are two main types of errors, and the code above exemplifies that:</p>
+<ul>
+<li>Errors generated from the external engine script - <em>Code Snippet 2</em>.</li>
+<li>Errors raised when generating the input data-set (<code>@input_data_1</code>) - <em>Code Snippet 3</em>.</li>
+</ul>
+<p>So, let us look at what happens when we execute the code in <em>Code Snippet 2</em> and <em>Code Snippet 3</em>.</p>
+<p>This is the output from <em>Code Snippet 2</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_error1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>R Script Error</em></p>
+<p>The output from executing the code in <em>Code Snippet 3</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_20_error2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>SQL Execution Error</em></p>
+<p>When looking at both <em>Figure 3</em> and <em>Figure 4</em>, we see that there are SQL Server error numbers assigned to the errors. However, compare the errors in <em>Figure 3</em>, and <em>Figure 4</em>. In <em>Figure 3</em> there are two errors; <code>39004</code> and <code>39019</code> - and in the error message they both refer to the external script. In <em>Figure 4</em> however, the error message is the usual message about division by zero, and no referral to external script whatsoever. There is though some text about SqlSatellite.</p>
+<p>So it seems that for specific external script errors, SQL Server knows about them, but others not.</p>
+<h2 id="known-sql-errors">Known SQL Errors</h2>
+<p>We start by looking at, what I call, known SQL errors - like we see in <em>Figure 3</em>. Just for fun, let us execute following code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">message_id</span>, <span style="color:#cb4b16">text</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">messages</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">message_id</span> <span style="color:#859900">BETWEEN</span> <span style="color:#2aa198;font-weight:bold">39000</span> <span style="color:#859900">AND</span> <span style="color:#2aa198;font-weight:bold">39999</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AND</span> <span style="color:#268bd2">language_id</span> = <span style="color:#2aa198;font-weight:bold">1033</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Selecting Error Messages</em></p>
+<p>On my SQL Server 2016 box the statement in <em>Code Snippet 4</em> returns 27 rows, and when browsing through the result I realise that most of them are related to the external script or the external engine:</p>
+<p>
+  <img src="/images/posts/sql_r_services_20_error_msgs.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>SQL Server Error Messages</em></p>
+<p>In <em>Figure 5</em> wee see some of the error codes related to the external script/engine - so the question is how SQL Server knows that, what originates from the external engine, is an error?</p>
+<p>We know that error(s) are raised in SQL Server when something goes wrong in the external engine (see <em>Figure 3</em>), but what happens in the launchpad service? So, let us do this:</p>
+<ul>
+<li>Start up two instances of <em>WinDbg</em> as admin.</li>
+<li>Attach <em>WinDbg</em> to the SQL Server process (<code>sqlservr.exe</code>), and the launchpad process (<code>launchpad.exe</code>) - <strong>DO NOT DO THIS ON A PRODUCTION SERVER</strong>.</li>
+<li>In both instances of <em>WinDbg</em> enable an <em>Event Filter</em> for <code>C++ EH Exception</code>. If you need to refresh you memory about how to do it, <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> goes into the details.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ul>
+<p>When you execute, you see how you just continue through in the launchpad service, but you break with an exception in SQL Server. It looks like exceptions in the external engine does not affect the launchpad service at all. So let us start looking more in detail what happens in SQL Server.</p>
+<h4 id="sql-server-i">SQL Server I</h4>
+<p>The exception in SQL server we received above looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>(<span style="color:#2aa198;font-weight:bold">17</span><span style="color:#268bd2">d0</span><span style="color:#2aa198;font-weight:bold">.3744</span>): <span style="color:#268bd2">C</span>++ <span style="color:#268bd2">EH</span> <span style="color:#268bd2">exception</span> - <span style="color:#268bd2">code</span> <span style="color:#268bd2">e06d7363</span> (<span style="color:#268bd2">first</span> <span style="color:#268bd2">chance</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">First</span> <span style="color:#268bd2">chance</span> <span style="color:#268bd2">exceptions</span> <span style="color:#268bd2">are</span> <span style="color:#268bd2">reported</span> <span style="color:#268bd2">before</span> <span style="color:#268bd2">any</span> <span style="color:#268bd2">exception</span> <span style="color:#268bd2">handling</span>.
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">This</span> <span style="color:#268bd2">exception</span> <span style="color:#268bd2">may</span> <span style="color:#268bd2">be</span> <span style="color:#268bd2">expected</span> <span style="color:#268bd2">and</span> <span style="color:#268bd2">handled</span>.
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">RaiseException</span>+<span style="color:#2aa198;font-weight:bold">0x68</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#268bd2">e</span>\`<span style="color:#268bd2">dbba2918</span> <span style="color:#2aa198;font-weight:bold">488</span><span style="color:#268bd2">b8c24c0000000</span> <span style="color:#268bd2">mov</span>     
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rcx</span>,<span style="color:#268bd2">qword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rsp</span>+<span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">C0h</span>] <span style="color:#268bd2">ss</span>:<span style="color:#2aa198;font-weight:bold">000000e1</span>`<span style="color:#2aa198;font-weight:bold">817f</span><span style="color:#268bd2">b9c0</span>=<span style="color:#2aa198;font-weight:bold">00001f</span><span style="color:#2aa198;font-weight:bold">7285</span><span style="color:#268bd2">a2fbf6</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>External Engine Exception in SQL</em></p>
+<p>As in <em>Code Snippet 5</em>, there is an error in SQL Server, and when you continue a second error is raised which you continue through as well. Now execute the code in <em>Code Snippet 2</em> again, and check the call-stack (<code>k</code>) when SQL Server breaks at the first error :</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">RaiseException</span>+<span style="color:#2aa198;font-weight:bold">0x68</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">_CxxThrowException</span>+<span style="color:#2aa198;font-weight:bold">0xb3</span> 
+</span></span><span style="display:flex;"><span>         [<span style="color:#268bd2">f</span>:\<span style="color:#268bd2">dd</span>\<span style="color:#268bd2">vctools</span>\<span style="color:#268bd2">crt</span>\<span style="color:#268bd2">crtw32</span>\<span style="color:#268bd2">eh</span>\<span style="color:#859900">throw</span>.<span style="color:#268bd2">cpp</span> @ <span style="color:#2aa198;font-weight:bold">154</span>] 
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ExceptionBackout</span>::<span style="color:#268bd2">GetCurrentException</span>+<span style="color:#2aa198;font-weight:bold">0x385</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise2</span>+<span style="color:#2aa198;font-weight:bold">0x52f</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise</span>+<span style="color:#2aa198;font-weight:bold">0xc4</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x172</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>+<span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Call Stack at Exception</em></p>
+<p>Interesting, in <em>Code Snippet 6</em> we see the call to <code>sqlmin!CQScanUdx::GetRow</code> raise an error - even though we are not retrieving any data from the engine! What happens here?</p>
+<p>Remember back to the last posts, where we spoke about how the SqlSatellite returns packets to SQL Server after execution. We saw an example of what it looks like if we execute the code in <em>Code Snippet 1</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Return Packets</em></p>
+<p>We saw <em>Figure 6</em> in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and we discussed in that post, how the SqlSatellite returns the three packets outlined in red above to SQL Server. The first packet contains metadata information about potential result-sets returned, and if there is no result-set, we still get the packet. The second packet is a packet indicating the end of the result-set, and the third packet can potentially contain values of output parameters. Rows returned for a result-set, appear in packets, between the first and second packet in the figure above.</p>
+<p>So, in the case of an error, like in <em>Figure 3</em> above, are there any changes in what the SqlSatellite returns? By now, you probably realise that if I ask a question like that - there is a difference, but let us find out regardless:</p>
+<ul>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 2</em> (without the <code>Sys.sleep</code> if you want) and look at the output from <em>Process Monitor</em>:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_20_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Process Monitor Output Error</em></p>
+<p>It is interesting, that when an error happens, we do not get the packets referred to above. In <em>Figure 7</em> we only see one packet sent back from the SqlSatellite (outlined in red) after the SqlSatellite has received the various packets from SQL Server. While you look at the output from <em>Process Monitor</em>, also make a note of the <code>Path</code> column and the last value (in the figure it is 55538). That value is the port SQL Server receives packets. We use this now in <em>WireShark</em> to try and see if we can get any more information about what is happening.</p>
+<p>So, let us switch over to <em>WireShark</em>:</p>
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on (what you saw in the <code>Path</code> column). In this case we want to sniff incoming packets, and if we did it based on what we saw in <em>Figure 7</em> the filter should be: <code>tcp.dstport==55538</code>.</li>
+<li>Apply the filter.</li>
+</ul>
+<p>To start with, we try to see what the packets look like when everything works - and the packets we are interested in, are the two packets with a length of 28. When we execute the code in <em>Code Snippet 1</em> and showing the two data packets as hex, it looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//first 28 bytes packet
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#268bd2">b8</span> <span style="color:#2aa198;font-weight:bold">16</span> <span style="color:#2aa198;font-weight:bold">27</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">86</span> <span style="color:#268bd2">b9</span> <span style="color:#2aa198;font-weight:bold">95</span> <span style="color:#2aa198;font-weight:bold">47</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a3</span> <span style="color:#268bd2">fc</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">17</span> <span style="color:#268bd2">f1</span> <span style="color:#2aa198;font-weight:bold">92</span> <span style="color:#268bd2">ca</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>            
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//2:nd 28 bytes packet
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#268bd2">b8</span> <span style="color:#2aa198;font-weight:bold">16</span> <span style="color:#2aa198;font-weight:bold">27</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">86</span> <span style="color:#268bd2">b9</span> <span style="color:#2aa198;font-weight:bold">95</span> <span style="color:#2aa198;font-weight:bold">47</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a3</span> <span style="color:#268bd2">fc</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">17</span> <span style="color:#268bd2">f1</span> <span style="color:#2aa198;font-weight:bold">92</span> <span style="color:#268bd2">ca</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Packets When No Error</em></p>
+<p>When looking at the packets in <em>Code Snippet 7</em>, it looks like the first 4 bytes determines some packet type. Why I say that is when you execute the code multiple times, the first four bytes for packet 1 always look the same, and the same goes for the second packet. The second 4 bytes in both first and second packet, indicates the packet size (<code>1c</code> = 28). I have no &ldquo;clue&rdquo; what the following 16 bytes identify, but it is interesting to notice that the values are the same between packet 1 and 2. The values differ though in between executions. The last four bytes are always 0 in packet 1, in packet two the first byte indicates how many output parameters are returned (if there are any). Remember it is the second packet that contains the output parameters. The last byte in packet 2 is an &ldquo;end&rdquo; byte if parameters are returned, otherwise 0.</p>
+<p>So the above is when there are no errors. What when it is? Clear the display in <em>WireShark</em> (easiest way is to stop capturing packets, and start again) and execute the code in <em>Code Snippet 2</em>. As we know from the discussion around <em>Figure 7</em>, we only get one packet back - and when we look at the data as hex it looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">31</span> <span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">b</span> <span style="color:#2aa198;font-weight:bold">6</span><span style="color:#268bd2">c</span> <span style="color:#268bd2">fe</span> <span style="color:#268bd2">b0</span> <span style="color:#2aa198;font-weight:bold">9f</span> <span style="color:#2aa198;font-weight:bold">7</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">43</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a4</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">70</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">c</span> <span style="color:#268bd2">e1</span> <span style="color:#2aa198;font-weight:bold">05</span>  <span style="color:#2aa198;font-weight:bold">12</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">2</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">00</span>            
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Packet When Error</em></p>
+<p>The packet in <em>Code Snippet 8</em> is somewhat similar to what we see in <em>Code Snippet 7</em>, in that the first four bytes are always the same, irrespective of the error packet and the second four bytes part indicating the size. What is different and potentially points out that this is an error packet, is the last four bytes. The four last bytes are always the same for any error packet, and as we see - they are not 0.</p>
+<p>To summarize what we know so far when an error happens in the external engine:</p>
+<ul>
+<li>SQL Server receives one 28 bytes data packet back from the SqlSatellite.</li>
+<li>The four last bytes always are <code>12 00 2a 00</code>.</li>
+</ul>
+<p>Let&rsquo;s go back to the call-stack we see in <em>Code Snippet 6</em> and try to figure out what happens in the code. We have already said the error happens in <code>sqlmin!CQScanUdx::GetRow</code>. We have not spoken much about <code>GetRow</code> at all, but if you remember in <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals- XVII</a> we discussed about how <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> called <code>sqllang!CUDXR_ExternalScript::PullRow</code>. In fact <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> calls <code>sqlmin!CQueryScan::GetRow</code> which in turn calls <code>sqlmin!CQScanUdx::GetRow</code> and it calls <code>PullRow</code>.</p>
+<p>In <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> we traced the <code>PullRow</code> call and saw how SQL Server handled returning data. To see what happens during an error, let us do the trace one step up - in <code>sqlmin!CQScanUdx::GetRow</code>. We start with the code that works (<em>Code Snippet 1</em>):</p>
+<ul>
+<li>Change the <code>Sys.sleep</code> in the script in *Code Snippet 1` to 30 seconds.</li>
+<li>Set a break-point in the SQL Server process at <code>sqlmin!CQScanUdx::GetRow</code>.</li>
+<li>Execute the code in <em>Code Snippet 1</em>.</li>
+<li>When <code>sqlmin!CQScanUdx::GetRow</code> hits the breakpoint, do a <code>wt -l8</code> (trace and watch the execution 8 levels deep).</li>
+</ul>
+<p>Look at the <em>WinDbg</em> output when the `Sys.sleep(30) is hit in the script, and notice the last few lines look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SystemThread</span>::<span style="color:#268bd2">GetCurrentId</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">PreWait</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Suspend</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>wt Output at Sys.sleep</em></p>
+<p>The code in <em>Code Snippet 9</em> is what precedes the code we saw in <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> where the execution waited for a signal. After the trace has finished, copy it to a text file to make it easier to investigate what happens. Then execute the code in <em>Code Snippet 2</em> and do a new trace, and copy that result into a new file as well. When you then compare the two files you see how the first part is identical:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessOutputSchema</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">GetOutputSchema</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadSchemaInternal</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">CSQLSatelliteCommunication</span>
+</span></span><span style="display:flex;"><span>          ...
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadAllPackets</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">GetNextMessage</span>
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Suspend</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#93a1a1;font-style:italic">//here is Sys.sleep
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span>              <span style="color:#93a1a1;font-style:italic">//here we continue
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>                <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">SuspendNonPreemptive</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>               ...
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">GetNextMessage</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">RetrieveMessage</span>
+</span></span><span style="display:flex;"><span>                ...
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadAllPackets</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">BindReadSNIPacket</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>            ...
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadAllPackets</span>
+</span></span><span style="display:flex;"><span>          ...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Common Code Path</em></p>
+<p>In <em>Code Snippet 10</em> we recognise from <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> the calls to retrieve rows, and they are the same in both trace files up until around line 50, after the <code>ReadAllPackets</code> in the next to last line above. Continuing,  what we see in the files change. In the no error trace file nothing out of the ordinary happens, and eventually, the trace ends with the call to <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code>, which we discussed in <a href="/post/2018-01-10-microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a>. The error trace file looks completely different though from after the last <code>ReadAllPackets</code> above:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessOutputSchema</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">GetOutputSchema</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadSchemaInternal</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>          
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadAllPackets</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">BindReadSNIPacket</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span> 
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>          <span style="color:#93a1a1;font-style:italic">//this is the last ReadAllPackets above
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>           <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadAllPackets</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">HandleSpecialMessage</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">HandleAbortMessage</span>
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>            ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessOutputSchema</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXC_ExternalScript</span>::<span style="color:#268bd2">EUdxTypeGet</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise2</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>           <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlRaiseException</span>
+</span></span><span style="display:flex;"><span>           ...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Code Path for Exception</em></p>
+<p>Included in <em>Code Snippet 11</em> is the start of the routine, the same as in <em>Code Snippet 10</em>, but we see how after the last <code>ReadAllPackets</code> the call goes into <code>sqllang!CServerCargoContext::HandleSpecialMessage</code> and <code>sqllang!CServerCargoContext::HandleAbortMessage</code>. These two calls are still inside the <code>PullRow</code> and <code>ProcessOutputSchema</code> calls, e.g. while SQL Server processes the packet from the SqlSatellite. The <code>HandleSpecialMessage</code> and <code>HandleAbortMessage</code> explains the packet in <em>Code Snippet 8</em>: it is an abort packet.</p>
+<p>Further down in the code in <em>Code Snippet 11</em> is a call to <code>sqllang!CUDXC_ExternalScript::EUdxTypeGet</code>, where - I believe - SQL Server retrieves the type of error and then raises the error in the <code>sqldk!ex_raise</code> call-chain. The question now is how SQL Server knows the error message? What I mean is: when we look at the <code>text</code> column in the result from <em>Code Snippet 4</em> we see for error number the text being: <code>An external script error occurred: %.*ls%.*ls</code>. The <code>%.*ls%.*ls</code> characters are substitution parameters and when we look at the actual error message in <em>Figure 3</em>, the replacement for the substitution parameters is what we see outlined in red below:</p>
+<p>
+  <img src="/images/posts/sql_r_services_20_error3.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Substitution Text</em></p>
+<p>So, where do the substitution outlined in <em>Figure 8</em> come from, and what is the text outlined in blue in the same figure? We know that the actual error-text is not part of the 28 bytes packet from the SqlSatellite, as no matter how long the error message is, the length of the packet is always the same. So where have we seen messages being passed back to SQL Server, without being in any data packets from the SqlSatellite? Well, we saw it in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> where the launchpad service did send &ldquo;print&rdquo; messages as well as ack messages from the external engine to SQL Server. So, let us go to the launchpad service and <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunk&rdquo;</a> around a bit:</p>
+<h4 id="launchpad">Launchpad</h4>
+<p>We know, from <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, that the two routines used when sending messages are:</p>
+<ul>
+<li><code>launchpad!CSatelliteCargoContext::SendLogMessage</code></li>
+<li><code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code></li>
+</ul>
+<p>First, we try to find any routines handling error messages specifically: <code>x *!*Send*Error*</code>. That returns one routine: <code>launchpad!HostErrorReportingManager:: SendErrorToUserWithTracing </code>. I did however not get a hit at a break-point set at the routine, when I executed the code in <em>Code Snippet 2</em>. So it looks like our best bet is one of the previously mentioned routines, and we try <code>launchpad!CSatelliteCargoContext::SendLogMessage</code> first:</p>
+<ul>
+<li>Set a break-point <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>.</li>
+<li>Execute the code in <em>Code Snippet 1</em> (no error code).</li>
+</ul>
+<p>You see how the code executes all the way through, and the breakpoint is not hit. However, the execution breaks at the break-point when you run  <em>Code Snippet 2</em> (error)! The only difference between the two code snippets is the error in <em>Code Snippet 2</em>, so it looks like the launchpad service sends a message to SQL Server with the error text from the external engine.</p>
+<h4 id="sql-server-ii">SQL Server II</h4>
+<p>We know from <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> that <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> handles messages that are sent through <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>. I wonder if that is the case when there is an exception as well:</p>
+<ul>
+<li>Disable the break-points in the launchpad <em>WinDbg</em> instance.</li>
+<li>Disable any break-points in the SQL Server <em>WinDbg</em> instance.</li>
+<li>Set a break-point at <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>.</li>
+<li>Run the <em>Code Snippet 2</em> code.</li>
+<li>Continue through the exceptions.</li>
+</ul>
+<p>Cool, we hit the <code>HandleLogMessage</code> break-point, so let us look at the call-stack (<code>k</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">HandleLogMessage</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">WaitForAckMessage</span>+<span style="color:#2aa198;font-weight:bold">0x164</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ShutdownService</span>+<span style="color:#2aa198;font-weight:bold">0x250</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CUDXR_ExternalScriptCleanup</span>::<span style="color:#268bd2">Close</span>+<span style="color:#2aa198;font-weight:bold">0xe</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryExecContext</span>::<span style="color:#268bd2">FinalCleanupNoX</span>+<span style="color:#2aa198;font-weight:bold">0x116</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">DestroyQueryOnException</span>+<span style="color:#2aa198;font-weight:bold">0x129</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ShutdownOnException</span>+<span style="color:#2aa198;font-weight:bold">0xc8</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">FinishOnExceptionImp</span>+<span style="color:#2aa198;font-weight:bold">0x67</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">_isa_available_init</span>+<span style="color:#2aa198;font-weight:bold">0xe8cf3</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">_CallSettingFrame</span>+<span style="color:#2aa198;font-weight:bold">0x20</span> 
+</span></span><span style="display:flex;"><span>               [<span style="color:#268bd2">f</span>:\<span style="color:#268bd2">dd</span>\<span style="color:#268bd2">vctools</span>\<span style="color:#268bd2">crt</span>\<span style="color:#268bd2">crtw32</span>\<span style="color:#268bd2">eh</span>\<span style="color:#268bd2">amd64</span>\<span style="color:#268bd2">handlers</span>.<span style="color:#859900">asm</span> @ <span style="color:#2aa198;font-weight:bold">51</span>] 
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">__CxxCallCatchBlock</span>+<span style="color:#2aa198;font-weight:bold">0xf5</span> 
+</span></span><span style="display:flex;"><span>               [<span style="color:#268bd2">f</span>:\<span style="color:#268bd2">dd</span>\<span style="color:#268bd2">vctools</span>\<span style="color:#268bd2">crt</span>\<span style="color:#268bd2">crtw32</span>\<span style="color:#268bd2">eh</span>\<span style="color:#268bd2">frame</span>.<span style="color:#268bd2">cpp</span> @ <span style="color:#2aa198;font-weight:bold">1281</span>] 
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RcConsolidateFrames</span>+<span style="color:#2aa198;font-weight:bold">0x3</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>+<span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>+<span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>HandleLogMessage Call Stack</em></p>
+<p>The call-stack we see in <em>Code Snippet 12</em> indicates a similar code path for <code>HandleLogMessage</code> as we saw in <em>Code Snippet 12</em> in the <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post . They are similar, but there are some differences which becomes clear when we compare the code paths between the two call-stacks. In a no error scenario we have a code path like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ShutdownNormal</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">DestroyQuery</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryExecContext</span>::<span style="color:#268bd2">FinalCleanup</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CUDXR_ExternalScriptCleanup</span>::<span style="color:#268bd2">Close</span>
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>              ...
+</span></span><span style="display:flex;"><span>                <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">HandleLogMessage</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Code Path HandleLogMessage No Error</em></p>
+<p>Whereas the code path for an exception looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">FinishOnExceptionImp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ShutdownOnException</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">DestroyQueryOnException</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryExecContext</span>::<span style="color:#268bd2">FinalCleanupNoX</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CUDXR_ExternalScriptCleanup</span>::<span style="color:#268bd2">Close</span>
+</span></span><span style="display:flex;"><span>            ...
+</span></span><span style="display:flex;"><span>            ...
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">HandleLogMessage</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>Code Path HandleLogMessage with Error</em></p>
+<p>When we compare <em>Code Snippet 13</em> and <em>Code Snippet 14</em> we see how - in both cases - the code goes into shutdown and cleanup routines, but in the error case these routines are &ldquo;exception&rdquo; routines:</p>
+<ul>
+<li><code>sqllang!CXStmtQuery::FinishOnExceptionImp</code></li>
+<li><code>sqllang!CXStmtQuery::ShutdownOnException</code></li>
+<li><code>sqlmin!CQueryScan::DestroyQueryOnException</code></li>
+</ul>
+<p>The question now is how the message received from the external engine via the launchpad service is &ldquo;hooked&rdquo; up to the actual exception. The assumption is that the answer to that has something to do with <code>HandleLogMessage</code>. So, let us compare what happens in <code>HandleLogMessage</code> when we run code that logs a message (as we did in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>), with running code that causes an exception.</p>
+<p>This is the code with no exception:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             cat(&#34;Hello World&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Code with Print</em></p>
+<p>The code in <em>Code Snippet 15</em> is the same code we used in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and this is what we do:</p>
+<ul>
+<li>Set a breakpoint at <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>.</li>
+<li>Run the code in <em>Code Snippet 15</em>.</li>
+<li>Do a trace, (<code>wt -l6</code>), of the <code>HandleLogMessage</code> call when you hit the breakpoint.</li>
+<li>Copy the output of the trace into a new text file.</li>
+<li>Make sure the <code>C++ EH Exception</code> event filter is still enabled.</li>
+<li>Run the code in <em>Code Snippet 2</em>.</li>
+<li>Continue through the exceptions.</li>
+<li>Do a trace, (<code>wt -l6</code>), of the <code>HandleLogMessage</code> call when you hit the breakpoint.</li>
+<li>Copy the output of the trace into a new text file.</li>
+</ul>
+<p>When you compare the two files you see they are similar, but at around line 190, or so, there is a difference. In the &ldquo;no-error&rdquo; file you see something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SetError</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SetError</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SendErrorToUser</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">ErrorReportedAutoPublish</span>::<span style="color:#268bd2">Publish</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 16:</strong> &ldquo;HandleLogMessage No Error&rdquo;</p>
+<p>However in the &ldquo;error&rdquo; file you see:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">PCXCtxtGetIfExistsEXPENSIVE</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">PCXCtxtGetIfExistsEXPENSIVE</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">PCXCtxtGetIfExistsEXPENSIVE</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">PCXCtxtGetIfExistsEXPENSIVE</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CExecLvlRepresentation</span>::<span style="color:#268bd2">FErrorModeJumpToCatch</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CAutoInterceptErrorForTsqlCatch</span>::<span style="color:#268bd2">Initialize</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SetError</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SetError</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">getret</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">CwchFormatAndPrint</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CErrorReportingManager</span>::<span style="color:#268bd2">SendErrorToUser</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">ErrorReportedAutoPublish</span>::<span style="color:#268bd2">Publish</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 17:</strong> &ldquo;HandleLogMessage Exception&rdquo;</p>
+<p>You can see how, in the &ldquo;error&rdquo; file (<em>Code Snippet 17</em>), the code loops on <code>sqllang!CAutoInterceptErrorForTsqlCatch::Initialize</code>, before it calls into <code>sqllang!CExecLvlRepresentation::FErrorModeJumpToCatch</code>. This loop does not happen in the &ldquo;non-error&rdquo; case. Oh, and it is interesting to see how in the case of &ldquo;normal&rdquo; log messages, the message is still considered being an error:</p>
+<ul>
+<li><code>sqllang!CErrorReportingManager::SetError</code></li>
+<li><code>sqllang!CErrorReportingManager::SendErrorToUser</code></li>
+<li><code>sqllang!ErrorReportedAutoPublish::Publish</code></li>
+</ul>
+<h2 id="errors-unknown-to-sql-server">Errors Unknown to SQL Server</h2>
+<p>This post has become long, but let us talk a little bit about the type of error we saw in <em>Figure 4</em> before we finish. I refer to where SQL Server does not know about the error in the external engine (you see no specific external engine SQL Server error message).</p>
+<p>If we look at how the error in <em>Code Snippet 2</em> is handled and compare it with the error in <em>Code Snippet 3</em>, we may think they are handled the same way (an error is an error, right?), and it may look like that. For example, if we look at <em>Process Monitor</em> we see the same 28 bytes packet sent to SQL Server as we saw in <em>Figure 7</em>. The packet itself looks the same as in <em>Code Snippet 8</em> (first 4 bytes - <code>01 00 04 80</code> second 4 bytes - <code>1c 00 00 00</code>, and the final 4 bytes - <code>12 00 2a 00</code>). These similarities led me to believe we would see the same flow as in <em>Code Snippet 11</em>, where the code goes into <code>sqllang!CServerCargoContext::HandleSpecialMessage</code> and further down into <code>sqllang!CServerCargoContext::HandleAbortMessage</code>. I was wrong!</p>
+<p>I realised the errors of my ways when I set a breakpoint at <code>sqllang!CServerCargoContext::HandleSpecialMessage</code>, ran the code in <em>Code Snippet 3</em>, and the code never hit the breakpoint! So what happened here? Well, the actual exception happened way before sending the <code>@input_data_1</code> data to the SqlSatellite, and that is the cause of what we see. So let us:</p>
+<ul>
+<li>Disable all breakpoints.</li>
+<li>Keep the <code>C++ EH Exception</code> event filter enabled.</li>
+</ul>
+<p>When we run the <em>Code Snippet 3</em> code, we see how the execution breaks at exception three times in quick succession. When inspecting the call-stack of each of those three occurrences we see how all three exceptions are related to the <code> sqlTsEs!ESArithErrorHandler</code> routine which handles, among other things, division by zero.</p>
+<p>There is a slight pause when continuing after the third exception, and then we break once again with a new exception. The call-stack now looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">RaiseException</span>+<span style="color:#2aa198;font-weight:bold">0x68</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">_CxxThrowException</span>+<span style="color:#2aa198;font-weight:bold">0xb3</span> 
+</span></span><span style="display:flex;"><span>          [<span style="color:#268bd2">f</span>:\<span style="color:#268bd2">dd</span>\<span style="color:#268bd2">vctools</span>\<span style="color:#268bd2">crt</span>\<span style="color:#268bd2">crtw32</span>\<span style="color:#268bd2">eh</span>\<span style="color:#859900">throw</span>.<span style="color:#268bd2">cpp</span> @ <span style="color:#2aa198;font-weight:bold">154</span>] 
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ExceptionBackout</span>::<span style="color:#268bd2">GetCurrentException</span>+<span style="color:#2aa198;font-weight:bold">0x385</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise2</span>+<span style="color:#2aa198;font-weight:bold">0x52f</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">ex_raise</span>+<span style="color:#2aa198;font-weight:bold">0xc4</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlTsEs</span>!<span style="color:#268bd2">ESArithErrorHandler</span>+<span style="color:#2aa198;font-weight:bold">0x159</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlTsEs</span>!<span style="color:#268bd2">CTEsArith</span>&lt;<span style="color:#2aa198;font-weight:bold">3</span>,<span style="color:#2aa198;font-weight:bold">56</span>,<span style="color:#2aa198;font-weight:bold">56</span>,<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">0</span>&gt;::<span style="color:#268bd2">RsltArithArgArg</span>+<span style="color:#2aa198;font-weight:bold">0x94</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlTsEs</span>!<span style="color:#268bd2">CEsExec</span>::<span style="color:#268bd2">GeneralEval4</span>+<span style="color:#2aa198;font-weight:bold">0xe7</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushRow</span>+<span style="color:#2aa198;font-weight:bold">0x78</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span>+<span style="color:#2aa198;font-weight:bold">0x13b</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x79</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>+<span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 18:</strong> &ldquo;Exception after Division by Zero&rdquo;</p>
+<p>The call-stack we see in <em>Code Snippet 18</em> shows how an exception happens when we try to push data rows to a packet to send to SqlSatellite. So, even though there is a division by zero exception initially, SQL Server still tries to push data to the satellite. The question is if some data goes to the satellite? Remember from previous posts how we covered data sent to the SqlSatellite and how the satellite received end-packet(s) after the data. I wonder what happens in this case:</p>
+<ul>
+<li>Disable the <code>C++ EH Exception</code> event filter.</li>
+<li>Run <em>Process Monitor</em> as admin, and use the event filter we used above.</li>
+<li>Execute the code in <em>Code Snippet 3</em> and look at the output from <em>Process Monitor</em>:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_20_procmon2.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Process Monitor Output 2</em></p>
+<p>When we compare <em>Figure 9</em> with what we see in <em>Figure 7</em>, there is not much of a difference. In both figures we see SQL Server sending a 28 bytes end-packet to the SqlSatellite. In <em>Figure 9</em> it is outlined in red, and in <em>Figure 7</em> it is just above the highlighted packet. Even though the two figures look the same, the difference lies in the end-packet. I used <em>WireShark</em> to capture packets from <em>Code Snippet 1</em> (no error), <em>Code Snippet 2</em> (external engine error) and <em>Code Snippet 3</em> (SQL error):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//OK
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">76</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">b</span> <span style="color:#2aa198;font-weight:bold">35</span> <span style="color:#268bd2">fa</span> <span style="color:#2aa198;font-weight:bold">75</span> <span style="color:#2aa198;font-weight:bold">64</span> <span style="color:#2aa198;font-weight:bold">48</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">81</span> <span style="color:#2aa198;font-weight:bold">34</span> <span style="color:#268bd2">e2</span> <span style="color:#268bd2">ec</span> <span style="color:#268bd2">ec</span> <span style="color:#2aa198;font-weight:bold">7</span><span style="color:#268bd2">d</span> <span style="color:#2aa198;font-weight:bold">2</span><span style="color:#268bd2">d</span> <span style="color:#268bd2">c6</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//engine exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">90</span> <span style="color:#2aa198;font-weight:bold">2</span><span style="color:#268bd2">b</span> <span style="color:#2aa198;font-weight:bold">8</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">3f</span> <span style="color:#2aa198;font-weight:bold">60</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">c</span> <span style="color:#268bd2">d5</span> <span style="color:#2aa198;font-weight:bold">49</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a0</span> <span style="color:#2aa198;font-weight:bold">8f</span> <span style="color:#268bd2">f0</span> <span style="color:#268bd2">c4</span> <span style="color:#268bd2">c0</span> <span style="color:#268bd2">bf</span> <span style="color:#268bd2">c0</span> <span style="color:#268bd2">cb</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>            
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//exception SQL
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">7f</span> <span style="color:#2aa198;font-weight:bold">82</span> <span style="color:#268bd2">bc</span> <span style="color:#268bd2">e0</span> <span style="color:#2aa198;font-weight:bold">3f</span> <span style="color:#2aa198;font-weight:bold">5</span><span style="color:#268bd2">a</span> <span style="color:#2aa198;font-weight:bold">29</span> <span style="color:#2aa198;font-weight:bold">48</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">83</span> <span style="color:#268bd2">d7</span> <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#2aa198;font-weight:bold">46</span> <span style="color:#268bd2">ad</span> <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#2aa198;font-weight:bold">21</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 19:</strong> <em>Different End Packet Types</em></p>
+<p>When we look at the packets in <em>Code Snippet 19</em> we see how the two first packets look like the success packets SQL Server receives from the SqlSatellite. Why I say that, is because the four first bytes are the same: <code>01 00 06 80</code>. The third packet, however, looks like the &ldquo;error&rdquo; packet SqlSatellite sends to SQL Server, with a header of <code>01 00 04 80</code>. The difference between the packet that SQL Server sends to the satellite, and the packet SQL Server receives are the last four bytes. Sending to the satellite the bytes are <code>00 00 00 00</code>, whereas when an error packet comes back from the satellite, it is - as we discussed when we saw <em>Code Snippet 8</em>  - <code>12 00 2a 00</code>. I do believe that this packet is what causes the SqlSatellite to raise the error we see <code>SqlSatellite cannot read data chunk ...</code>.</p>
+<p>So this is what happens:</p>
+<ul>
+<li>The exception happens in the SQL Server engine, before the process has been handed over to the SqlSatellite.</li>
+<li>An error packet is sent to the satellite.</li>
+<li>The satellite cannot process the packet.</li>
+<li>The SqlSatellite sends back the error message we see.</li>
+<li>This is handled by the <code>HandleLogMessage</code> routine in SqlServer.</li>
+</ul>
+<p>In the bullet points above I say that the <code>HandleLogMessage</code> routine handles the message, and you can see this by setting a breakpoint on this routine.</p>
+<h2 id="summary">Summary</h2>
+<p>We have in this post seen how there are two types of errors related to the external engine:</p>
+<ul>
+<li>Error raised in the extern engine itself.</li>
+<li>Error happening before the external engine has taken over.</li>
+</ul>
+<p>When an error happens in the external engine:</p>
+<ul>
+<li>the SqlSatellite sends an error packet to SQL Server.</li>
+<li>SQL Server receives the packet and handles it in <code>sqllang!CServerCargoContext::HandleSpecialMessage</code> and <code>sqllang!CServerCargoContext::HandleAbortMessage</code>. This raises a SQL Server exception related to the external engine.</li>
+<li>The error message from the external engine is sent to the launchpad service.</li>
+<li>The launchpad service sends the message to SQL Server via <code>launchpad!CSatelliteCargoContext::SendLogMessage</code></li>
+<li>SQL Server handles the message in <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>.</li>
+</ul>
+<p>When the error happens in SQL Server before the external engine:</p>
+<ul>
+<li>An error packet is sent to the satellite.</li>
+<li>The satellite cannot process the packet.</li>
+<li>The SqlSatellite sends back the error message via <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>.</li>
+<li>SQL Server handles the message in <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> and related routines.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-01-28-interesting-stuff---week-4/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 4">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-02-04-interesting-stuff---week-5/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 5">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

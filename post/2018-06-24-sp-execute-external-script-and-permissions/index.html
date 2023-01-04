@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="sp_execute_external_script and Permissions" />
+    <meta property="og:title" content="sp_execute_external_script and Permissions" />
+    <meta property="twitter:title" content="sp_execute_external_script and Permissions" />
+    
+
+    
+    <meta name="description" content="We look at what permissions a non-admin user needs to execute sp_execute_external_script">
+    <meta property="og:description" content="We look at what permissions a non-admin user needs to execute sp_execute_external_script" />
+    <meta property="twitter:description" content="We look at what permissions a non-admin user needs to execute sp_execute_external_script" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>sp_execute_external_script and Permissions | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-06-24-sp-execute-external-script-and-permissions/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/sp_execute_external_script" title="sp_execute_external_script">
+                            sp_execute_external_script
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-permissions" title="SQL Server Permissions">
+                            SQL Server Permissions
+                        </a>
+                        
+                    </div>
+                    <h1>sp_execute_external_script and Permissions</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, June 24, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post will (hopefully) be short and sweet. It came about as I was testing out &ldquo;stuff&rdquo; for the <a href="/sql_server_ml_services_install_packages">Install R Packages in SQL Server ML Services</a> series of posts and I could not get it to work as I had expected.</p>
+<h2 id="background">Background</h2>
+<p>Usually, when I work with <strong>SQL Server Machine Learning Services</strong>, I execute code in the context of admin (yeah I know, do not do that :)). In the <a href="/sql_server_ml_services_install_packages">Install R Packages in SQL Server ML Services</a> series I used non-admin accounts, and all of a sudden nothing worked.</p>
+<p>I tried to research (read Google) the issue, but I could not find a definitive answer, just tidbits here and there. So when I finally realised what the issues were, I decided to write a blog post about it.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>As in quite a few of my other blog posts, here follows some code to set things up if you want to follow along.</p>
+<h4 id="code">Code</h4>
+<p>This is the code to &ldquo;set the scene&rdquo;:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;user1&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">PermissionDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">PermissionDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">PermissionDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">user1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Create Login, Database and User</em></p>
+<p>In <em>Code Snippet 1</em> we create a login, a database, and then we create a user for the login in the database.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Below you see in quite a few places the abbreviation SPEES. That is short for <code>sp_excute_external_script</code>.</p>
+</blockquote>
+<h2 id="permissions">Permissions</h2>
+<p>What we see in <em>Code Snippet 1</em> is that we have not assigned <code>user1</code> to any particular roles on either the server or the database, so <code>user1</code> has whatever default permissions he gets during creation. Let us look in <em>SSMS</em> UI and see what server level roles <code>user1</code> belongs to:</p>
+<p>
+  <img src="/images/posts/sql_ml_speess_permissions1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Roles User1</em></p>
+<p>In <em>Figure 1</em> we see how <code>user1</code> belongs to the server role <code>public</code>, and that is the only role he belongs to. So what if we have code like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--uncomment the following and execute
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--to execute as user1
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--EXECUTE AS USER = &#39;user1&#39;;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--GO
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>             @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>           , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">               d&lt;-42
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">               OutputDataSet &lt;- as.data.frame(d)&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--to switch back from user1 uncomment and execute
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--the following
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--REVERT
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Simple Test Code</em></p>
+<p>The code in <em>Code Snippet 2</em> allows you to switch between admin/sa and <code>user1</code> without having to log in as <code>user1</code>.</p>
+<p>If someone with sufficient permissions ran the code in <em>Code Snippet 2</em>, the result looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_sa_exec.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>sa Executes SPEES</em></p>
+<p>As we see in <em>Figure 2</em> we get back <a href="https://www.independent.co.uk/life-style/history/42-the-answer-to-life-the-universe-and-everything-2205734.html"><em>The Answer to the Ultimate Question of Life, the Universe and Everything.</em></a>, but if <code>user1</code> runs the same code, the result is:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_sa_exec_error1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>SPEES Execution Error</em></p>
+<p>Oh, dear me, <code>user1</code> receives a permission denied exception! Well, from what we know about SQL Server and permissions it probably was not that unexpected. No problem, we know about SQL Server permissions, so we realise we probably have to <code>GRANT EXECUTE</code> permissions on <em>SPEES</em> to <code>user1</code> (or <code>public</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">sp_execute_external_script</span> <span style="color:#859900">to</span> <span style="color:#268bd2">user1</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Grant Execute Permission</em></p>
+<p>Being in the database where <code>user1</code> exists and executing the code in <em>Code Snippet 3</em> as admin/sa - what could possibly go wrong:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_perm_grant_error1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Grant Permission Error</em></p>
+<p>Oops, something did go wrong, as it turns out that if you try to grant permissions on extended stored procedures, which <em>SPEES</em> is, you need to do it from the <code>master</code> database. Cool, let us switch to master and do it there. Well, if you try to do that - then you get another error: the user does not exist in <code>master</code>, sigh!</p>
+<p>At this stage you have a couple of options:</p>
+<ul>
+<li><del>Add the login for the user to the <code>sysadmin</code> role, or the user to the <code>db_owner</code> role in the actual database.</del> No do not do that, I am only kidding! Do.Not.Do.That!</li>
+<li>Create the user in <code>master</code> and grant the permission. That would work.</li>
+<li>Grant the permission to <code>public</code>.</li>
+</ul>
+<p>Both options above (I do not count <code>sysadmin</code>, <code>db_owner</code>) have drawbacks:</p>
+<ul>
+<li>Create the user in <code>master</code>: you now have a user in master, and the question is what &ldquo;shenanigans&rdquo; the user can do.</li>
+<li>Grant permission to <code>public</code>: anyone can potentially execute <em>SPEES</em>, not ideal.</li>
+</ul>
+<p>For reasons that become clear later I go with granting permission to <code>public</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">sp_execute_external_script</span> <span style="color:#859900">to</span> <span style="color:#859900">public</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Granting Permission to Public</em></p>
+<p>After admin/sa runs the code in <em>Code Snippet 4</em>, <code>user1</code> can now execute the code in <em>Code Snippet 2</em> and we should see <em>The Answer &hellip;</em>:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_sa_exec_error2.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>SPEES Execution Error</em></p>
+<p><a href="https://en.oxforddictionaries.com/definition/eish">Eish</a>, what goes on here? We did grant the permission in <em>Code Snippet 4</em>, so what now? Hmm, if we compare the errors, we see that they are slightly different. The error before granting the permission is something like: &ldquo;The EXECUTE permission was denied &hellip;&rdquo;, whereas the error after granting the permission is like: &ldquo;The user does not have permission &hellip;&rdquo;. It seems that the code in <em>Code Snippet 4</em> did something, but we still miss a piece (or multiple) of the puzzle, and it is permissions related. What permission(s) is the question?</p>
+<p>So I decided to try a &ldquo;brute force attack&rdquo;; find all built in permissions in SQL Server, browse through them and see if I see something promising. For this, I used a SQL Server function: <code>sys.fn_builtin_permissions</code>, which - when executed - returns a description of the built-in permissions hierarchy of the server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">fn_builtin_permissions</span>(<span style="color:#2aa198">&#39;database&#39;</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Retrieve All Functions</em></p>
+<p>The parameter (<code>database</code>) in <em>Code Snippet 5</em> indicates what permissions I want back. In this case, I want all permissions on a database level. When I ran the code in <em>Code Snippet 5</em> the function call returned 78 rows, and towards the end of the result I saw something promising:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_permissions.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>SPEES Execution Error</em></p>
+<p>The highligthed part in <em>Figure 6</em> looks very interesting. I wonder what happens if I do something like this as admin/sa in the database the user is in:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ANY</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">SCRIPT</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">user1</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Grant External Script</em></p>
+<p>The code in <em>Code Snippet 5</em> ran without any issues, and <code>user1</code> can then try following code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">SUSER_NAME</span>()
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>             @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>           , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">               d&lt;-42
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">               OutputDataSet &lt;- as.data.frame(d)&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Another Try by user1</em></p>
+<p>The <code>SELECT SUSER_NAME()</code> in <em>Code Snippet 6</em> is there to verify that it is the correct user executing. The result when <code>user1</code> executes looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_spees_user1_exec.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Successful Execution</em></p>
+<p>So that was the missing link: <code>GRANT EXECUTE ANY EXTERNAL SCRIPT TO ...</code>, and to tell the truth; afterwards, I have seen a few posts on the net mentioning <code>EXECUTE ANY EXTERNAL SCRIPT</code>.</p>
+<p>One more thing: above I mentioned that I favour granting the <code>EXECUTE</code> on <em>SPEES</em> to <code>public</code> instead of adding the user to <code>master</code>. The reason for this is what we just have seen: yes you do a &ldquo;blanket&rdquo; <code>GRANT</code> by granting <code>public</code>, but a user still needs to be granted <code>EXECUTE ANY EXTERNAL SCRIPT</code> before he can &ldquo;go wild&rdquo;. That gives admins/dba&rsquo;s some control over who can execute <em>SPEES</em>.</p>
+<h2 id="summary">Summary</h2>
+<p>To allow a non-admin database user to execute <code>sp_execute_external_script</code> you need to:</p>
+<ul>
+<li>Grant <code>public</code> execute permissions on <code>sp_execute_external_script</code>, and you do it in <code>master</code>. Obviously, you only need to do it once.</li>
+<li>Grant <code>EXECUTE ANY EXTERNAL SCRIPT</code> to the user in the different databases he needs to execute <em>SPEES</em> in.</li>
+</ul>
+<p>That is it!</p>
+<p>One final thing: if you want to read more about <code>sp_execute_external_script</code>, <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series has some posts.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-06-23-installing-r-packages-in-sql-server-machine-learning-services---i/" data-toggle="tooltip" data-placement="top" title="Installing R Packages in SQL Server Machine Learning Services - I">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-06-24-interesting-stuff---week-25/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 25">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

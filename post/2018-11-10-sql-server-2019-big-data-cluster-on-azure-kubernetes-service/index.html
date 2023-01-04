@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+    <meta property="og:title" content="SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+    <meta property="twitter:title" content="SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+    
+
+    
+    <meta name="description" content="A look at how to install SQL Server 2019 Big Data Cluster on Azure Kubernetes Service">
+    <meta property="og:description" content="A look at how to install SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+    <meta property="twitter:description" content="A look at how to install SQL Server 2019 Big Data Cluster on Azure Kubernetes Service" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server 2019 Big Data Cluster on Azure Kubernetes Service | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-11-10-sql-server-2019-big-data-cluster-on-azure-kubernetes-service/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019-big-data-cluster" title="SQL Server 2019 Big Data Cluster">
+                            SQL Server 2019 Big Data Cluster
+                        </a>
+                        
+                        <a class="tag" href="/tags/kubernetes" title="Kubernetes">
+                            Kubernetes
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-kubernetes-service" title="Azure Kubernetes Service">
+                            Azure Kubernetes Service
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server 2019 Big Data Cluster on Azure Kubernetes Service</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, November 10, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>At the <a href="https://www.microsoft.com/en-us/ignite/agenda"><strong>Microsoft Ignite 2018</strong></a> conference back in September Microsoft released <strong>SQL Server 2019</strong> for public preview, and I wrote two short blog posts about it:</p>
+<ul>
+<li><a href="/post/2018-09-24-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a>.</li>
+<li><a href="/post/sql-server-2019-for-linux-in-docker-on-windows/">SQL Server 2019 for Linux in Docker on Windows</a>.</li>
+</ul>
+<p>What Microsoft also announced was <strong>SQL Server 2019 Big Data Clusters</strong>, which combines the SQL Server database engine, Spark, and HDFS into a unified data platform! Yes, you read that right: SQL Server, Spark, and Hadoop right out of the box. Seeing that both Spark and Hadoop are mainly Linux based, what makes the Big Data Cluster possible is <strong>SQL Server on Linux</strong>. When you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>, you deploy it as containers on <strong>Kubernetes</strong>, where the Kubernetes cluster can be in the cloud, such as <a href="https://azure.microsoft.com/en-us/services/kubernetes-service/"><strong>Azure Kubernetes Service</strong></a>, or on-prem like <a href="https://www.openshift.com/learn/topics/kubernetes/"><strong>Red Hat OpenShift</strong></a> or even on a local dev-box/laptop using <a href="https://kubernetes.io/docs/setup/minikube/"><strong>Minikube</strong></a>.</p>
+<p>Initially, this post was about <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube, but after quite a few failed installation attempts I realised I did not have enough memory on my development box, so I decided to try it on <strong>Azure Kubernetes Service</strong> (AKS) instead.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you want to run <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube it is suggested that your host machine (Minikube is essentially a VM) has at least 32Gb of memory, and you allocate at least 22Gb to the Minikube VM.</p>
+</blockquote>
+<p>Since I am a complete novice when it comes to Kubernetes, this post covers both how I set up AKS as well as the deployment of <strong>SQL Server 2019 Big Data Clusters</strong> to AKS, and the post is somewhat a summary of the official <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/big-data-cluster-overview?view=sqlallproducts-allversions">documentation</a>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> SQL Server 2019 is in public preview, but the preview does not contain the Big Data Cluster parts. To deploy <strong>SQL Server 2019 Big Data Clusters</strong> you need to be part of the SQL Server 2019 Early Adoption Program, for which you can sign up for <a href="https://sqlservervnexteap.azurewebsites.net/">here</a>.</p>
+</blockquote>
+<h2 id="pre-reqs">Pre-reqs</h2>
+<p>Apart from having an Azure subscription and being enrolled in the SQL Server 2019 EAP, there are a couple of other pre-reqs needed.</p>
+<h4 id="python">Python</h4>
+<p>If you, like me, are a SQL Server guy, you are probably quite familiar with installing SQL Server instances by mounting an ISO file, and running setup. Well, you can forget all that when you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>. The setup is all done via Python utilities, and various Docker images pulled from a private repository. So, you need Python3. On my box I have Python 3.5, and - according to Microsoft - version 3.7 also works. Make you that you have your Python installation on the path.</p>
+<p>When you deploy you use a Python utility: <code>mssqlctl</code>. To download <code>mssqlctl</code>, you need Python&rsquo;s package management system <code>pip</code> installed. During installation you also need a Python HTTP library: <em>Requests</em>. If you do not have it you need to install it:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#268bd2">python</span> -<span style="color:#268bd2">m</span> <span style="color:#268bd2">pip</span> <span style="color:#268bd2">install</span> <span style="color:#268bd2">requests</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Installing Python Requests</em></p>
+<p>Down below we talk some more about how to download the <code>mssqlctl</code> utility.</p>
+<h4 id="azure-cli">Azure CLI</h4>
+<p>When working with Azure, you can do it in three ways:</p>
+<ul>
+<li>Azure Portal</li>
+<li>Cloud Shell from within the portal.</li>
+<li>Azure CLI.</li>
+</ul>
+<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. In this post I mainly use the Azure CLI, so if you want to follow along download it from <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?view=azure-cli-latest">here</a>.</p>
+<h4 id="kubectl">Kubectl</h4>
+<p>The <code>kubernetes-cli</code> (Kubernetes command line tool), gives you an executable <code>kubectl.exe</code> which you use to manage your Kubernetes cluster. Using <code>kubectl</code>, you can inspect cluster resources; create, delete, and update components; etc.</p>
+<p>You can install <code>kubectl</code> in different ways, and I installed it from <a href="https://chocolatey.org/packages/kubernetes-cli">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
+<h2 id="azure-kubernetes-cluster">Azure Kubernetes Cluster</h2>
+<p>Ok, so having &ldquo;sorted&rdquo; out the pre-reqs, let us start with creating an Azure Kubernetes cluster through the Azure CLI.</p>
+<h4 id="login">Login</h4>
+<p>I start with open Powershell as administrator and from Powershell I log in to Azure:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az login
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Login to Azure</em></p>
+<p>When I execute the code in <em>Code Snippet 2</em> a tab opens in my browser, and I see a dialog that asks me to pick an account to log in to Azure with:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Azure Login</em></p>
+<p>I choose the account from what I see in <em>Figure 1</em>, and after a little while I see in the browser a success message:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login_success.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Azure Login Success</em></p>
+<p>At the same time as the success message in <em>Figure 2</em>, the code in <em>Code Snippet 1</em> returns with information what subscriptions I have access to in Azure:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login_return.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Azure Login Return</em></p>
+<p>As we see in <em>Figure 3</em>, I have access to multiple subscriptions, and before we go any further, I set the subscription I target. I look at the <code>id</code> for the subscription I want and:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az account <span style="color:#cb4b16">set</span> -s &lt;my_subscription_id&gt;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Set Azure Context</em></p>
+<p>I have now logged in and indicated, as in <em>Code Snippet 3</em>, what subscription to use.</p>
+<h4 id="resource-groups">Resource Groups</h4>
+<p>Everything we do in Azure is in the context of a resource group. A resource group is a logical group in which Azure resources are deployed and managed, and it exists in a physical location (Azure data center). So when I create a Kubernetes cluster, I need to define what resource group the cluster should belong to. So let us create a resource group:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az group create --name kubernetes-rg --location westeurope
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Create Resource Group</em></p>
+<p>In <em>Code Snippet 4</em> we see how I create a group named <code>kubernetes-rg</code>, and I want it in the West Europe region. After I run the code in <em>Code Snippet 4</em>, I get back a JSON blob:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_create_rg.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Azure Create Group Return</em></p>
+<p>The JSON blob, as in <em>Figure 4</em>, contains details about my newly created resource group. If I log in to the Azure Portal:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_portal_resource_group.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Azure Resource Group</em></p>
+<p>In the portal, when I click the <em>Resource groups</em> link (outlined in red in <em>Figure 5</em>), I see my newly created resource group outlined in blue.</p>
+<h2 id="create-kubernetes-cluster">Create Kubernetes Cluster</h2>
+<p>I now have a resource group, and I go on to create the Kubernetes cluster.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You do not need to create a new resource group as such. When you create the Kubernetes cluster, you can create it in an existing group.</p>
+</blockquote>
+<p>To create the Kubernetes cluster I continue to use the Azure CLI, and I use the <code>az aks create</code> command. The command has quite a few parameters, which you can read about <a href="https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az-aks-create">here</a>, but I use only a few of them:</p>
+<ul>
+<li><code>--name</code>: name of the cluster.</li>
+<li><code>--resource-group</code>: name of the resource group.</li>
+<li><code>--disable-rbac</code>: disables Kubernetes Role-Based Access Control.</li>
+<li><code>--generate-ssh-keys</code>: if no SSH keys exist, generate both public and private key files.</li>
+<li><code>--node-vm-size</code>: the size of the VM&rsquo;s used for the nodes in the Kubernetes cluster. For a <strong>SQL Server 2019 Big Data Cluster</strong> you need a VM with at least 32Gb of memory. You can see a list of VM sizes and their features in the portal <a href="https://portal.azure.com/#create/microsoft.aks">here</a>. I use &ldquo;Standard E4s_v3&rdquo;.</li>
+<li><code>--node-count</code>: number of nodes in the Kubernetes node pool. I use 3.</li>
+<li><code>--kubernetes-version</code>: the version of Kubernetes to use for creating the cluster. The <strong>SQL Server 2019 Big Data Cluster</strong> requires at minimum the Kubernetes v1.10 version.</li>
+</ul>
+<p>Before I create the cluster, let us talk a little bit about <code>--node-vm-size</code> and <code>--node-count</code> as they are somewhat related to each other. In addition to defining how much memory a VM has the <code>--node-vm-size</code> also defines the number of virtual CPU&rsquo;s (VCPUS) for the VM. The number of VCPUS controls how many data disks the VM has, (normally it is 2 disks per VCPU). The number of disks per VM is important as the <strong>SQL Server 2019 Big Data Cluster</strong> mounts quite a lot of storage on individual disks and with too few disks the mount operations fail. To get more disks you either increase the VM size or the node count, and that is the relation between <code>--node-vm-size</code> and <code>--node-count</code>.</p>
+<p>For a &ldquo;default&rdquo; <strong>SQL Server 2019 Big Data Cluster</strong> deployment around 20 disks are required. So if I choose the &ldquo;Standard E4s_v3&rdquo; VM as vm size, I want at least 3 nodes. With this in mind the code to create a Kubernetes cluster looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az aks create --name sqlkubecluster <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--resource-group kubernetes-rg <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--disable-rbac <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--generate-ssh-keys <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--node-vm-size Standard_E4s_v3 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--node-count <span style="color:#2aa198;font-weight:bold">3</span> <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>--kubernetes-version 1.10.8
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Create Kubernetes Cluster</em></p>
+<p>In <em>Code Snippet 5</em> we see how:</p>
+<ul>
+<li>I want to create a cluster with the name <code>sqlkubecluster</code>.</li>
+<li>I want the cluster in the <code>kubernetes-rg</code> resource group.</li>
+<li>I do not want to use Kubernetes Role-Based Access Control.</li>
+<li>I want SSH keys created.</li>
+<li>I want the VM&rsquo;s to be &ldquo;Standard E4s_v3&rdquo;,</li>
+<li>I want 3 nodes.</li>
+<li>Finally I want the Kubernetes version to be 1.10.8.</li>
+</ul>
+<p>When I execute the code I see something like so:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_create_cluster.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Run Create Kubernetes Cluster</em></p>
+<p>What we see in <em>Figure 6</em> runs for several minutes and when it completes I receive a JSON blob with information about the cluster.</p>
+<p>I mentioned above how <code>kubectl</code> is used to manage your Kubernetes cluster, and now when the cluster is created, we need to configure <code>kubectl</code> to connect to the cluster. To do this, you use the <code>az aks get-credentials</code> command like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az aks get-credentials --resource-group=kubernetes-rg --name sqlkubecluster
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Get Credentials</em></p>
+<p>We see in <em>Code Snippet 6</em> how I pass in the name of the resource group and cluster as parameters and when I execute:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_credentials.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Get Credentials</em></p>
+<p>The <code>config</code> file we see outlined in red in <em>Figure 7</em> holds, among other things, the keys for the Kubernetes cluster. To ensure that I can connect to the cluster I call <code>kubectl get nodes</code>, and I see some information about the cluster nodes.</p>
+<h4 id="dashboard--namespaces">Dashboard &amp; Namespaces</h4>
+<p>To monitor and manage a Kubernetes cluster you do not have to rely on <code>kubectl</code> solely, as you can also use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>. In Azure you access the Dashboard by the <code>az aks browse</code> command, and - as with <code>get-credentials</code> - you pass in the names of the resource group and cluster: <code>az aks browse --resource-group kubernetes-rg --name sqlkubecluster</code>, and a new tab opens in your browser:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_dashboard.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Kubernetes Dashboard</em></p>
+<p>In <em>Figure 8</em> we see the dashboard right after I created the VM and the Kubernetes cluster. Notice <em>namespaces</em>, outlined in red. <em>Namespcaces</em> help different projects, teams, or customers to share a Kubernetes cluster, and when you deploy to Kubernetes, you deploy into a namespace. To see what <em>namespaces</em> exist in a cluster you execute: <code>kubectl get namespaces</code>. When I do it at this stage I see:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_kubectl_namespaces.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Kubernetes Namespaces</em></p>
+<p>When we look at <em>Figure 9</em> we see following <em>namespaces</em>:</p>
+<ul>
+<li><code>default</code>: A default, (duh), namespace to hold the default set of Pods, Services, and Deployments used by the cluster.</li>
+<li><code>kube-public</code>: A namespace readable by everyone for public <a href="https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/configure-pod-container/configmap/">ConfigMap&rsquo;s</a>.</li>
+<li><code>kube-system</code>: A namespace for objects created by the Kubernetes system.</li>
+</ul>
+<p>So, coming back to Dashboard: when we want to monitor a deployment with Dashboard, we monitor a specific namespace. Enough of this, let us deploy!</p>
+<h2 id="deploy-sql-server-2019-big-data-cluster">Deploy SQL Server 2019 Big Data Cluster</h2>
+<p>I mentioned above that when we deploy a <strong>SQL Server 2019 Big Data Cluster</strong> we deploy using a Python utility: <code>mssqlctl</code>. So what we need to do is to download and install the utility:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pip3 install <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>   --index-url https://private-repo.microsoft.com/python/ctp-2.0 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>     mssqlctl
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Download and Install mssqlctl</em></p>
+<p>We download and install <code>mssqlctl</code> from a Microsoft repository as we see in <em>Code Snippet 7</em>. After download the source is located in <code>&lt;python_path&gt;\lib\site-packages</code> and the executable - <code>mssqlctl.exe</code> - is at: <code>&lt;python_path&gt;\Scripts</code>.</p>
+<h4 id="environment-variables">Environment Variables</h4>
+<p>When you deploy the <strong>SQL Server 2019 Big Data Cluster</strong> using <code>mssqlctl</code> you customise the cluster configuration via environment variables read by <code>mssqlctl</code>. To see all available environment variables you go <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/deployment-guidance?view=sqlallproducts-allversions">here</a>. Below I list the ones I use:</p>
+<ul>
+<li>SET ACCEPT_EULA=Y - to accept the SQL Server license agreement.</li>
+<li>SET CLUSTER_PLATFORM=aks - the Kubernetes platform you deploy to: Azure - <code>aks</code>, Kubernetes - <code>kubernetes</code>, Minikube - <code>minikube</code>.</li>
+<li>SET CONTROLLER_USERNAME=admin - the user name for the cluster administrator. You can set this to anything.</li>
+<li>SET CONTROLLER_PASSWORD=&lt;some_secret_password&gt; - the password for the cluster administrator.</li>
+<li>SET KNOX_PASSWORD=&lt;some_secret_password&gt; - the password for the Knox user. <a href="https://knox.apache.org/">Knox</a> is an application gateway for interacting with the REST API&rsquo;s and UI&rsquo;s of Apache Hadoop deployments.</li>
+<li>SET MSSQL_SA_PASSWORD=&lt;some_secret_password&gt; - the <code>sa</code> password for the master SQL instance. It needs to meet password complexity requirements.</li>
+<li>SET DOCKER_REGISTRY=private-repo.microsoft.com - the registry for the images being pulled.</li>
+<li>SET DOCKER_REPOSITORY=mssql-private-preview - the repository within the registry.</li>
+<li>SET DOCKER_USERNAME=&lt;docker_username&gt; - user name to access the images. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_PASSWORD=&lt;some_secret_password&gt; - the password for the above user. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_EMAIL=&lt;email_for_the_docker_user&gt; - the email associated with the registry. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_PRIVATE_REGISTRY=1 - this has to be set to 1.</li>
+</ul>
+<p>Before you deploy the environment variables, need to be set, and if you are on Windows, you need to do it from a command prompt (not Powershell). Instead of having to enter these variables individually, I have a <code>bat</code> file I run before deploying: <code>set_env_variables_aks.bat</code>.</p>
+<h4 id="create-cluster">Create Cluster</h4>
+<p>After I have set the variables I create the cluster with the <code>mssqlctl</code> command, and I do it from the command prompt (not Powershell):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mssqlctl create cluster sqlbigdata1 -v
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Create Big Data Cluster</em></p>
+<p>Looking at <em>Code Snippet 8</em> we see how I call <code>mssqlctl</code> to create a <strong>SQL Server 2019 Big Data Cluster</strong>, and I want to create it in a namespace called <code>sqlbigdata1</code>. I use the <code>-v</code> flag (as in verbose) to get debug output. When I execute the code I see something like so:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_create_cluster.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Create Big Data Cluster</em></p>
+<p>What we see in <em>Figure 10</em> is how we have started to create the main controller and its pod. We also see a note (outlined in red) saying that it can take quite a while to create the cluster. To monitor the process you can use Dashboard:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_dashboard2.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Kubernetes Dashboard</em></p>
+<p>In <em>Figure 11</em> we see an overview of the <code>sqlbigdata1</code> namespace. You may see errors in the dashboard, but you can ignore them initially. In addition to Dashboard to monitor progress you can use <code>kubectl</code> commands, for example: <code>kubectl get pods -n sqlbigdata1</code>:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_kubectl1.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Pods being Created</em></p>
+<p>The <strong>SQL Server 2019 Big Data Cluster</strong> exposes its own dashboard; the <em>Cluster Administration Portal</em>, which we can use to monitor the deployment as well. The portal becomes available as soon as the controller is up, and in a running state. The portal is exposed at the endpoint for the <code>service-proxy-lb</code> (proxy load balancer) service. To find the IP address, you call: <code>kubectl get svc service-proxy-lb -n &lt;name of your cluster&gt;</code>:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_cluster_admin_ip.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Endpoint for Cluster Admin</em></p>
+<p>In <em>Figure 13</em> we see how <code>svc service-proxy-lb</code> has an external IP of <code>13.94.174.28</code>, and it exposes two ports: <code>30777</code> and <code>31826</code>. The port for the portal is <code>30777</code>, and when I browse there, I first need to log in with the <code>CONTROLLER_USERNAME</code> (admin in my case) and <code>CONTROLLER_PASSWORD</code>. After login, I come to the <em>Overview</em> page. I then click on the <em>Deployment</em> link outlined in red:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_cluster_admin2.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>Deployment Progress</em></p>
+<p>What we see in <em>Figure 14</em> is the progress of the <strong>SQL Server 2019 Big Data Cluster</strong> deployment, and we see that it is still in progress: yellow triangle by the namespace, (outlined in blue).</p>
+<p>Eventually, the deployment finishes, and we know that either: by seeing that the triangle in <em>Figure 14</em> is now a green circle, or by the output from command line:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>2018-11-07 09:04:52.0147 UTC | INFO | Data pool is ready...
+</span></span><span style="display:flex;"><span>2018-11-07 09:04:52.0148 UTC | INFO | Storage pool is ready...
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>2018-11-07 09:06:55.0073 UTC | INFO | Compute pool is ready...
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>2018-11-07 09:07:36.0155 UTC | INFO | Cluster state: Ready
+</span></span><span style="display:flex;"><span>2018-11-07 09:07:36.0155 UTC | INFO | Cluster deployed successfully.
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Cluster Deployed Successfully</em></p>
+<p>We see in <em>Code Snippet 9</em> how <code>mssqlctl</code> reports that the various pools are ready, followed by successful cluster deployment.</p>
+<h4 id="connection-endpoints">Connection Endpoints</h4>
+<p>So far, so good - but what do we do now? We know that a <strong>SQL Server 2019 Big Data Cluster</strong> consists both of a SQL Server master instance, as well as Hadoop/Spark, but where do we find them?</p>
+<p>As with the portal, the endpoints are service load balancers endpoints. The service load balancer for the SQL Server master instance is: <code>service-master-pool-lb</code> and for Hadoop/Spark it is: <code>service-security-lb</code>. To retrieve the endpoints I call:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># SQL Server master instance</span>
+</span></span><span style="display:flex;"><span>kubectl get service service-master-pool-lb <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 -o=custom-columns=<span style="color:#2aa198">&#34;IP:.status.loadBalancer.\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 ingress[0].ip,PORT:.spec.ports[0].port&#34;</span> <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 -n sqlbigdata1
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># Hadoop/Spark</span>
+</span></span><span style="display:flex;"><span>kubectl get service service-security-lb <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 -o=custom-columns=<span style="color:#2aa198">&#34;IP:.status.loadBalancer.\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 ingress[0].ip,PORT:.spec.ports[0].port&#34;</span> <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 -n sqlbigdata1
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Get Endpoints</em></p>
+<p>In <em>Code Snippet 10</em> we see how I customize what I want to be returned from the <code>get service</code> calls to only to return IP addresses and ports. With these endpoints, I can now connect to my <strong>SQL Server 2019 Big Data Cluster</strong>. Once again, to connect to the SQL Server master instance (databases), you use the <code>service-master-pool-lb</code> endpoint, and to connect to Hadoop/Spark, the <code>service-security-lb</code> endpoint is what you use.</p>
+<p>The user names and passwords are:</p>
+<ul>
+<li>SQL Server master instance: <code>sa</code> as user name, and <code>MSSQL_SA_PASSWORD</code> as password.</li>
+<li>Hadoop / Spark: <code>root</code> as user name, and <code>KNOX_PASSWORD</code> as password.</li>
+</ul>
+<p>In a future post I look at what we can do with <strong>SQL Server 2019 Big Data Cluster</strong>.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we looked at how to install <strong>SQL Server 2019 Big Data Cluster</strong> on <em>Azure Kubernetes Service</em> (AKS). We saw how to:</p>
+<ul>
+<li>Create a new Azure resource group using Azure CLI.</li>
+<li>Create a Kubernetes cluster in that resource group.</li>
+</ul>
+<p>We discussed the size requirements for the VM&rsquo;s in the cluster, and mentioned they needed at least 32Gb of RAM. We also need quite a few disks to mount storage on, so the node count is important.</p>
+<p>The actual deployment of a <strong>SQL Server 2019 Big Data Cluster</strong> is done using a Python utility <code>mssqlctl</code>. During the deployment process we can monitor the progress via:</p>
+<ul>
+<li><code>kubectl</code> commands.</li>
+<li>the Kubernetes dashboard.</li>
+<li>the <strong>SQL Server 2019 Big Data Cluster</strong>&rsquo;s <em>Cluster Administration Portal</em>.</li>
+</ul>
+<p>Access to the various services in a <strong>SQL Server 2019 Big Data Cluster</strong> is through service load balancers and their external IP addresses and ports:</p>
+<ul>
+<li>Cluster Administration Portal: <code>service-proxy-lb</code>.</li>
+<li>SQL Server master instance: <code>service-master-pool-lb</code>.</li>
+<li>Hadoop/Spark: <code>service-security-lb</code>.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-11-04-interesting-stuff---week-44/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 44">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-11-11-interesting-stuff---week-45/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 45">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

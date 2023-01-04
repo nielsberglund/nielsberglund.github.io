@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server Error Handling Gotchas" />
+    <meta property="og:title" content="SQL Server Error Handling Gotchas" />
+    <meta property="twitter:title" content="SQL Server Error Handling Gotchas" />
+    
+
+    
+    <meta name="description" content="SQL Server and error handling. How error handling in SQL Server can trip you up!">
+    <meta property="og:description" content="SQL Server and error handling. How error handling in SQL Server can trip you up!" />
+    <meta property="twitter:description" content="SQL Server and error handling. How error handling in SQL Server can trip you up!" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server Error Handling Gotchas | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2016-12-31-sql-server-error-handling-gotchas/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sqlserver" title="sqlserver">
+                            sqlserver
+                        </a>
+                        
+                        <a class="tag" href="/tags/t-sql" title="t-sql">
+                            t-sql
+                        </a>
+                        
+                        <a class="tag" href="/tags/errorhandling" title="errorhandling">
+                            errorhandling
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server Error Handling Gotchas</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, December 31, 2016
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Way back when (in 2010 as a matter of fact), I wrote a couple of blog-posts (<a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/">here</a> and <a href="/post/2010-11-12-more-t-sql-error-functionality-in-denali-sql-11/">here</a>) about error handling in the new CTP  releases of SQL Server Denali. Denali was what would become SQL Server 2012.</p>
+<p>The new functionality built upon what was introduced in SQL Server 2005 - the notion of structured exception handling through <code>BEGIN TRY END TRY</code> followed by <code>BEGIN CATCH END CATCH</code>. In those blog-posts I was fairly positive, and saw the new functionality as something useful and very well worth implementing. I am still positive, however since then I have used the new functionality introduced in SQL Server 2005 extensively in production and have come across some gotchas that I thought would be worth writing a blog-post about.</p>
+<h2 id="background">Background</h2>
+<p>Before SQL Server 2005 was introduced, and with that structured exception handling as mentioned above, the way we handled error conditions in SQL Server was to write something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- do something where you need to check error condition
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_SomeTable</span> <span style="color:#93a1a1;font-style:italic">--something may go wrong here
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">VALUES</span>(....)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> @<span style="color:#268bd2">err</span> = @@<span style="color:#268bd2">ERROR</span> <span style="color:#93a1a1;font-style:italic">-- @err has been declared previously
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">IF</span>(@<span style="color:#268bd2">err</span> &lt;&gt; <span style="color:#2aa198;font-weight:bold">0</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- code to handle the error, cleanup, etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- re-raise to let calling procs know something has gone wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;Some descriptive message&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Old Style Error Handling</em></p>
+<p>In your stored procedures, you had to insert code like above after each statement where you wanted to check for errors. Part of the error-handling code quite often would be some logging/auditing and general rewind/cleanup. Typically you would also re-raise the error so that calling procs would be made aware that something has happened, and in the calling procs you would have similar logic to catch the errors being raised.</p>
+<p>All in all, quite a lot of code to write. At <a href="/derivco"><strong>Derivco</strong></a> we have a lot of stored procedures, and they can be fairly big (3000 - 4000 loc), so you can imagine the number of error checks we have in them.</p>
+<h3 id="try-catch">TRY CATCH</h3>
+<p>Writing the above mentioned error-handling code feels quite arcane if you compare what you would do in other programming languages. So in SQL Server 2005 <strong>Microsoft</strong> introduced the notion of structured exception handling as I mentioned above, and it was implemented through <code>BEGIN TRY ... END TRY</code> and <code>BEGIN CATCH ... END CATCH</code> blocks. As with other programming languages you can have one or more TRY &hellip; CATCH blocks, and when an error happens inside the TRY block, the code in the CATCH block is immediately hit.</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--lots and lots of code
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  ...
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_SomeTable</span> <span style="color:#93a1a1;font-style:italic">--something may go wrong here
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">VALUES</span>(....)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--more code
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- we indicate all is good
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- code to handle the error, cleanup, etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- re-raise to let calling procs know something has gone wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;Some descriptive message&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Error Handling with TRY &hellip; CATCH</em></p>
+<p>When the <code>BEGIN TRY ... END TRY</code> block together with <code>BEGIN CATCH ... END CATCH</code> executes, it creates a special error context, so that any errors happening will be caught by the closest CATCH block. In other words, errors &ldquo;bubble&rdquo; up to the closest CATCH block, <em>within</em> the same <strong>SPID</strong>. Keep this in mind, as it is important when we discuss some of the &ldquo;gotcha&rsquo;s&rdquo;.</p>
+<h3 id="throw">THROW</h3>
+<p>Ad good as the new error-handling functionality was in SQL Server 2005, there were still some pieces missing when comparing t-sql with other languages error-handling. One big glaring missing piece was how to re-throw a caught exception. What you typically would do if you wanted to re-throw was to capture the error text, either from <code>sys.messages</code> pre SQL Server 2005, or from <code>ERROR_MESSAGE()</code> in SQL SERVER 2005+, and in both cases then use the captured text in <code>RAISERROR</code>.</p>
+<p>Note about <code>RAISERROR</code>:</p>
+<ul>
+<li>It allows you to throw an error based on either an error number or a message, and you can define the severity level and state of that error.</li>
+<li>If you call <code>RAISERROR</code> with an error number, that error number has to exist in sys.messages.</li>
+<li>You can use error numbers between 13001 and 2147483647 (it cannot be 50000) with <code>RAISERROR</code>.</li>
+</ul>
+<p><code>RAISERROR</code> has been around &ldquo;forever&rdquo;, and for SQL Server 2012 Microsoft introduced <strong><code>THROW</code></strong> as new function to be used when raising exceptions. Some of the features of <code>THROW</code>:</p>
+<ul>
+<li><code>THROW</code> can be used to re-throw an exception.</li>
+<li>Using <code>THROW</code> you can throw a specific error number together with an accompanying message.</li>
+</ul>
+<p>Code snippet 3 below shows an example of this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--some  code
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--here we are doing a check of something
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">--and realizes that something is wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">THROW</span> <span style="color:#2aa198;font-weight:bold">50001</span>, <span style="color:#2aa198">&#39;Ooops&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--we will never get here  
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- code to handle the error, cleanup, etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- re-raise by using THROW
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">THROW</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Error Handling with THROW and TRY &hellip; CATCH</em></p>
+<p>If you have managed to stay awake until now, you probably wonder where is the problem with all this, this looks pretty sweet, or as we use to say in the team I work for in <a href="/derivco">Derivco</a>; &ldquo;What could possibly go wrong?&rdquo;! Whenever we say that, it seems that quite a few things can go wrong :) and the same thing holds true here, as we will see!</p>
+<h2 id="the-problem">The Problem</h2>
+<p>The problem comes in when you are mixing &ldquo;old&rdquo; (pre 2005), with &ldquo;new&rdquo; (2005+) error handling. You may ask: &ldquo;why would you ever want to do that, why not use only the new cool features?&rdquo;. In fact that&rsquo;s what I asked when I visited Derivco back in 2009 and taught a <a href="http://www.develop.com/uk"><strong>Developmentor</strong></a> SQL Server course for the team I eventually would work for. Boy was that a stupid question!</p>
+<p>The answer - in Derivco&rsquo;s&rsquo; case - is <em>complexity</em>. In our main OLTP production database we now have ~5,000 stored procedures, and the call stacks can nest 10 - 15 procedures deep. In addition, our procedures are not simple <em>CRUD</em>, but we do have <strong>LOADS</strong> of business logic in them. So you cherry-pick what procs to edit, most likely some you are changing anyway, and all new procs are written using the new error-handling. What could possibly go wrong with this approach?!</p>
+<p>Well, chances are that the new/edited procs are part of a call chain, and not necessarily the last proc in the chain. This is now the situation where issues can happen. Let&rsquo;s look at this a bit closer. In the <a href="/downloads/code/errorhandling.zip">demo code</a> for this post, we have initially four procedures:</p>
+<ul>
+<li><code>dbo.pr_Caller</code> which calls into</li>
+<li><code>dbo.pr_1</code> which calls into</li>
+<li><code>dbo.pr_2</code> which calls into</li>
+<li><code>dbo.pr_3</code> which is the last proc in the chain.</li>
+</ul>
+<p>The three first procs pr_Caller, pr_1 and pr_2 looks almost identical, and I let <code>dbo.pr_Caller</code> be the &ldquo;showcase&rdquo;:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">err</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--then call into dbo.pr_1
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: We are now about to execute dbo.pr_1&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">err</span> = @@<span style="color:#268bd2">ERROR</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span>(@<span style="color:#268bd2">err</span> &lt;&gt; <span style="color:#2aa198;font-weight:bold">0</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: We are cleaning up, rewinding, blah, blah&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;dbo.pr_Caller: Something went wrong when calling dbo.pr_1&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_Caller
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Example of Calling Proc</em></p>
+<p>The last proc in the chain - <code>dbo.pr_3</code> - is somewhat different in that it generates an error:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">err</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_3: We are now about to do a division 0 error&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span>/<span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">err</span> = @@<span style="color:#268bd2">ERROR</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span>(@<span style="color:#268bd2">err</span> &lt;&gt; <span style="color:#2aa198;font-weight:bold">0</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_3: We are cleaning up, rewinding, blah, blah&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;dbo.pr_3: Something went wrong in dbo.pr_3&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_3
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Error Proc</em></p>
+<p>When you look at the procs you can see that they all use the old style error handling, and are doing clean-ups etc in the <code>IF(@err &lt;&gt; 0)</code> block. If you execute the calling proc: <code>EXEC dbo.pr_Caller</code>, the result in the Message tab in SQL Server Management Studio (SSMS) would look something like:</p>
+<p>
+  <img src="/images/posts/sql_error_1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Output from Error Procs</em></p>
+<p>From the figure above we can see:</p>
+<ul>
+<li>we are calling into each proc: <em>We are now about to execute</em>.</li>
+<li>the division by 0 error happens: <em>Divide by zero error encountered</em>.</li>
+<li>each proc in the call chain cleaning up, etc.: <em>We are cleaning up &hellip;</em>.</li>
+</ul>
+<p>This is good (well not good that we are getting an error), but we are handling it and cleaning up after ourselves. We may perhaps write the errors to some logging tables, so that we in case of un-expected behavior can trace and see what has happened.</p>
+<p>Let us now assume that we need to change <code>dbo.pr_1</code>, to add some new functionality, whatever. This is now a good time to alter this old proc to use the new &ldquo;cool&rdquo; error-handling:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">err</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--add the new &#34;cool&#34; errorhandling
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--do some other stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--then call into dbo.pr_2
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: We are now about to execute dbo.pr_2&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: We are cleaning up, rewinding, blah, blah&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;dbo.pr_1: Something went wrong when calling dbo.pr_2&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_1
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Edited Proc</em></p>
+<p>No problem with the changes, however when you execute you get following result:</p>
+<p>
+  <img src="/images/posts/sql_error_2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Output from Altered Error Procs</em></p>
+<p>Where is the cleanup in <code>dbo.pr_2</code> and <code>dbo.pr_3</code>, as an error clearly has happened as something was caught in <code>dbo.pr_1</code>? Oh, and what happened with the error-handling in <code>dbo.pr_Caller</code>, we did raise an error in <code>dbo.pr_1</code>?</p>
+<p>The last question is the easiest to answer, and fix; if you want old style error-handling to be able to catch an error raised from within a CATCH block, the <code>RAISERROR</code> <strong>MUST</strong> be followed by a <code>RETURN</code>, and it has to be a <code>RETURN</code> with no variables! So change the CATCH block in <code>dbo.pr_1</code> to:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: We are cleaning up, rewinding, blah, blah&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RAISERROR</span>(<span style="color:#2aa198">&#39;dbo.pr_1: Something went wrong when calling dbo.pr_2&#39;</span>, <span style="color:#2aa198;font-weight:bold">16</span>, -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#93a1a1;font-style:italic">-- this will ensure the old-style error handling will be able
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>         <span style="color:#93a1a1;font-style:italic">-- to catch the raised exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_1
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Use RETURN After Raising an Exception</em></p>
+<p>If you after the above change were to <code>EXEC dbo.pr_Caller</code> you would see how pr_Caller would handle the error raised in pr_1 as well. The first issue which arguably is more severe is easy to answer; it has to do with that &ldquo;error context&rdquo; mentioned in the beginning.</p>
+<h3 id="error-context-aka-go-straight-to-catch-without-passing-iferror">Error Context (a.k.a &ldquo;Go Straight to CATCH Without Passing IF(@@ERROR&rdquo;)</h3>
+<p>As I mentioned in the beginning, when a stored procedure is executed, and during the execution it comes across <code>BEGIN TRY</code> block(s), a special execution context(s) is created from the point of the first <code>BEGIN TRY</code> . This context &ldquo;wraps&rdquo; all code from that point on, and ensures that if an error happens, the execution will stop and the closest <code>BEGIN CATCH</code> block will be hit. That is the reason why the cleanup code in neither <code>dbo.pr_3</code> nor <code>dbo.pr_2</code> was executed.</p>
+<p>The answer was easy, but the fix is neither easy nor straightforward. The only way (I am aware of) is that if you edit/create a new proc using the new way of handling errors, you need to ensure that the whole call-stack from that way onward is also using the new way.</p>
+<h3 id="throw-1">THROW</h3>
+<p>Finally (pun intended), let&rsquo;s discuss <code>THROW</code>, as so far we have not seen any traces of it in the code. Let us edit <code>dbo.pr_3</code> to use new error handling as well as using <code>THROW</code> to re-throw an exception:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">err</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--we are now modern
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_3: We are now about to do a division 0 error&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span>/<span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_3: We are cleaning up, rewinding, blah, blah, and let&#39;&#39;s THROW&#39;</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">THROW</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_3
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>At the same time in the error handling code of <code>dbo_pr1</code>, let&rsquo;s select out the error message as well as error number, right before we raise the exception: <code>SELECT ERROR_MESSAGE() AS Msg, ERROR_NUMBER() AS ErrNo</code>, and then <code>EXEC dbo.pr_Caller</code>. All should be as before, and in the Results tab in SSMS you should see:</p>
+<p>
+  <img src="/images/posts/sql_error_3.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Correct Error Number and Message</em></p>
+<p>By receiving 8134 as error number we can see that <code>THROW</code> actually does what it is supposed to. However what happens if we were to edit <code>dbo.pr_1</code> to also <code>THROW</code>, seeing that <code>dbo.pr_Caller</code> is still doing old style error handling:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">err</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--add the new &#34;cool&#34; errorhandling
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--do some other stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--then call into dbo.pr_2
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: We are now about to execute dbo.pr_2&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--clean up and log etc.
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">SELECT</span> <span style="color:#268bd2">ERROR_MESSAGE</span>() <span style="color:#859900">AS</span> <span style="color:#268bd2">Msg</span>, <span style="color:#268bd2">ERROR_NUMBER</span>() <span style="color:#859900">AS</span> <span style="color:#268bd2">ErrNo</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: We are cleaning up, rewinding, blah, blah, and THROWING&#39;</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">THROW</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> <span style="color:#93a1a1;font-style:italic">--end dbo.pr_1
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Execute the pr_Caller, and notice the output: there is nothing there from dbo.pr_Caller. If <code>THROW</code> is used down in the call chain somewhere, there has to be a calling proc using the new error handling!</p>
+<h2 id="summary">Summary</h2>
+<p>So in summary:</p>
+<ul>
+<li>TRY CATCH blocks ARE good!</li>
+<li>However, be careful when mixing new TRY CATCH with &ldquo;old&rdquo; @@ERROR</li>
+<li>You need to ensure all nested procedures called inside the TRY block is also using TRY CATCH.</li>
+<li>If raising an error in a CATCH block, ALWAYS follow the RAISERROR with a RETURN (no value).</li>
+<li>Unless you can guarantee that your code will always use TRY CATCH, stay away from THROW.</li>
+</ul>
+<p><a href="/downloads/code/errorhandling.zip">Download the demo code from here</a>!!</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2016-12-28-testing-testing-anyone-out-there/" data-toggle="tooltip" data-placement="top" title="Testing, Testing, Anyone Out There?">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/" data-toggle="tooltip" data-placement="top" title="Abort, Abort, We Are XACT_ABORT:ing, Or Are We?!">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

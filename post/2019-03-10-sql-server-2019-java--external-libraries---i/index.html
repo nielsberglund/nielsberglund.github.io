@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server 2019, Java &amp; External Libraries - I" />
+    <meta property="og:title" content="SQL Server 2019, Java &amp; External Libraries - I" />
+    <meta property="twitter:title" content="SQL Server 2019, Java &amp; External Libraries - I" />
+    
+
+    
+    <meta name="description" content="We look at how we can deploy Java code to the database, so it can be loaded from there.">
+    <meta property="og:description" content="We look at how we can deploy Java code to the database, so it can be loaded from there." />
+    <meta property="twitter:description" content="We look at how we can deploy Java code to the database, so it can be loaded from there." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server 2019, Java &amp; External Libraries - I | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-03-10-sql-server-2019-java--external-libraries---i/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019" title="SQL Server 2019">
+                            SQL Server 2019
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/java" title="Java">
+                            Java
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-extensibility-framework" title="SQL Server Extensibility Framework">
+                            SQL Server Extensibility Framework
+                        </a>
+                        
+                        <a class="tag" href="/tags/create-external-library" title="CREATE EXTERNAL LIBRARY">
+                            CREATE EXTERNAL LIBRARY
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server 2019, Java &amp; External Libraries - I</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, March 10, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A couple of months ago I wrote a series of posts about one of the new features in SQL Server 2019; the ability to call out to Java code from inside SQL Server.</p>
+<p>To see the posts, go to <a href="/s2k19_ext_framework_java"><strong>SQL Server 2019 Extensibility Framework &amp; Java</strong></a>.</p>
+<p>In the posts, we discussed how the Java extension differs from R and Python in that R and Python are an integrated part of the SQL Server install (when enabling in-database analytics), but Java is not. In other words, the use of the Java extension requires Java to be installed beforehand, and this then has implications on permissions. We also discussed how Java is a compiled language, and we execute against a method in a class, whereas with R and Python we send a script to the external engine. The consequence of this is that when we execute Java code, we need to indicate where the compiled code resides, and those locations need specific permissions.</p>
+<p>All this creates a level of complexity, and it would potentially be easier if we load the Java code from a well-known place, where we do not need to worry about permissions and so forth.</p>
+<p>This post is the first of a couple where we see how new functionality in SQL Server 2019 CTP 2.3 can help.</p>
+<h2 id="code--background">Code &amp; Background</h2>
+<p>Let us start with looking at the code we use today, and also remind ourselves of some of the complexities when calling Java from SQL server.</p>
+<p>So, the code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#859900">class</span> <span style="color:#cb4b16">Calculator</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">short</span> <span style="color:#268bd2">numberOfOutputCols</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">public</span> <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">outputDataCol1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">public</span> <span style="color:#859900;font-weight:bold">boolean</span>[][] <span style="color:#268bd2">outputNullMap</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">void</span> <span style="color:#268bd2">adder</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">numberOfOutputCols</span> = <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">outputDataCol1</span> = <span style="color:#859900">new</span> <span style="color:#859900;font-weight:bold">int</span>[<span style="color:#2aa198;font-weight:bold">1</span>];
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">outputDataCol1</span>[<span style="color:#2aa198;font-weight:bold">0</span>] = <span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">outputNullMap</span> = <span style="color:#859900">new</span> <span style="color:#859900;font-weight:bold">boolean</span>[<span style="color:#2aa198;font-weight:bold">1</span>][<span style="color:#2aa198;font-weight:bold">1</span>];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Java Calculator</em></p>
+<p>As we see in *Code Snippet 1`, the code is very simple, and we have seen variants of it in my other <a href="/s2k19_ext_framework_java">Java posts</a>. If you wonder about some of the variables in the code, the previous <a href="/s2k19_ext_framework_java">posts</a> discuss them in detail.</p>
+<p>To use the code from SQL Server, we compile the source file <code>Calculator.java</code>: <code>$ javac Calculator.java</code>, into a <code>.class</code> file: <code>Calculator.class</code>.
+After compilation, we can now place the <code>Calculator.class</code> in any of the locations a pre-defined <code>CLASSPATH</code> environment variable points to. To call the <code>adder</code> method from inside SQL Server we execute like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>    @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Calulator.adder&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@x int, @y int&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">y</span> = <span style="color:#2aa198;font-weight:bold">21</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Execute from SQL Server</em></p>
+<p>By the fact that the <code>.class</code> file is in a <code>CLASSPATH</code> location, the code in <em>Code Snippet 2</em> succeeds, <strong>IF</strong> the right permissions exist on the location.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The required permission is <code>READ</code> for the <code>ALL APPLICATION PACKAGES</code> group.</p>
+</blockquote>
+<p>Having the code in a <code>CLASSPATH</code> location is one way to load and execute the code. Another way is to have the code in an arbitrary location and explicitly set a parameter in the SQL call to point to that location:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>    @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Calculator.adder&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@x int, @y int, @CLASSPATH nvarchar(512)&#39;</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">y</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>    @<span style="color:#268bd2">CLASSPATH</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;W:\javacodepath&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Using @CLASSPATH Parameter</em></p>
+<p>In <em>Code Snippet 3</em> we see how we set a parameter <code>CLASSPATH</code> to point to where the code is. The permission requirements for this scenario are the same as for when we have a defined <code>CLASSPATH</code>: the location need <code>READ</code> permission for the <code>ALL APPLICATION PACKAGES</code> group.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You may wonder where the <code>CLASSPATH</code> parameter in <em>Code Snippet 3</em> comes from, as it is not part of the signature of <code>sp_execute_external_script</code>? This parameter is a well-known parameter for the SQL Server Java language extension, and if this parameter exists the extension sets the <code>--classpath</code> option in the <code>java</code> command.</p>
+</blockquote>
+<p>In the code snippets above we execute against <code>.class</code> files. In the &ldquo;real world&rdquo; however you are unlikely to do that, but instead, you use <code>.jar</code> files. So let us see how we do that from SQL Server. First, we compile the <code>.java</code> source, followed by creating the <code>.jar</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#268bd2">$</span> <span style="color:#268bd2">javac</span> .\<span style="color:#268bd2">Calculator</span>.<span style="color:#268bd2">java</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">$</span> <span style="color:#268bd2">jar</span> -<span style="color:#268bd2">cf</span> <span style="color:#268bd2">MyCalcJar</span>.<span style="color:#268bd2">jar</span> .\<span style="color:#268bd2">Calculator</span>.<span style="color:#268bd2">class</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Create a jar File</em></p>
+<p>After we have created the <code>MyCalcJar.jar</code> as in <em>Code Snippet 4</em>, we copy the <code>.jar</code> to either the <code>CLASSPATH</code> location or an arbitrary location. To execute we call it like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Calculator.adder&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@x int, @y int, @CLASSPATH nvarchar(max)&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">y</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">CLASSPATH</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;W:\javacodepath\MyCalcJar.jar&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Execute Against a jar File</em></p>
+<p>We see in <em>Code Snippet 5</em> how we when we execute against a <code>.jar</code> need to:</p>
+<ul>
+<li>Set the path to the <code>.jar</code>, using the using the <code>CLASSPATH</code> parameter. This is required <strong>even</strong> if the <code>.jar</code> is in the actual <code>CLASSPATH</code>.</li>
+<li>Include the name of the <code>.jar</code> file.</li>
+</ul>
+<p>We also need to ensure that the permissions mentioned above exist where ever the <code>.jar</code> is.</p>
+<p>So the examples above re-enforce what we mentioned in the beginning, Java incurs some complexity which we do not have when executing R/Python code:</p>
+<ul>
+<li>Where to load the code from.</li>
+<li>Permissions on said location.</li>
+</ul>
+<p>Apart from pointing out the complexities at the beginning of this post I also mentioned that new functionality in SQL Server 2019 CTP 2.3 helps to solve this. That functionality is the ability to create external libraries.</p>
+<h2 id="external-libraries">External Libraries</h2>
+<p>External libraries in SQL Server enables the ability to load artefacts needed for any new language runtimes and OS platforms supported by SQL Server from the database. For example, if you need an R package that is not part of the default install of the engine you can upload to the database the particular R package as an external library and use it from the database in question. An external library is similar to a CLR assembly in that the actual library exists in the database as a byte-stream <del>and SQL Server loads it from the database</del>.</p>
+<blockquote>
+<p><strong>EDIT (2019-04-10):</strong> *It so turns out that what I wrote about SQL Server loading from the database is not correct. It loads the package(s) from the external library path.  See <a href="/post/2019-04-10-installing-r-packages-in-sql-server-machine-learning-services---iii/">Installing R Packages in SQL Server Machine Learning Services - III</a> for more around this.</p>
+</blockquote>
+<p>You create an external library in a similar to how you create a CLR assembly; you use a DDL statement <code>CREATE EXTERNAL LIBRARY</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">LIBRARY</span> <span style="color:#268bd2">library_name</span>  
+</span></span><span style="display:flex;"><span>[ <span style="color:#859900">AUTHORIZATION</span> <span style="color:#268bd2">owner_name</span> ]  
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> &lt;<span style="color:#268bd2">file_spec</span>&gt; [ ,...<span style="color:#2aa198;font-weight:bold">2</span> ]  
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> ( <span style="color:#859900">LANGUAGE</span> = &lt;<span style="color:#859900">language</span>&gt; )  
+</span></span><span style="display:flex;"><span>[ ; ]  
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Signature CREATE EXTERNAL LIBRARY</em></p>
+<p>In <em>Code Snippet 6</em> we see the signature for <code>CREATE EXTERNAL LIBRARY</code>. We see only the main parts:</p>
+<ul>
+<li><code>library_name</code> - the name we want the library to have. When we create an external library for Java code we can assign any name we want. However, when we create an external library for R, the name must be the same as what we refer to the package when we load it in the external script.</li>
+<li><code>owner_name</code> - optional, and it specifies the name of the user or role that owns the external library.</li>
+<li><code>file_spec</code> - this is the content of the package/code. For Java it has to be a <code>.jar</code> file, or a <code>.zip</code> file with relevant <code>.class</code> files in it. The <code>file_spec</code> can be either a path to the file, or a byte array. Part of the <code>file_spec</code> is also the platform on which SQL Server is running. For now, only Windows is supported.</li>
+<li><code>language</code> - the language of the package/code.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> I mentioned above that we see the main parts of <code>CREATE EXTERNAL LIBRARY</code>, and we have not drilled down in detail. If you are interested in the details look <a href="https://docs.microsoft.com/en-us/sql/t-sql/statements/create-external-library-transact-sql?view=sql-server-ver15">here</a>.</p>
+</blockquote>
+<p>To see this in practice, we need first to create a database: <code>CREATE DATABASE JavaTest</code>, (we can obviously use an existing db as well). Then, based on the code in <em>Code Snippet 4</em> and <em>Code Snippet 5</em>, the call to create an external library for our calculator looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">JavaTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">LIBRARY</span> <span style="color:#268bd2">myCalc</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> (<span style="color:#268bd2">CONTENT</span> = <span style="color:#2aa198">&#39;W:\javacodepath\MyCalcJar.jar&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> (<span style="color:#859900">LANGUAGE</span> = <span style="color:#2aa198">&#39;Java&#39;</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Create External Library</em></p>
+<p>What we see in <em>Code Snippet 7</em> is how we create an external library named <code>myCalc</code>, where the external library is based on a <code>.jar</code> file at <code>W:\javacodepath\MyCalcJar.jar</code>. The last thing we do is to indicate that the language is <code>Java</code>. As the only platform supported right now is Windows, we do not bother with the <code>PLATFORM</code> parameter.</p>
+<p>To verify this works after we execute the code in <em>Code Snippet 7</em> we use exactly the same code as in <em>Code Snippet 2</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">JavaTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Calculator.adder&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@x int, @y int&#39;</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">21</span>,
+</span></span><span style="display:flex;"><span>@<span style="color:#268bd2">y</span> = <span style="color:#2aa198;font-weight:bold">21</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Execute Java Code Loaded from Database</em></p>
+<p>In <em>Code Snippet 8</em> we see how we no longer define the <code>.jar</code> file as a parameter, (what we had to do in <em>Code Snippet 5</em>), but when we execute all works OK.</p>
+<p>The question is now where the <code>.jar</code>,(or <code>.zip</code>), loads from. The answer to that is, (like with SQLCLR), that it loads from system tables in the database. When we create an SQLCLR assembly in a database, SQL Server stores the assembly in system tables, and we use catalog views to view the assemblies: <code>sys.assemblies</code>, <code>sys.assembly_files</code>, and so on. External libraries do not use the same underlying tables or catalog views, but to see the external libraries you use:</p>
+<ul>
+<li><code>sys.external_libraries</code> - contains a row for each external library that has been uploaded into the database.</li>
+<li><code>sys.external_library_files</code> - lists a row for each file in the external library.</li>
+<li><code>sys.external_libraries_installed</code> - shows what libraries have been loaded, e.g. used.</li>
+</ul>
+<p>An example of this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">el</span>.<span style="color:#268bd2">name</span>, <span style="color:#268bd2">el</span>.[<span style="color:#859900">language</span>], <span style="color:#268bd2">ef</span>.<span style="color:#268bd2">content</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">external_libraries</span> <span style="color:#268bd2">el</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">external_library_files</span> <span style="color:#268bd2">ef</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ON</span> <span style="color:#268bd2">el</span>.<span style="color:#268bd2">external_library_id</span> = <span style="color:#268bd2">ef</span>.<span style="color:#268bd2">external_library_id</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>View External Libraries</em></p>
+<p>When we run the code in <em>Code Snippet 9</em> we get:</p>
+<p>
+  <img src="/images/posts/sql_2k19_java_view_ext_lib.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>External Libraries View</em></p>
+<p>We see in <em>Figure 1</em> some information about the external library. The <code>content</code> column outlined in red is interesting in that it contains the binary representation of the external library.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, we saw how we can make the use of Java in SQL Server somewhat less complex (permissions, code paths, etc.), by using external libraries.</p>
+<p>To be able to use external libraries for your Java code, the code need be packaged either in a <code>.jar</code> file, or your class files need to be archived into a <code>.zip</code> file.</p>
+<p>We create the external library using the DDL statement <code>CREATE EXTERNAL LIBRARY</code> where we:</p>
+<ul>
+<li>Define a name for the library.</li>
+<li>Indicate where the <code>.jar</code> or <code>.zip</code> file is.</li>
+<li>Set the language to Java.</li>
+</ul>
+<p>When we execute against the code we no longer need to have the code copied to the <code>CLASSPATH</code> or define a <code>@CLASSPATH</code> parameter, and no special permissions are required. Well, you need permissions to execute <code>sp_execute_external_script</code> but apart from that nothing else.</p>
+<p>When we call <code>sp_execute_external_script</code> SQL Server loads the code from a system table, and we can view what external libraries exist in the database by using the <code>sys.external_libraries</code> and <code>sys.external_library_files</code> catalog views.</p>
+<p>As good as all this sounds, there is one minor, (well perhaps not so minor), detail to be aware of: the way we create external libraries in this post - from a file path - requires SQL Server to be able to read from that path. In a production environment that may not be possible, so in a future post we look at how to overcome that.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-03-03-interesting-stuff---week-9-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 9, 2019">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2019-03-10-interesting-stuff---week-10-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 10, 2019">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

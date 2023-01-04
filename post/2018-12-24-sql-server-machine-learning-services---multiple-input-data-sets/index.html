@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server ML Services - Multiple Input Data Sets" />
+    <meta property="og:title" content="SQL Server ML Services - Multiple Input Data Sets" />
+    <meta property="twitter:title" content="SQL Server ML Services - Multiple Input Data Sets" />
+    
+
+    
+    <meta name="description" content="We look at how to push in multiple datasets to external scripts!">
+    <meta property="og:description" content="We look at how to push in multiple datasets to external scripts!" />
+    <meta property="twitter:description" content="We look at how to push in multiple datasets to external scripts!" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server ML Services - Multiple Input Data Sets | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-12-24-sql-server-machine-learning-services---multiple-input-data-sets/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/data-science" title="Data Science">
+                            Data Science
+                        </a>
+                        
+                        <a class="tag" href="/tags/machine-learning" title="Machine Learning">
+                            Machine Learning
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server ML Services - Multiple Input Data Sets</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, December 24, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post came about due to a question on the <a href="https://social.msdn.microsoft.com/Forums/en-US/home?forum=MicrosoftR">Microsoft Machine Learning Server</a> forum. The <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> was if there are any plans by Microsoft to support more the one input dataset (<code>@input_data_1</code>) in <code>sp_execute_external_script</code>. My immediate reaction was that if you want more than one dataset, you can always connect from the script back into the database, and retrieve data.</p>
+<p>However, the poster was well aware of that, but due to certain reasons he did not want to do it that way - he wanted to push in the data, fair enough. When I read this, I seemed to remember something from a while ago, where, instead of retrieving data from inside the script, they pushed in the data, serialized it as an output parameter and then used the binary representation as in input parameter (yeah - this sounds confusing, but bear with me). I did some research (read Googling), and found <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">this</a> StackOverflow question, and answer. So for future questions, and for me to remember, I decided to write a blog post about it.</p>
+<blockquote>
+<p><strong>DISCLAIMER:</strong> <em>I want to make it perfectly clear that the method outlined in this post is NOT my idea, but - as mentioned above - comes from the StackOverflow <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">answer</a> by <a href="https://twitter.com/@brandonmoretz">Brandon Moretz</a>.</em></p>
+</blockquote>
+<h2 id="recap">Recap</h2>
+<p>We start with a recap about how we pass/retrieve data for external scripts. In <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> we discussed, among other things, the <code>sp_execute_external_script</code>&rsquo;s <code>@input_data_1</code> parameter and how it specifies the input data used by the external script in the form of a Transact-SQL query:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>            @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                cat(paste(&#34;Seposa sepal mean width: &#34;, meanSepWidth))&#39;</span>,
+</span></span><span style="display:flex;"><span>            @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_full&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Using @input_data_1 with straight SELECT</em></p>
+<p>In <em>Code Snippet 1</em> we see how the <code>@input_data_1</code> parameter contains a <code>SELECT</code> statement against a table, and the statement executes during the <code>sp_execute_external_script</code> execution. The dataset generated by the query is referred to in the script as <code>InputDataSet</code>. The query has to be based on a <code>SELECT</code>, but it does not have to be against a table, it can be against a view or a user-defined function as well.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The code in <em>Code Snippet 1</em> above, and <em>Code Snippet 2</em> below, uses tables and data from the <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> post.</p>
+</blockquote>
+<p>That is all well and good, but what if you want to push in multiple datasets? Seeing that the parameter we use to define the data ends with a <code>1</code>, it would be logical to think there are <code>@input_data_2</code>, <code>3</code>, and so on - but no, that is not the case. To process more than one dataset in the external script, we have to pull the dataset(s) from inside the script. To do this, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package, in Python <code>pyodbc</code>) or the highly optimized Microsoft <a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler"><strong><code>RevoScaleR</code></strong></a> package (in Python <strong><code>revoscalepy</code></strong>). In the following example I use <code>RevoScaleR</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>        @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>        @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # set up connection string       
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          sqlConnString &lt;- &#34;Driver=SQL Server;server=win10-dev;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                            database=IrisTestDb;uid=&lt;some_uid&gt;;pwd=&lt;some_pwd&gt;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # define the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          mydata &lt;- RxSqlServerData(table = NULL, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    sqlQuery = &#34;SELECT * 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    FROM dbo.tb_irisdata_uneven&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                    connectionString = sqlConnString)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # open the dataset
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          rxOpen(mydata)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # read the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_uneven &lt;- rxReadNext(mydata)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          versicolor &lt;- iris_uneven[iris_uneven$Species == &#34;versicolor&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidthVersi &lt;- mean(versicolor$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # get the data from the input data set
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          iris_dataset &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          setosa &lt;- iris_dataset[iris_dataset$Species == &#34;setosa&#34;,]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          meanSepWidth &lt;- mean(setosa$SepalWidth)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          # output the data
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">          cat(paste(&#34;Seposa sepal mean width:&#34;, meanSepWidth, &#34;.&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                     &#34;Versicolor sepal mean width:&#34;, meanSepWidthVersi))&#39;</span>,
+</span></span><span style="display:flex;"><span>        @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM dbo.tb_irisdata_even&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Multiple Data Sets using RevoScaleR</em></p>
+<p>The code in <em>Code Snippet 2</em> shows how we read in data within the script by the use of <code>RevoScaleR</code> functionality together with the data from the <code>@input_data_1</code> parameter, and how we subsequently calculate <code>mean</code> on the two datasets.</p>
+<p>So above we see how we can use multiple datasets, but what if we for some or another do not want to / cannot connect from the script to the database, as per the <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> above? Well, that is what we cover in this post.</p>
+<h2 id="multiple-datasets">Multiple Datasets</h2>
+<p>What we want to do is to push data from three completely different tables into the external script, and then in the script do something. We use <code>@input_data_1</code> to push one of the datasets, and we look at two different ways to push in the data from the other two tables. The tables we read data from are three system tables, this way we do not need to create separate tables and load data etc.:</p>
+<ul>
+<li><code>sys.tables</code>.</li>
+<li><code>sys.databases</code>.</li>
+<li><code>sys.columns</code>.</li>
+</ul>
+<p>What we want to do in the script is to use R/Python functionality to print out the number of rows that we push in from the separate tables, so we start with some code like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"> df &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"> nmbrRows &lt;- nrow(df)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"> cat(paste(&#34;Number rows @input_data_1: &#34;, nmbrRows))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Pushing Data via @input_data_1 in R</em></p>
+<p>There is nothing strange in <em>Code Snippet 3</em>, we see how we do the <code>SELECT</code> in <code>@input_data_1</code>, and how we in the script:</p>
+<ul>
+<li>Assign the <code>InputDataSet</code> to a variable: <code>df</code>.</li>
+<li>Use the R function <code>nrow</code> to get the number of rows in the data frame (<code>df</code>).</li>
+<li>Print it out to the console.</li>
+</ul>
+<p>When we execute the code in <em>Code Snippet 3</em>, the result is like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_multidata_input1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Input Data 1 Result</em></p>
+<p>From <em>Figure 1</em> we see that the dataset contains 1070 rows.</p>
+<p>If we want to do this in Python the code looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">df = InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">nmbrRows = len(df.index)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @input_data_1: &#34;, nmbrRows)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Pushing Data via @input_data_1 in Python</em></p>
+<p>Nothing strange in <em>Code Snippet 4</em> either. The one noteworthy thing is the use of <code>len(df.index)</code>, instead of <code>count()</code> or <code>shape</code>. I use <code>len(df.index)</code> as &ldquo;people in the know&rdquo; says it performs better. When we execute the code in <em>Code Snippet 4</em>, we get the same result as we see in <em>Figure 1</em>.</p>
+<p>Ok, so the code in the two code snippets above, (3 and 4), is the base code for what we want to do. Now we need to figure out how to push two more datasets into the scripts, and there are two ways to do that:</p>
+<ul>
+<li>JSON.</li>
+<li>Binary serialization.</li>
+</ul>
+<p>Before we look at those two ways, let us discuss briefly a requirement for us to be able to do what we want, and that is the use of the <code>@params</code> parameter in <code>sp_execute_external_script</code>.</p>
+<h4 id="params">@params</h4>
+<p>The <code>@params</code> parameter is an optional parameter, and when defined it contains a comma separated list of the definitions of all parameters embedded in the values for the <code>@input_data_1</code> and the <code>@script</code> parameters. The string must be either a Unicode constant or a Unicode variable. Each parameter definition consists of a parameter name and a data type. The parameters defined in the <code>@params</code> list need to be added as named parameters to the stored procedure, and in the case of parameters for the external script; the script references the parameters by name but without the <code>@</code> sign.</p>
+<p>So, when we push data into the script, either by using JSON or binary serialization we define a parameter for the data which we then reference in the script.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you want to get the inner workings of the <code>@params</code> parameter, have a look at my blog post: <a href="/post/2018-03-11-microsoft-sql-server-r-services---sp-execute-external-script---ii/">Microsoft SQL Server R Services - sp_execute_external_script - II</a>.</p>
+</blockquote>
+<p>Enough of this preamble, let us get going.</p>
+<h4 id="json">JSON</h4>
+<p>With the release of SQL Server 2016, Microsoft added support for JSON text processing. Microsoft added JSON functions to SQL Server, which enable you to analyze and query JSON data, transform JSON to relational format, and export SQL query results as JSON text. A typical query producing JSON text can look like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">name</span>, <span style="color:#268bd2">object_id</span>, <span style="color:#268bd2">schema_id</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">tables</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>; 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Retrieve JSON Data</em></p>
+<p>We see how I use the <code>FOR JSON AUTO</code> syntax in <em>Code Snippet 5</em> to indicate to SQL Server I want JSON formatted data as the resultset. You do not necessarily need to use <code>AUTO</code>, as there are other options. To see more of this look here: <a href="https://docs.microsoft.com/en-us/sql/relational-databases/json/format-query-results-as-json-with-for-json-sql-server?view=sql-server-2016">Format Query Results as JSON with FOR JSON (SQL Server)</a>.</p>
+<p>I limit the columns I select to get a more readable output. When I execute and click on the result I see:</p>
+<p>
+  <img src="/images/posts/sql_ml_multidata_simple_json.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>JSON Result</em></p>
+<p>So in <em>Figure 2</em> we see how my <code>SELECT</code> query results in JSON data.</p>
+<p>To solve our problem how to push in multiple datasets, we can now use the JSON formatted data together with the <code>@params</code> parameter to define two parameters containing JSON. For example, <code>@sysTables</code> and <code>@sysDatabases</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">tables</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysDbs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">databases</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">df = InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">nmbrRows = len(df.index)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @input_data_1: &#34;, nmbrRows)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@sysTables nvarchar(max), @sysDatabases nvarchar(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysTables</span> = @<span style="color:#268bd2">sysTabs</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysDatabases</span> = @<span style="color:#268bd2">sysDbs</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Python Push JSON</em></p>
+<p>In <em>Code Snippet 6</em> we see how we:</p>
+<ul>
+<li>Declare two variables: <code>@sysTabs</code> and <code>@sysDbs</code>, both of type <code>nvarchar(max)</code>, and how we load data into them.</li>
+<li>Declare two parameters in the <code>@params</code> parameter list: <code>@sysTables</code> and <code>@sysDatabases</code>.</li>
+<li>Define the two parameters and assign <code>@sysTabs</code> and <code>@sysDbs</code> to them.</li>
+</ul>
+<p>If we were to execute, all would work - but we have not done anything with the parameters in the script. What we need to do is to parse the incoming JSON text into a data frame somehow. To do this in Python, we use the <code>pandas</code> package as it has various functions for parsing JSON.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The <code>pandas</code> package makes it easy to work with relational data. To find out more about it, go to <a href="https://pandas.pydata.org/pandas-docs/stable/">here</a>.</p>
+</blockquote>
+<p>Anyway, the function from the <code>pandas</code> package we use is <code>read_json</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">tables</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysDbs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">databases</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pandas as pd
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">df= InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysTab = pd.read_json(sysTables)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysDb = pd.read_json(sysDatabases)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @input_data_1: &#34;, len(df.index))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @sysTables: &#34;, len(sysTab.index))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @sysDatabases: &#34;, len(sysDb.index))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@sysTables nvarchar(max), @sysDatabases nvarchar(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysTables</span> = @<span style="color:#268bd2">sysTabs</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysDatabases</span> = @<span style="color:#268bd2">sysDbs</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Python Parse JSON</em></p>
+<p>The code in <em>Code Snippet 7</em> shows how we:</p>
+<ul>
+<li>Import the <code>pandas</code> package and give it an alias: <code>pd</code>.</li>
+<li>Assign the <code>InputDataSet</code> parameter to the <code>df</code> variable as before.</li>
+</ul>
+<p>We then do the &ldquo;heavy lifting&rdquo; (or rather <code>pandas</code> does), where we transform the JSON text to data frames, by the use of <code>read_json</code>. From the three data frames, we finally print out the number of rows per table. The result when we execute looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_multidata_python_parse_json.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Result Python read_json</em></p>
+<p>It all works! Oh, it just so happens that I am on an almost new SQL Server instance, and that is why the number of rows in <code>sys.tables</code> and <code>sys.databases</code> is the same.</p>
+<p>If R is your &ldquo;poison of choice&rdquo;, then we can, for example, use the <code>jsonlite</code> package. You can read more about it <a href="https://cran.r-project.org/web/packages/jsonlite/jsonlite.pdf">here</a>. What we use from <code>jsonlite</code> is the <code>fromJSON</code> function:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">tables</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysDbs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">databases</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    require(jsonlite)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    library(jsonlite)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    df &lt;- InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    sysTab &lt;- as.data.frame(fromJSON(sysTables))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    sysDb &lt;- as.data.frame(fromJSON(sysDatabases))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    cat(paste(&#34;Number rows @input_data_1: &#34;, nrow(df)))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    cat(paste(&#34;\nNumber rows @sysTables: &#34;, nrow(sysTab)))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    cat(paste(&#34;\nNumber rows @sysDatabases: &#34;, nrow(sysDb)))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@sysTables nvarchar(max), @sysDatabases nvarchar(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysTables</span> = @<span style="color:#268bd2">sysTabs</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysDatabases</span> = @<span style="color:#268bd2">sysDbs</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Parse JSON in R</em></p>
+<p>The code in <em>Code Snippet 8</em>, looks very similar to what is in <em>Code Snippet 7</em>, and in <em>Code Snippet 8</em> we:</p>
+<ul>
+<li>Load the <code>jsonlite</code> package.</li>
+<li>Assign the <code>InputDataSet</code> parameter to the <code>df</code> variable as before.</li>
+<li>Parse the JSON  into data frames using <code>fromJSON</code>.</li>
+</ul>
+<p>We have now seen how we, both in Python as well as R, can use JSON to push multiple datasets into external scripts, and - as I mentioned above - JSON is one way of doing it. Now onto the next.</p>
+<h4 id="binary-serialization">Binary Serialization</h4>
+<p>When we use the binary serialization method of pushing multiple datasets, we use R and Python&rsquo;s built-in functionality for serialization and deserialization. In Python, it is with the help of the <code>pickle</code> module, and in R the <code>serialize</code> and <code>unserialize</code> methods.</p>
+<p>Initially, binary serialization looks somewhat more complicated than JSON (and it might be), especially since the deserialization happens against a binary parameter serialized with R or Python. In other words, we need to make a roundtrip to R/Python to get the binary representation of the data, so having a helper procedure to do this sounds like a good idea to me:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperR</span> 
+</span></span><span style="display:flex;"><span>                       @<span style="color:#268bd2">query</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>)
+</span></span><span style="display:flex;"><span>                     , @<span style="color:#268bd2">serializedResult</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>) <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">  serRes &lt;- serialize(InputDataSet, NULL)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = @<span style="color:#268bd2">query</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@serRes varbinary(max) OUT&#39;</span>  
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">serRes</span> = @<span style="color:#268bd2">serializedResult</span> <span style="color:#859900">OUT</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>R Serialization Helper</em></p>
+<p>In <em>Code Snippet 9</em> we see an R serialization helper procedure:</p>
+<ul>
+<li>It takes a query as an input parameter (<code>query</code>).</li>
+<li>It has an output parameter which is the serialized result set.</li>
+</ul>
+<p>The body of the procedure is a call to <code>sp_execute_external_script</code>, where the <code>@query</code> parameter acts as <code>@input_data_1</code>, and we have a defined output parameter <code>@serRes</code>. In the script, we call the R <code>serialize</code> function on the pushed in dataset, and assigns it to the output parameter. The flow:</p>
+<ul>
+<li>We pass in a query statement.</li>
+<li>During the call to <code>sp_execute_external_script</code> the query is run, and the resulting data set passed into the external script.</li>
+<li>The external script serializes the dataset and passes it back out as an output parameter.</li>
+</ul>
+<p>The equivalent Python serialization helper looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperPy</span>  
+</span></span><span style="display:flex;"><span>                          @<span style="color:#268bd2">query</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>)
+</span></span><span style="display:flex;"><span>                        , @<span style="color:#268bd2">serializedResult</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>) <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pickle as p 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">serRes = p.dumps(InputDataSet)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = @<span style="color:#268bd2">query</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@serRes varbinary(max) OUT&#39;</span>  
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">serRes</span> = @<span style="color:#268bd2">serializedResult</span> <span style="color:#859900">OUT</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Python Serialization Helper</em></p>
+<p>We see in <em>Code Snippet 10</em> how we bring in the <code>pickle</code> module, and then serialize the dataset with the <code>dumps</code> function.</p>
+<p>The equivalent of <em>Code Snippet 7</em> using the Python serialization helper looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- declare the variables for queries as well 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- as serialized binary representation
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = 
+</span></span><span style="display:flex;"><span>            <span style="color:#2aa198">&#39;SELECT name, object_id, schema_id 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             FROM sys.tables&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysDbs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = 
+</span></span><span style="display:flex;"><span>            <span style="color:#2aa198">&#39;SELECT name, database_id, source_database_id 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             FROM sys.databases&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabsBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysDbsBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- get the serialized result of @sysTabs
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperPy</span>   @<span style="color:#268bd2">query</span> = @<span style="color:#268bd2">sysTabs</span>
+</span></span><span style="display:flex;"><span>                              , @<span style="color:#268bd2">serializedResult</span> = @<span style="color:#268bd2">sysTabsBin</span> <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- get the serialized result of @sysDbs
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperPy</span>   @<span style="color:#268bd2">query</span> = @<span style="color:#268bd2">sysDbs</span>
+</span></span><span style="display:flex;"><span>                              , @<span style="color:#268bd2">serializedResult</span> = @<span style="color:#268bd2">sysDbsBin</span> <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- do the &#34;real&#34; stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pandas as pd
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pickle as p 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">df = InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"># this deserializes the sys.tables result
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysTab = p.loads(sysTables)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"># this deserializes the sys.databases result
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysDb = p.loads(sysDatabases)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @input_data_1: &#34;, len(df.index))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @sysTables: &#34;, len(sysTab.index))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @sysDatabases: &#34;, len(sysDb.index))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT * FROM sys.columns&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@sysTables varbinary(max), @sysDatabases varbinary(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysTables</span> = @<span style="color:#268bd2">sysTabsBin</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysDatabases</span> = @<span style="color:#268bd2">sysDbsBin</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Implementation of Python Serialization</em></p>
+<p>In <em>Code Snippet 11</em> we see how we:</p>
+<ul>
+<li>Declare the variables for the queries as well as the serialized results of the queries.</li>
+<li>Execute the helper procedure for the two queries we want the results serialized for.</li>
+<li>Have defined two <code>varbinary(max)</code> parameters in the <code>@params</code> parameter of <code>sp_execute_external_script</code>.</li>
+<li>Assign the serialized values to those two parameters.</li>
+<li>Execute <code>sp_execute_external_script</code> and send in the two serialized results as well as <code>@input_data_1</code>.</li>
+<li>In <code>sp_execute_external_script</code> we deserialize the results using <code>pickle.loads</code>, or rather <code>p.loads</code> where <code>p</code> is the alias for <code>pickle</code>.</li>
+</ul>
+<p>The code for an R implementation looks almost the same except that we call the R <code>unserialize</code> function instead of <code>pickle.loads</code>, as per the code below:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- declare the variables for the querie as well 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- as serialized binary representation
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabs</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = <span style="color:#2aa198">&#39;SELECT name, object_id, schema_id FROM sys.tables&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">sysTabsBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- get the serialized result of @sysTabs
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperR</span>   @<span style="color:#268bd2">query</span> = @<span style="color:#268bd2">sysTabs</span>
+</span></span><span style="display:flex;"><span>                              , @<span style="color:#268bd2">serializedResult</span> = @<span style="color:#268bd2">sysTabsBin</span> <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- do the &#34;real&#34; stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysTab = unserialize(sysTables)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">cat(paste(&#34;Number rows @sysTables: &#34;, nrow(sysTab)))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@sysTables varbinary(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">sysTables</span> = @<span style="color:#268bd2">sysTabsBin</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Implementation of R Serialization</em></p>
+<p>We see in <em>Code Snippet 12</em> how we push in one resultset, and we do not use <code>@input_data_1</code>. Instead, we serialize the resultset from the query with the R helper procedure and then deserialize with the <code>unserialize</code> function.</p>
+<h2 id="performance">Performance</h2>
+<p>So, we have now seen two ways of pushing in datasets to an external script: JSON and Binary Serialization. Which should you choose - I mean, JSON seems a lot easier? The answer comes down to performance.</p>
+<p>To look at performance let us create a database, a table and some data:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">MultiDataSetDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">MultiDataSetDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">MultiDataSetDB</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand1M</span> ;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand1M</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CONSTRAINT</span> [<span style="color:#268bd2">pk_Rand1M</span>] <span style="color:#859900">PRIMARY</span> <span style="color:#859900">KEY</span> (<span style="color:#268bd2">RowID</span>)
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand1M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Database with Table and Data</em></p>
+<p>We see above, in <em>Code Snippet 13</em>, how we create a database, with a table and we load one million records into the table. The data is entirely random and fairly useless, but it serves its purposes.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you code along and use the code above, please also create <code>dbo.pr_SerializeHelperPy</code>, which you see in <em>Code Snippet 10</em>, in the <code>MultiDataSetDB</code> database.</p>
+</blockquote>
+<p>Having created the database and the objects, let us look at the code we use to compare performance. The code below is for JSON:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--this is for JSON
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DECLARE</span> @<span style="color:#859900">start</span> <span style="color:#268bd2">datetime2</span> = <span style="color:#268bd2">SYSUTCDATETIME</span>();
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">rand1M</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = (<span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">100</span>) * 
+</span></span><span style="display:flex;"><span>                           <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand1M</span> <span style="color:#859900">FOR</span> <span style="color:#268bd2">JSON</span> <span style="color:#268bd2">AUTO</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pandas as pd
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">df = pd.read_json(randTab)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @randTab: &#34;, len(df.index))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@randTab nvarchar(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">randTab</span> = @<span style="color:#268bd2">rand1M</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">DATEDIFF</span>(<span style="color:#268bd2">ms</span>, @<span style="color:#859900">start</span>, <span style="color:#268bd2">SYSUTCDATETIME</span>()) <span style="color:#859900">AS</span> <span style="color:#268bd2">JSONTime</span>; 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>JSON Performance Code</em></p>
+<p>And here is the binary serialization code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--this is binary
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- declare the variables for queries as well 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--as serialized binary representation
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DECLARE</span> @<span style="color:#859900">start</span> <span style="color:#268bd2">datetime2</span> = <span style="color:#268bd2">SYSUTCDATETIME</span>();
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">rand1M</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#859900">max</span>) = <span style="color:#2aa198">&#39;SELECT TOP(100) * 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                FROM dbo.tb_Rand1M&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">rand1MBin</span> <span style="color:#268bd2">varbinary</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- get the serialized result of @sysTabs
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_SerializeHelperPy</span>   @<span style="color:#268bd2">query</span> = @<span style="color:#268bd2">rand1M</span>
+</span></span><span style="display:flex;"><span>                              , @<span style="color:#268bd2">serializedResult</span> = @<span style="color:#268bd2">rand1MBin</span> <span style="color:#859900">OUT</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- do the &#34;real&#34; stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>@<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pandas as pd
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">import pickle as p 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">sysTab = p.loads(randTab)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">print(&#34;Number rows @sysTables: &#34;, len(sysTab.index))&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@randTab varbinary(max)&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">randTab</span> = @<span style="color:#268bd2">rand1MBin</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">DATEDIFF</span>(<span style="color:#268bd2">ms</span>, @<span style="color:#859900">start</span>, <span style="color:#268bd2">SYSUTCDATETIME</span>()) <span style="color:#859900">AS</span> <span style="color:#268bd2">BinaryTime</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Binary Serialization Performance Code</em></p>
+<p>The code in snippets 14, and 15 is a variant of what we have seen so far. In these two snippets, we only push in one table, and we look at the time it takes to do it. We see how we <code>SELECT</code> from <code>dbo.tb_Rand1M</code>, and initially, we do a <code>TOP(100)</code>.</p>
+<p>When I highlight both code snippets and run them a couple of times to not incur &ldquo;startup&rdquo; costs the results are:</p>
+<p>
+  <img src="/images/posts/sql_ml_multidata_perf1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Performance 100 Rows</em></p>
+<p>That&rsquo;s quite interesting; we see in <em>Figure 4</em> how JSON serialization is around twice as fast as binary serialization. Ok, what if we did it on 1000 rows? With 1000 rows JSON is still about twice as fast. However, when we tun it against the full table (one million rows), the results are different:</p>
+<p>
+  <img src="/images/posts/sql_ml_multidata_perf2.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Performance a Million Rows</em></p>
+<p>In <em>Figure 5</em> we see how with a million rows, the binary serialization is about 3.5 times faster than JSON. There are a couple of reasons why binary serialization performs better that JSON with larger datasets:</p>
+<ul>
+<li>Binary serialization is more compact, less data to transfer.</li>
+<li>By using the <code>@input_data_1</code> parameter to push in the data to the serialization we get a better performing transport. Read more about it in my post: <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>.</li>
+</ul>
+<p>So, for very small datasets, use the JSON method, but for larger datasets, the binary serialization is always preferred. Another thing to keep in mind is if you use both <code>@input_data_1</code> as well as pushing in serialized data (like in all our code snippets where we used three tables), try to use <code>@input_data_1</code> for the biggest dataset. That way you get the better performing transport and also, potentially, parallel execution of the query.</p>
+<h2 id="summary">Summary</h2>
+<p>We have now seen how we can push in multiple datasets to an external script, without having to connect from the script back to the database. We can use two methods:</p>
+<ul>
+<li>JSON.</li>
+<li>Binary serialization.</li>
+</ul>
+<p>When we use JSON we utilize SQL Server&rsquo;s JSON capabilities to execute a query and receive the result as JSON formatted text: <code>SELECT ... FROM ... FOR JSON AUTO</code>. In the external script we then deserialize the JSON using:</p>
+<ul>
+<li>In R the <code>fromJSON</code> function in the <code>jsonlite</code> package.</li>
+<li>In Python the <code>read_json</code> function in the <code>pandas</code> package.</li>
+</ul>
+<p>When we do binary serialization we use R/Python&rsquo;s capabilities to both serialize as well as deserialize data. This means we need to do a roundtrip to R/Python to serialize the data. The tools we use:</p>
+<ul>
+<li>In R we call <code>serialize</code> and <code>unserialize</code>.</li>
+<li>In Python we use functions from the <code>pickle</code> package. To serialize we call <code>dumps</code> and to deserialize we use <code>loads</code>.</li>
+</ul>
+<p>What method to use (JSON or binary serialization) comes down to, in my mind, performance. For very small datasets JSON is faster, but as soon as the dataset gets bigger binary serialization outperforms JSON by order of magnitude.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/" data-toggle="tooltip" data-placement="top" title="SQL Server 2019 Extensibility Framework &amp; Java - Null Values">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-12-30-sql-server-2019-extensibility-framework--java---misc-stuff/" data-toggle="tooltip" data-placement="top" title="SQL Server 2019 Extensibility Framework &amp; Java - Misc. &#39;Stuff&#39;">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

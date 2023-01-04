@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XVII" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XVII" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XVII" />
+    
+
+    
+    <meta name="description" content="Using WinDbg to find out what happens inside SQL Server when data is returned from SqlSatellite">
+    <meta property="og:description" content="Using WinDbg to find out what happens inside SQL Server when data is returned from SqlSatellite" />
+    <meta property="twitter:description" content="Using WinDbg to find out what happens inside SQL Server when data is returned from SqlSatellite" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XVII | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxl" title="BXL">
+                            BXL
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XVII</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Wednesday, January 3, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 18:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 17:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>The last <em>Internals</em> posts have discussed the transport of data between SQL Server and the SqlSatellite. In <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at how data came back from the SqlSatellite, and what the data looked like.</p>
+<p>This post is a continuation of that post, and here we&rsquo;ll look at what happens inside SQL Server when data is returned from the SqlSatellite and the R engine.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at the packets being sent back to SQL Server from the SqlSatellite when a dataset is returned. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
+<ul>
+<li>The smaller packet had something to do with column meta-data. We&rsquo;ll try and see what we can find out about this packet in this post.</li>
+<li>The bigger packet held the actual data.</li>
+</ul>
+<p>The reason why the second package was bigger was due to the data being treated as originating from nullable columns, so quite an overhead was put onto the various columns:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th style="text-align:center">1 Row</th>
+<th style="text-align:center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>int</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>real</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>-</td>
+</tr>
+<tr>
+<td>float</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td></td>
+</tr>
+<tr>
+<td>money</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td></td>
+</tr>
+<tr>
+<td>decimal</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 1:</strong> <em>Packet Sizes from SqlSatellite</em></p>
+<p>Part of the overhead is the 32 bytes column overhead as we discussed in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and a 28 bytes end-sequence, where the end-sequence appears once per data-set, and is not per column. It is somewhat like a row in the data-set. Part of this post is trying to figure out what goes on with this end-sequence.</p>
+<p>When looking at the various sizes coming back, we see it is a lot less than what we saw in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, sending data to SqlSatellite. This is due to R supporting a lot less data-types than SQL Server, and therefore the data might be implicitly converted to a compatible data type.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WinDbg</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>The code below sets up the database and creates some tables with some data. It is more or less the same as we&rsquo;ve used in the last posts:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, 
+</span></span><span style="display:flex;"><span>                          <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+<p>The code we&rsquo;ll use should by now look very familiar:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             OutputDataSet&lt;-InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1 FROM dbo.rand_1M&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
+<p>The reason there is a <code>Sys.sleep</code> in the code in <em>Code Snippet 2</em>, is so we can more easily determine at about what time data should be coming back from the SqlSatellite.</p>
+<h2 id="windbg-debugging">WinDbg Debugging</h2>
+<p>In <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we used <em>WinDbg</em>, and we saw the routines involved when sending data to the SqlSatellite:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushRow</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">PostOneRow</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">WritePayloadHeader</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">WriteData</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">WriteMessageBlockDone</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Routines Used when Sending Data</em></p>
+<p>Now we&rsquo;ll aim to do the same thing here, and we&rsquo;ll start with trying to find routines being used when receiving data, and we&rsquo;ll start with trying to find the &ldquo;main&rdquo; routine for receiving results. Remember in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we saw how <code>sqllang!CUDXR_ExternalScript::PushRow</code> where were things &ldquo;started&rdquo;, when sending data. Perhaps there is something similar in the <code>CUDXR_ExternalScript</code> when receiving? So:</p>
+<ul>
+<li>Start up <em>WinDbg</em> as admin.</li>
+<li>Attach to the SQL Server process.</li>
+</ul>
+<p>After having attached to the process, execute in the <em>WinDbg</em> console: <code>x sqllang!CUDXR_ExternalScript*</code>. That returns quite a few routines, from which we can see if anyone looks promising. When I ran it I found a couple that caught my interest:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Interesting sqllang!CUDXR_ExternalScript Routines</em></p>
+<p>Let&rsquo;s now set breakpoints at the two routines above, plus a breakpoint at <code>sqllang!CSatelliteCargoContext::SendPackets</code>. The reason for the breakpoint at <code>SendPackets</code> is that it is there to indicate where we are, as <code>PullRow</code> can be called based on processing inside SQL Server, not only as result of data coming back from the SqlSatellite. Now execute the code in <em>Code Snippet 2</em>, and you&rsquo;ll see how:</p>
+<ul>
+<li><code>PullRow</code> is called once before <code>SendPackets</code> - that&rsquo;s not interesting to us.</li>
+<li><code>SendPackets</code> is called.</li>
+<li><code>PullRow</code> is called.</li>
+<li>A pause followed by <code>ProcessResultRows</code> being called twice.</li>
+</ul>
+<p>A couple of questions comes up after having seen the above:</p>
+<ul>
+<li>Why is the second <code>PullRow</code> called immediately after <code>SendPackets</code>?</li>
+<li>Why are there two <code>ProcessResultRows</code>, when only one row is returned?</li>
+</ul>
+<p>Just to confirm the last bullet point; change the <code>TOP</code> clause in <em>Code Snippet 2</em> to 5 instead of one and execute again. The breakpoint at <code>ProcessResultRows</code> is now hit 6 times. So <code>ProcessResultRows</code> is definitely related to number of rows returned, but also something else. Let&rsquo;s see if we can figure out what happens here:</p>
+<ul>
+<li>Disable all breakpoints except for the <code>ProcessResultRows</code> breakpoint.</li>
+<li>Clear the <em>WinDbg</em> command window by <code>.cls</code>.</li>
+<li>Change the <code>TOP</code> clause in <em>Code Snippet 2</em> to be 3.</li>
+<li>Execute the code.</li>
+<li>Each time the <code>ProcessResultRows</code> breakpoint do a <code>wt -l4</code> (trace and watch 4 levels deep).</li>
+<li>After each &ldquo;trace and watch&rdquo;, copy the output to new files and name them <code>wt1.txt</code>, <code>wt2.txt</code>, etc.</li>
+</ul>
+<p>There should, after completing the execution, be four files, let&rsquo;s compare these four files.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you haven&rsquo;t done the <code>wt</code> as above, you can download the four files, plus a couple of others from <a href="/downloads/misc/sql_r_services_internal17.zip">here</a>.</p>
+</blockquote>
+<p>What we see is that the first file is bigger than the others, it has ~165 lines whereas the others are between 65 - 70 lines. The last third part of the first file (from about line 104), looks very much like the second and third files. We can also see that the fourth file is not similar to the other tree.</p>
+<p>Now what we&rsquo;ll do is to look at the similarities between the three first files and try to understand what is happening. In the files we see some interesting routines:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>   ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">ReadData</span>
+</span></span><span style="display:flex;"><span>     ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">memcpy_s</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">memcpy</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">MoveSmall</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">memcpy_s</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">OutputRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CTds74</span>::<span style="color:#268bd2">SendRowImpl</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CColMetaData</span>::<span style="color:#268bd2">CCols</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">OutputRow</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Routines from sqllang!CUDXR_ExternalScript::ProcessResultRows</em></p>
+<p>By now we understand that <code>ProcessResultRows</code> is doing what it says on the packet; it takes the rows coming back from the SqlSatellite, processes it, and then outputs it through <code>sqllang!CUDXR_ExternalScript::OutputRow</code>. From what we see in <em>Code Snippet 5</em>, it looks like the rows being outputted is outputted in the <em>TDS</em> format - look at the calls to <code>sqllang!CTds74::SendRowImpl</code>. This would make sense since clients etc., do not &ldquo;speak&rdquo; <em>BXL</em>, and from what we&rsquo;ve seen - <em>BXL</em> is what is coming back from the SqlSatellite.</p>
+<blockquote>
+<p><strong>EDITED:</strong> The following section down to <code>PullRow</code> has been slightly changed, to make it more readable.</p>
+</blockquote>
+<p>So the similar code in the three files (<code>wt1</code>, <code>wt2</code>, and <code>wt3</code>) processes the rows coming back, and outputs them as TDS, cool! So what about the first part of the first <code>ProcessResultRows</code>, what does that do? Let&rsquo;s have a look at the trace file for the first <code>ProcessResultRows</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">BindBufferForRead</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">ReadPayloadHeader</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">BindBufferForRead</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">PostWriteRequest</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WaitWriteDone</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span><span style="display:flex;"><span>     ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">BindBufferForRead</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessage</span>::<span style="color:#268bd2">BindBufferForRead</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">ReadPayloadHeader</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageDataChunk</span>::<span style="color:#268bd2">BindBufferForRead</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Routines from First ProcessResultRows</em></p>
+<p>In <em>Code Snippet 6</em> we see various parts of the first 2/3 of the first call to <code>ProcessResultRows</code>. What is interesting is the <code>sqllang!CServerCargoContext::ReceiveOneDataChunk</code>, <code>sqllang!CSQLSatelliteMessageDataChunk::ReadPayloadHeader</code> and the <code>sqllang!CSQLSatelliteCommunication::SendAckMessage</code> calls.</p>
+<p>From what I gather, the <code>ReceiveOneDataChunk</code> routine reads in data that has been received from a socket, the <code>ReadPayloadHeader</code> reads the column header for each column in the result-set being returned, in order to determine data types etc. The <code>SendAckMessage</code>, sends a message back to the SqlSatellite, most likely indicating that SQL Server has received the two packages being sent from the SqlSatellite. We can confirm the &ldquo;sending message back&rdquo; part by:</p>
+<ul>
+<li>Disabling all break-point in <em>WinDbg</em> except for the breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
+<li>Set a breakpoint at <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>, but disable it.</li>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+</ul>
+<p>Execute the code in <em>Code Snippet 2</em>, and when you hit the <code>ProcessResultRows</code> breakpoint, look at the output from <em>Process Monitor</em>. You should see something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_17_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Output Before WriteMessage</em></p>
+<p>We see in <em>Figure 1</em> how the two data packets have been sent to SQL Server, but nothing else has happened. Enable the <code>WriteMessage</code> break-point and continue the execution. We&rsquo;ll now break at <code>WriteMessage</code>, but nothing has happened in <em>Process Monitor</em> (no more packages have been sent or received). However, when we now continue the execution we&rsquo;ll see in *Process Monitor how a packet is sent to the SqlSatellite (<code>BxlServer.exe</code>) with a length of 28 bytes, and then two packets are returned back from the SQlSatellite:</p>
+<p>
+  <img src="/images/posts/sql_r_services_17_procmon2.png" alt="">
+
+</p>
+<p><strong>Figure 2</strong> <em>Output After WriteMessage</em></p>
+<p>We see the ack message sent to the SqlSatellite outlined in red in <em>Figure 2</em>, and the two packets coming back outlined in blue. Further down in this post as well as in an upcoming post we&rsquo;ll see if we can determine what the two packets coming back from the SqlSatellite do.</p>
+<p>Now we&rsquo;ve seen how the first <code>ProcessResultRows</code> is doing both schema &ldquo;stuff&rdquo; as well as processing the first row, and how the second and third <code>ProcessResultRows</code>, handle the remaining rows. What about the fourth file, the last <code>ProcessResultRows</code> - what does that one do? Let&rsquo;s have a look at some of the calls that happens:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EndOutput</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValue</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EndOutput</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CTdsConn</span>&lt;<span style="color:#2aa198;font-weight:bold">0</span>&gt;::<span style="color:#268bd2">EndResultSetImpl</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SendDoneWarnings</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CTdsConn</span>&lt;<span style="color:#2aa198;font-weight:bold">0</span>&gt;::<span style="color:#268bd2">EndResultSetImpl</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EndOutput</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Routines from Last ProcessResultRows</em></p>
+<p>From the code in <em>Code Snippet 7</em> we see how there is a <code>ReceiveOneDataChunk</code> call, which indicates data is being read after having  been received from a socket. It also looks like that this last <code>ProcessResultRows</code> indicates that there are no more data: <code>sqllang!CUDXR_ExternalScript::EndOutput</code>, <code>sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl</code> and <code>sqllang!SendDoneWarnings</code>. The question is what indicates this in the packets SQL Server receives from the SqlSatellite? This is now some speculation from my side, but I strongly suspect this originates from one of the 28 byte packets coming back from SqlSatellite after SQL Server sent the ack message above. I also think that the end-sequence that we mentioned in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> as well as in the <em>Recap</em> above, has something to do with this.</p>
+<p>Now we should be able to answer the question above about why there are one more <code>ProcessResultRows</code> than rows returned, and we should also have a fairly good grasp of what happens when processing rows returned from the SqlSatellite:</p>
+<ul>
+<li>Rows are processed by <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
+<li>During the first <code>ProcessResultRows</code> the column header(s) are processed, followed by the first row.</li>
+<li>Subsequent rows are processed by <code>ProcessResultRows</code>.</li>
+<li>A final <code>ProcessResultRows</code> processes one of the packets received back from SqlSatellite after ack message has been sent.</li>
+</ul>
+<p>So, what about the first question we had above; why is there a <code>PullRow</code> called straight after <code>SendPackets</code>, e.g. the <code>PullRow</code> happens before data is returned from the SqlSatellite? To try to figure this out, let&rsquo;s disable all breakpoints, except for the breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>, and execute <em>Code Snippet 2</em> again (you can take out the <code>Sys.sleep</code> if you want). When you execute and hit the breakpoint <code>ProcessResultRows</code> for the first time, look at the call-stack: <code>k</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>+<span style="color:#2aa198;font-weight:bold">0xf4</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x196</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span>+<span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span>+<span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt;+<span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>+<span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>+<span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Call Stack at First ProcessResultRows</em></p>
+<p>What we see in <em>Code Snippet 8</em>  is the important part of the call-stack and we can see how <code>ProcessResultRows</code> is called from within <code>PullRow</code>. Interesting, <code>PullRow</code> is called right after <code>SendPackets</code>, before the result has come back, and still <code>ProcessResultRows</code> is called from within <code>PullRow</code>, after the result is back? Let&rsquo;s see if we can figure out what&rsquo;s happening:</p>
+<ul>
+<li>Disable all breakpoints.</li>
+<li>Set a breakpoint at <code>sqllang!CUDXR_ExternalScript::PullRow</code>.</li>
+<li>Change the <code>Sys.sleep(10)</code> in <em>Code Snippet 2</em>, to <code>Sys.sleep(60)</code>.</li>
+<li>Execute the code.</li>
+<li>Continue past the first <code>PullRow</code>.</li>
+</ul>
+<p>When you hit the <code>PullRow</code> for the second time, do a <code>wt</code>. You&rsquo;ll see how the code continues, up until the execution starts in the R engine, and the code hits <code>Sys.sleep</code>. At this stage, copy out the output from <code>wt</code> into a new file (call it <code>pull_row_1.txt</code>).</p>
+<blockquote>
+<p><strong>NOTE:</strong> The trace files for <code>PullRow</code> are also part of the download mentioned above.</p>
+</blockquote>
+<p>At some stage the execution continues, and after the full <code>wt</code>, copy the whole trace into a second file <code>pull_row_full.txt</code>. Now open the <code>pull_row_1.txt</code> file, and look at the last 11 lines (for me it starts at around line 888):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">QueryPerformanceCounter</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlQueryPerformanceCounter</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">SignalObjectAndWaitStub</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">memset</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">memset</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">BaseFormatTimeOut</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Call Stack at End of First PullRow</em></p>
+<p>It seems from the code in <em>Code Snippet 9</em>, that we wait to be signaled, so the execution can continue, and when we open the &ldquo;full&rdquo; file (<code>pull_row_full.txt</code>), we can see that, that is indeed what happens:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">SignalObjectAndWaitStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">memset</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">memset</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">BaseFormatTimeOut</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// above was the last lines in the first file
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">NtSignalAndWaitForSingleObject</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">SignalObjectAndWait</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">QueryPerformanceCounterStub</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlQueryPerformanceCounter</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">TaskTransition</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>PullRow Being Signaled</em></p>
+<p>From <em>Code Snippet 10</em>, we see how <code>Pull</code> is signaled, and continues on with a <code>Switch</code> and a <code>TaskTransition</code>. The signal happens when SQL Server receives data from the SqlSatellite. There is an internal method <code>sqllang!CSQLSatelliteConnection::ReadCallBackInternal</code> which is being called when data is received, and part of <code>ReadCallBackInternal</code> is a signal call <code>sqllang!EventInternal&lt;SuspendQueueSLock&gt;::SignalAll</code>.</p>
+<p>Having briefly discussed signaling, let&rsquo;s go back to <code>pull_row_full.txt</code> and look further down in the file, where we see our first <code>ProcessResultRows</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">CMemProc</span>::<span style="color:#268bd2">Alloc</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">CSQLSatelliteCommunication</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReceiveOneDataChunk</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>ProcessResultRows Called in PullRow</em></p>
+<p>We see how the code in <em>Code Snippet 11</em> is the same as the first lines of the file <code>wt1.txt</code>.</p>
+<p>Now we should be able to answer the first question we had; why <code>PullRow</code> is called directly after <code>SendPackets</code>: it is being called to wait for a call-back and continue handling receiving of data. But what else goes on in <code>PullRow</code>, we see the first <code>ProcessResultRows</code> at around line 3342, so there must be other &ldquo;stuff&rdquo; happening as well?</p>
+<p>In fact, if we look a couple of lines above where we found <code>ProcessResultRows</code> in <code>pull_row_full.txt</code> we&rsquo;ll see something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">BeginOutput</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessOutputSchema</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// here is the first ProcessResultRows
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadOneRow</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>End of ProcessOutputSchema</em></p>
+<p>What we see in <em>Code Snippet 12</em> is how, above the first call to <code>ProcessResultRows</code>, we are in a routine named <code>ProcessOutputSchema</code>, and if we go upwards we see how there are at least three more routines dealing with schema:</p>
+<ul>
+<li><code>sqllang!CUDXR_ExternalScript::GetOutputSchema</code></li>
+<li><code>sqllang!CServerCargoContext::ReadSchemaInternal</code></li>
+<li><code>sqllang!CServerCargoContext::ReadSchemaFromPackets</code></li>
+</ul>
+<p>If we were to set breakpoints at those routines together with <code>PullRow</code> and <code>ProcessResultRows</code>, the flow (highly simplified) when executing would be something like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendPackets</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PullRow</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessOutputSchema</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">GetOutputSchema</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadSchemaInternal</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">ReadSchemaFromPackets</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ProcessResultRows</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Code Flow Handling Schema</em></p>
+<p>So what SQL Server is doing is that before it start processing the returning rows, it determines what the schema is for the result-set. As far as I can tell, SQL Server uses both the initial &ldquo;small&rdquo; packet from the SqlSatellite as well as the packet containing the actual result-set data.</p>
+<h2 id="summary">Summary</h2>
+<p>This post tried to determine what SQL Server is doing when data is being returned from the SqlSatellite. We saw how, after the data packet(s) were sent to the SqlSatellite:</p>
+<ul>
+<li>Immediately <code>sqllang!CUDXR_ExternalScript::PullRow</code> was called, and waited to be signaled when data was returned.</li>
+<li>The schema of the returning data was determined by calls to <code>sqllang!CUDXR_ExternalScript::ProcessOutputSchema</code>, <code>sqllang!CUDXR_ExternalScript::GetOutputSchema</code>, <code>sqllang!CServerCargoContext::ReadSchemaInternal</code>, and <code>sqllang!CServerCargoContext::ReadSchemaFromPacket</code>.</li>
+<li>The result rows were processed, and turned into <em>TDS</em> packets, by calls to <code>ProcessResultRows</code> (one <code>ProcessResultRows</code> per row).</li>
+<li>A final <code>ProcessResultRows</code> was called to indicate that no more rows are coming.</li>
+</ul>
+<p>The figure below illustrates the flow:</p>
+<p>
+  <img src="/images/posts/sql_r_services_17_flow.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Code Flow Receiving Data from SqlSatellite</em></p>
+<p>If you have read <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, you see how <em>Figure 3</em> is similar. I have however &ldquo;compacted&rdquo; the sending data to SqlSatellite somewhat. The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens:</p>
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent together with two end packets.</li>
+<li>Packet are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled.</li>
+<li>Execution continues to process meta-data as well as result rows.</li>
+</ol>
+<p>There are still a couple of things to discuss about data coming back to SQL Server, as well a how errors are handled, and we&rsquo;ll do that in a future post.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/" data-toggle="tooltip" data-placement="top" title="Microsoft SQL Server R Services - Internals XVI">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-01-07-interesting-stuff---christmas-new-year-week-1/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Christmas, New Year, Week 1">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

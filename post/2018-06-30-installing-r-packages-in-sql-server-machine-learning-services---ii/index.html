@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Installing R Packages in SQL Server Machine Learning Services - II" />
+    <meta property="og:title" content="Installing R Packages in SQL Server Machine Learning Services - II" />
+    <meta property="twitter:title" content="Installing R Packages in SQL Server Machine Learning Services - II" />
+    
+
+    
+    <meta name="description" content="We continue looking at installing R packages. This post is all about using RevoScaleR functionality.">
+    <meta property="og:description" content="We continue looking at installing R packages. This post is all about using RevoScaleR functionality." />
+    <meta property="twitter:description" content="We continue looking at installing R packages. This post is all about using RevoScaleR functionality." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Installing R Packages in SQL Server Machine Learning Services - II | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-06-30-installing-r-packages-in-sql-server-machine-learning-services---ii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/revoscaler" title="RevoScaleR">
+                            RevoScaleR
+                        </a>
+                        
+                        <a class="tag" href="/tags/rxinstallpackages" title="rxInstallPackages">
+                            rxInstallPackages
+                        </a>
+                        
+                        <a class="tag" href="/tags/registerrext.exe" title="RegisterRext.exe">
+                            RegisterRext.exe
+                        </a>
+                        
+                    </div>
+                    <h1>Installing R Packages in SQL Server Machine Learning Services - II</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, June 30, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post is the second post in a series about installing R packages in SQL Server Machine Learning Services.</p>
+<p>To see all posts in the series go to <a href="/sql_server_ml_services_install_packages"><strong>Install R Packages in SQL Server ML Services Series</strong></a>.</p>
+<p>Why this series came about is a colleague of mine <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> pinged me and asked if I had any advice as he had issues installing an R package into one of their SQL Server instances. I tried to help him and then thought it would make a good topic for a blog post. Of course, at that time I didn&rsquo;t think it would be more posts than one, but here we are.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2018-06-23-installing-r-packages-in-sql-server-machine-learning-services---i/">Installing R Packages in SQL Server Machine Learning Services - I</a> we introduced <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> and how he wanted to install some R packages into SQL Server Machine Learning Service instance. I said that before you start installing packages into SQL Server Machine Learning Services, you should make sure you have <strong>Rtools</strong> installed on the machine SQL Server ML Services runs on.</p>
+<p>You need <em>RTools</em> if you ever need to compile R packages from source, as <em>Rtools</em> contains compilers and utilities to do this. You do not install <em>Rtools</em> for each SQL Server ML Services instance you have on the server, but just once, and you need to install it from an account with elevated permissions.</p>
+<p>In the first post I said that there were three ways to install packages into SQL Server ML Services:</p>
+<ul>
+<li>R packet managers</li>
+<li>T-SQL</li>
+<li>RevoScaleR</li>
+</ul>
+<p>So in the first post, I covered R packet managers, where an R packet manager is an R command line tool or GUI installed on the SQL Server Machine Learning Services machine. The packet manager should be run with elevated permissions and target the R engine for the instance on which you want to install the package. The easiest is to use either of the R tools that come as part as part of SQL Server&rsquo;s R service:</p>
+<ul>
+<li>The command line tool: <code>Rterm.exe</code>.</li>
+<li>The GUI: <code>Rgui.exe</code>.</li>
+</ul>
+<p>These two packet managers lives in the <code>\\&lt;path_to_SQL_Server_instance&gt;\R_SERVICES\bin\x64</code> directory. When you install packages via an R packet manager, they can only be installed to the default packet library for that instance. The file system folder for this library has restricted access and to write to this folder you need elevated permissions. Typical code for installing packages from a packet manager can look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># get the library path</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">libPath</span> &lt;- <span style="color:#268bd2">.libPaths</span>()<span style="color:#268bd2">[1]</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">install.packages</span>(<span style="color:#2aa198">&#34;pkg_name&#34;</span>, <span style="color:#268bd2">lib</span> = <span style="color:#268bd2">libPath</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">repos</span> = <span style="color:#2aa198">&#34;url_for_the_repo&#34;</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">dependencies</span> = <span style="color:#859900;font-weight:bold">TRUE</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Install Packages Command</em></p>
+<p>In <em>Code Snippet 1</em> we see how I first retrieve the library path. The library path is where I install the package to, and once again - I can only install to the default instance directory. Then in the <code>install.packages</code> call I use these parameters:</p>
+<ul>
+<li>First parameter is always the name of the package(s) to install.</li>
+<li><code>lib</code>: is for the library folder to install to.</li>
+<li><code>repos</code>: the base URL(s) of the repositories to use. If left out, the repo used is the Microsoft MRAN repo, which may not be what you want.</li>
+<li><code>dependencies</code>: indicating whether to also install missing packages which these packages depend on/link to/import/suggest (and so on recursively).</li>
+</ul>
+<p>The big drawback with using an R packet manager is that the user who does it need to be able to run the chosen packet manager from an elevated prompt and from the box SQL Server is installed on!</p>
+<p>In this post, we look at how we can install without being admin, and without having to be logged onto the box as admin.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code we use today. This section is here for those of who want to follow along in what we are doing in the post.</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">59
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">60
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">61
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">62
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">63
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;dane&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">dane</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;nielsb&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">nielsb</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;user1&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;user2&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user2</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">NOT</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_principals</span> 
+</span></span><span style="display:flex;"><span>              <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;user3&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user3</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;password1234$&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">DataScienceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">DataScienceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">DataScienceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">dane</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">dane</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">nielsb</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">nielsb</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">user1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user1</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">user2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user2</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">USER</span> <span style="color:#268bd2">user3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">user3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> <span style="color:#268bd2">db_owner</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">nielsb</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Create Logins, Database and Users</em></p>
+<p>In <em>Code Snippet 2</em> we create some logins as well as a database and in that database users for the logins. As you see, we do continue with the &ldquo;theme&rdquo; of Dane the data scientist wanting to do &ldquo;stuff&rdquo; in the database. As <code>nielsb</code> is seen to be &ldquo;trustworthy&rdquo; (take that Dane), we add him to the <code>db_owner</code> role.</p>
+<h2 id="permissions-and-sp_execute_external_script">Permissions and sp_execute_external_script</h2>
+<p>This topic is not directly related to installing R packages via RevoScaleR, but unless you get the permissions right for users that want to call <code>sp_execute_external_script</code> (SPEES), the rest of the post will not make any sense anyhow. Fortunately I wrote a <a href="/post/2018-06-24-sp-execute-external-script-and-permissions/">blog post</a> about <em>SPEES</em> and the permissions required, so let us follow what is in that post and set the permissions for the users we created in <em>Code Snippet 2</em>. The code below must be run by <code>sysadmin</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- the grant to execute SPEES to public only 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- needs to be run once on the instance
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">sp_execute_external_script</span> <span style="color:#859900">TO</span> <span style="color:#859900">public</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">DataScienceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ANY</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">SCRIPT</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">dane</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ANY</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">SCRIPT</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">user1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ANY</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">SCRIPT</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">user2</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#859900">EXECUTE</span> <span style="color:#859900">ANY</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">SCRIPT</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">user3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Grant Execute Permissions to Users</em></p>
+<p>We see how the code in <em>Code Snippet 3</em> first, from within the <code>master</code> database, grants execution rights on <em>SPEES</em> to <code>public</code>. This only needs to be run once, and arguably this should be part of enabling <em>SPEES</em>.</p>
+<p>We then switch over to the database where the users exist, and we grant the <code>EXECUTE ANY EXTERNAL SCRIPT</code> rights to the individual users that should be able to use <em>SPEES</em>. However, what about <code>nielsb</code>, should he not be granted the permission as well? No, as he is part of <code>db_owner</code> he automatically has the necessary permissions.</p>
+<h2 id="revoscaler-package-management">RevoScaleR Package Management</h2>
+<p>In the recap above I mentioned about being able to install from a remote box and not being an admin on the SQL Server box, and that is what RevoScaleR gives you. RevoScaleR 9.0.1 and later includes functions for R package management where these functions can be used by remote, non-administrators to install packages on SQL Server without direct access to the server. To install you can use both remote R clients as well as <code>sp_execute_external_script</code> from <em>SSMS</em>. To install using RevoScaleR functions you need to execute inside a <strong>SQL Server Compute Context</strong> (SQLCC).</p>
+<blockquote>
+<p><strong>NOTE:</strong> To read more about <em>SQLCC</em> look at the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> post.</p>
+</blockquote>
+<p>Remember from my <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/"><em>SQLCC</em> post</a> how we set up an <em>SQLCC</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up the connection string</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlServerConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server;server=&lt;instance&gt;;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        database=&lt;the_db&gt;;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        uid=&lt;the user id&gt;;pwd=&lt;the password&gt;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up a compute context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlCtx</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlServerConnString</span>, 
+</span></span><span style="display:flex;"><span>                        <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set the compute context to be the sql context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCtx</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>R Code - SQL Server Compute Context</em></p>
+<p>In <em>Code Snippet 4</em> we see how we set up an <em>SQLCC</em> by defining a connection string which then implies that any R package installation is specific to a SQL Server instance as well as a database.</p>
+<h4 id="configuration">Configuration</h4>
+<p>Above I wrote that even non-admins could install R packages but that requires configuration and to use RevoScaleR you need to enable remote management of R packages both on the SQL Server instance as well as for a particular database. To enable, an admin on the SQL Server box uses a RevoScaleR command line utility: <code>RegisterRext.exe</code>. The same utility can also be used to disable package management on a database and/or instance level.</p>
+<p>The location for <code>RegisterRext.exe</code> is at: <code>&lt;path_to_sql_instance&gt;\R_SERVICES\library\RevoScaleR\rxLibs\x64\RegisterRext.exe</code> and when you run it you need to run it as admin. These are the available commands when executing:</p>
+<ul>
+<li><code>/install</code> - copies the launcher binaries to the right location for a SQL server instance. Not applicable in this post.</li>
+<li><code>/uninstall</code> - removes the launcher binaries from the SQL server instance. Not applicable in this post.</li>
+<li><code>/installpkgmgmt</code> - installs package management support for given SQL server instance and database also if specified.</li>
+<li><code>/uninstallpkgmgmt</code> - uninstalls package management support from given SQL server instance and database also if specified.</li>
+<li><code>/installrts</code> - installs real time scoring support for given SQL server instance and database. Topic for a future post.</li>
+<li><code>/uninstallrts</code> - uninstalls real time scoring support for given SQL server instance and database. Topic for a future post.</li>
+</ul>
+<p>We send in parameters to tell RegisterRext where to execute:</p>
+<ul>
+<li><code>/instance:value</code> is an optional parameter, we use <code>&lt;value&gt;</code> as the instance name, else the commands are performed on the default instance. Please note that the name is just that; not <code>/instance:server_name\instance_name</code> but <code>/instance:instance_name</code>. It took me a while to figure that out.</li>
+<li><code>/database:value</code> is an optional parameter where <code>&lt;value&gt;</code> indicates what database to run on.</li>
+<li><code>/user:username</code> is an optional parameter, and we use the <code>&lt;username</code>&gt; specified to connect via the SQL authentication mode. Note that once this parameter is specified, <code>/password:&lt;value&gt;</code> is a required parameter.</li>
+<li><code>/password: * | &lt;password&gt;</code> is a required parameter once the <code>/user</code> parameter is provided. You can use <code>/password:*</code> in order to be prompted for the password when running the tool instead of providing it in cleartext as a parameter. Note that providing the password without the user is ignored.</li>
+</ul>
+<p>If no username and password is supplied, then Windows authentication is used (in the context of the user which is logged on to the SQL Server box and runs <code>RegisterRext.exe</code>).</p>
+<p>Let us go back to <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> and his situation and see what we can do. Admin of the SQL Server instance Dane <del>plays on</del> works hard on has created a database for Dane with a lot of data where Dane now want to do data science &ldquo;things&rdquo;. Part of the things Dane want to do requires packages that are not part of a SQL Server ML Services installation.</p>
+<p>So the admin decides to enable Dane&rsquo;s database for remote package management. As this is the first time a database on the instance is enabled, the admin needs to enable the instance itself before the database.</p>
+<p>To enable the instance a user with admin rights on the box, logs on and runs <code>RegisterRext.exe</code> from an elevated command prompt:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>&gt; RegisterRext.exe /installpkgmgmt
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Enable Default Instance</em></p>
+<p>In <em>Code Snippet 5</em> we enable packet management on the default instance (as that is where Dane&rsquo;s database is), and we enable it using Windows Authentication. Regardless of type of authentication, the user has to have <code>VIEW SERVER STATE</code> permissions on the SQL Server instance. The output from <em>Code Snippet 5</em> is like so (edited for readability):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>&gt;RegisterRExt /installpkgmgmt
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Source directory to pick the RExtension binaries determined 
+</span></span><span style="display:flex;"><span>to be <span style="color:#2aa198">&#34;C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">R_SERVICES\library\RevoScaleR\rxLibs\x64\&#34;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Connecting to SQL server...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Sql server binn directory is 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">&#34;</span>C:<span style="color:#2aa198">\P</span>rogram Files<span style="color:#2aa198">\M</span>icrosoft SQL Server<span style="color:#2aa198">\M</span>SSQL14.MSSQLSERVER<span style="color:#2aa198">\M</span>SSQL<span style="color:#2aa198">\B</span>inn<span style="color:#2aa198">&#34;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Stopping service MSSQLLaunchpad...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Copied RLauncher.dll from C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\R_SERVICES\library\RevoScaleR\rxLibs\x64\ 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">to C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\MSSQL\Binn.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Installing SQL R services package management for instance &#39;&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Installing version 1.0 artifacts
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management account MSSQLSERVERPKG...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Saving package management user account configuration...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Working directory long path:&#39;C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData&#39; and short path:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;C:\PROGRA~1\MICROS~1\MSSQL1~1.MSS\MSSQL\EXTENS~1&#39;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Working directory long path:&#39;C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData&#39; and short path:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;C:\PROGRA~1\MICROS~1\MSSQL1~1.MSS\MSSQL\EXTENS~1&#39;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Working directory long path:&#39;C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData&#39; and short path:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;C:\PROGRA~1\MICROS~1\MSSQL1~1.MSS\MSSQL\EXTENS~1&#39;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Configuring security for folder C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">SQL R services package management installed successfully.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Starting service MSSQLLaunchpad...
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Output Enable Instance</em></p>
+<p>A couple of interesting points from what we see in <em>Code Snippet 6</em>:</p>
+<ul>
+<li>The launchpad service is stopped when the install process starts and at the end restarted.</li>
+<li>The install process creates a new packet management account. This account appears together with the worker accounts in the <em>user accounts</em> pool that you find in the <code>ExtensibilityData</code> folder.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> As the instance only is enabled once, this could potentially be part of when we enable an instance for external scripts.</p>
+</blockquote>
+<p>Having enabled the instance, admin can now go ahead and enable the database:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>&gt; RegisterRext.exe /installpkgmgmt /database:DataScienceDB
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Enable Database</em></p>
+<p>In <em>Code Snippet 7</em> we see how we enable packet management on the <code>DataScienceDB</code> database, once again using Windows Authentication. Whereas enabling an instance requires <code>VIEW SERVER STATE</code> permissions for the authenticated user, when enabling a database the user needs both <code>VIEW SERVER STATE</code> as well as being part of the <code>db_owner</code> database role.</p>
+<p>The output from <em>Code Snippet 7</em> is like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>&gt;RegisterRExt /installpkgmgmt /database:DataScienceDB
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Source directory to pick the RExtension binaries determined 
+</span></span><span style="display:flex;"><span>to be <span style="color:#2aa198">&#34;C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">R_SERVICES\library\RevoScaleR\rxLibs\x64\&#34;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Connecting to SQL server...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Sql server binn directory is &#34;</span>C:<span style="color:#2aa198">\P</span>rogram Files<span style="color:#2aa198">\M</span>icrosoft SQL Server<span style="color:#2aa198">\M</span>SSQL14.MSSQLSERVER<span style="color:#2aa198">\M</span>SSQL<span style="color:#2aa198">\B</span>inn<span style="color:#2aa198">&#34;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Installing SQL R services package management for database &#39;DataScienceDB&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Installing version 1.0 artifacts
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Working directory long path:&#39;C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData&#39; and short path:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;C:\PROGRA~1\MICROS~1\MSSQL1~1.MSS\MSSQL\EXTENS~1&#39;.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management folder C:\Program Files\Microsoft SQL Server\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">MSSQL14.MSSQLSERVER\MSSQL\ExtensibilityData\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">rpkgs\4ecd5724-d180-47da-a8e0-01d6c1b9bd0f...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management table rpackages...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management role rpkgs-users...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management role rpkgs-private...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management role rpkgs-shared...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management stored procedures ...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Installing version 1.1 artifacts
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Altering package management table rpackages to include attributes flags...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">Creating package management stored procedures ...
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">SQL R services package management installed successfully for database &#39;DataScienceDB&#39;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Output Enable Database</em></p>
+<p>As with the output from enabling an instance (<em>Code Snippet 6</em>) we see some interesting things in <em>Code Snippet 8</em> for when enabling a database, and we see how the process:</p>
+<ul>
+<li>Creates a table: <code>rpackages</code>.</li>
+<li>Creates roles.</li>
+<li>Creates stored procedures:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_procedures.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Stored Procedures Created</em></p>
+<p>In <em>Figure 1</em> we see the procedures that the enabling process created. In a future post, we talk more about these procedures</p>
+<h2 id="revoscaler-functions-scopes--roles">RevoScaleR Functions, Scopes &amp; Roles</h2>
+<p>RevoScaleR exposes functions similar to CRAN R functions for package management:</p>
+<ul>
+<li><code>rxSqlLibPaths</code>: Retrieves the path of the instance library on the remote server.</li>
+<li><code>rxFindPackage</code>: retrieves the path for one or more packages on the remote SQL Server.</li>
+<li><code>rxInstallPackages</code>: Install packages and their dependencies in an SQLCC from a remote client. You can specify which repo to install from or also install from locally saved zipped packages.</li>
+<li><code>rxInstalledPackages</code>:  Retrieves a list of packages installed in the specified compute context.</li>
+<li><code>rxSyncPackages</code>:  Copy information about a package library between the file system and database.</li>
+<li><code>rxRemovePackages</code>:  Removes packages from a specified compute context. It also removes dependencies if other packages on SQL Server no longer use them.</li>
+</ul>
+<p>Back to our &ldquo;hero&rdquo; Dane. Admin has just told him that the SQL Server instance together with his database are now package management enabled, so he can begin to do his awesome &ldquo;stuff&rdquo;. So what Dane first want to do is to see what packages are available to him in his database, and he does not really want to use <em>SSMS</em>, but instead use his R client of choice; Visual Studio together with <strong>Microsoft R Client</strong>:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_VS1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Visual Studio with Microsoft R Client</em></p>
+<p>In <em>Figure 2</em> we see how Dane&rsquo;s R project in Visual Studio targets  Microsoft R Client. Dane now wants to use the following code to see packages available on his database:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span>&gt; <span style="color:#268bd2">sqlCCConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server; server=&lt;server_name&gt;; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                     database=daneb; uid=daneb; pwd=&lt;danes_pwd&gt;&#34;</span>
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">sqlCC</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlCCConnString</span>, <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCC</span>)
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">sqlPackages</span> &lt;- <span style="color:#268bd2">rxInstalledPackages</span>(<span style="color:#268bd2">computeContext</span> = <span style="color:#268bd2">sqlCC</span>)
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">sqlPackages</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong></p>
+<p>In <em>Code Snippet 9</em> we see how Dane:</p>
+<ul>
+<li>Sets up a connection string pointing to his database for the SQLCC.</li>
+<li>Creates the SQLCC and sets it.</li>
+<li>Calls <code>rxInstalledPackages</code> to retrieve packages.</li>
+</ul>
+<p>When Dane executes the code in <em>Code Snippet 9</em> it does not go as he wants - he gets an error at the <code>rxInstalledPackages</code> call:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">Error</span> <span style="color:#268bd2">in</span> <span style="color:#268bd2">rxCheckPackageManagementVersion
+</span></span></span><span style="display:flex;"><span><span style="color:#268bd2">     </span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">computeContext</span>@<span style="color:#268bd2">connectionString</span>) : 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">The</span> <span style="color:#268bd2">package</span> <span style="color:#268bd2">management</span> <span style="color:#268bd2">feature</span> <span style="color:#268bd2">is</span> <span style="color:#268bd2">not</span> <span style="color:#268bd2">enabled</span> <span style="color:#268bd2">for</span> <span style="color:#268bd2">the</span> <span style="color:#268bd2">current</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">user</span> <span style="color:#268bd2">or</span> <span style="color:#268bd2">not</span> <span style="color:#268bd2">supported</span> <span style="color:#268bd2">on</span> <span style="color:#268bd2">SQL</span> <span style="color:#268bd2">Server</span> <span style="color:#268bd2">version</span> <span style="color:#2aa198;font-weight:bold">14.0.1000.169</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Execution Error</em></p>
+<p>Hmm, the error we see in <em>Code Snippet 10</em> says something about &ldquo;The package management feature is not enabled&hellip;&rdquo;  What is this all about?</p>
+<h4 id="scopes--roles">Scopes &amp; Roles</h4>
+<p>The error above is related to what happened when we enabled the database. Remember how the process created roles in the database and the user that tries to execute some of the package management functions need to be in some of the roles unless the user is part of <code>db_owner</code>. In <em>Code Snippet 8</em> we see the roles, and there is a role named <code>rpkgs-users</code>. When I see that role, it seems like a good candidate for Dane to be part of, so I add Dane to the role:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> [<span style="color:#268bd2">rpkgs</span>-<span style="color:#268bd2">users</span>] 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">dane</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Add Member to Role</em></p>
+<p>Notice in <em>Code Snippet 11</em> how I have to enclose the role name in brackets([]) as the name has a hyphen in it. When Dane now tries to execute the code:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_scope_error.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Error</em></p>
+<p>Ok, we seem to be a little bit further than before, and it seems we now can execute, but there is still an error, and it looks related to &ldquo;scope&rdquo;, whatever that is.</p>
+<p>Scopes has to do with installation of packages via the <em>SQLCC</em> and the usage of those packages. There are two scopes:</p>
+<ul>
+<li>Shared: shares packages with other users in the database.</li>
+<li>Private: accessible only to the user installing the package.</li>
+</ul>
+<p>Scope and the roles we see above are related in that the roles define what the user can do and in what scope:</p>
+<ul>
+<li><code>rpkgs-users</code>: users in this role can use packages installed by users belonging to the <code>rpkgs-shared</code> role. Cannot read via the <code>rx...</code> functions.</li>
+<li><code>rpkgs-private</code>: this role has all permissions as the <code>rpkgs-users</code> role has. A user in this role can furthermore, install, remove and use private packages installed by the user in question.</li>
+<li><code>rpkgs-shared</code>: The same permissions as the <code>rpkgs-private</code> role. Users in this role can install, remove, and use shared packages.</li>
+</ul>
+<p>So, let us now see what we can do with these roles:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> [<span style="color:#268bd2">rpkgs</span>-<span style="color:#268bd2">users</span>] 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">user1</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> [<span style="color:#268bd2">rpkgs</span>-<span style="color:#268bd2">shared</span>] 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">dane</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> [<span style="color:#268bd2">rpkgs</span>-<span style="color:#268bd2">shared</span>] 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">user2</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">ROLE</span> [<span style="color:#268bd2">rpkgs</span>-<span style="color:#268bd2">private</span>] 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">MEMBER</span> <span style="color:#268bd2">user3</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Add Users to Roles</em></p>
+<p>After we have added users to various roles, let us see what happens when different users want to install packages.</p>
+<h2 id="revoscaler-package-installation">RevoScaleR Package Installation</h2>
+<p>In the following examples, I have chosen a package <code>abc</code> mostly due to it not having too many dependencies, which makes it quicker to install. The <code>abc</code> package contains tools for &ldquo;Approximate Bayesian Computation&rdquo; (ABC).</p>
+<p>Something to think about are the versions of <em>RevoScaleR</em> on your development box vs the version on the remote SQL Server. My, admittedly, limited investigations lead me to believe that the version on the local machine cannot be an earlier version than on the remote SQL Server. If the version is earlier on the local machine, you get permission errors. From what I can tell, the local version can be the same, or newer.</p>
+<p>Ok, so to install packages we use <code>rxInstallPackagaes()</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">rxInstallPackages</span>(<span style="color:#268bd2">pkgs</span>, <span style="color:#268bd2">skipMissing</span> = <span style="color:#859900;font-weight:bold">FALSE</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">repos</span> = <span style="color:#268bd2">getOption</span>(<span style="color:#2aa198">&#34;repos&#34;</span>), 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">verbose</span> = <span style="color:#268bd2">getOption</span>(<span style="color:#2aa198">&#34;verbose&#34;</span>), 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">scope</span> = <span style="color:#2aa198">&#34;private&#34;</span>, <span style="color:#268bd2">owner</span> = <span style="color:#2aa198">&#39;&#39;</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">computeContext</span> = <span style="color:#268bd2">rxGetOption</span>(<span style="color:#2aa198">&#34;computeContext&#34;</span>))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Signature rxInstallPackages</em></p>
+<p>Let us look at the parameters we see in <em>Code Snippet 13</em>:</p>
+<p><strong><code>pkgs</code>:</strong></p>
+<p>String array of the packages you want to download and install. By default, it downloads the latest version of the package(s). When installing through an <strong>SQLCC</strong> the arrays can be .zip files as well as URL&rsquo;s, <code>http://</code> and <code>file://</code>. If the URL is a file, the location must be available to SQL Server.</p>
+<p><strong><code>skipMissing</code>:</strong></p>
+<p>Boolean (<code>TRUE</code>, <code>FALSE</code>) indicating whether not to download dependent packages. The argument defaults to false.</p>
+<p><strong><code>repos</code>:</strong></p>
+<p>String array of base URL&rsquo;s of repos to use. It defaults to the MRAN repo. If you want to install from local files <code>repos</code> has to be explicitly set to <code>NULL</code>.</p>
+<p><strong><code>verbose</code>:</strong></p>
+<p>Boolean (<code>TRUE</code>, <code>FALSE</code>) indicating whether to output progress during installation.</p>
+<p><strong><code>scope</code>:</strong></p>
+<p>Related to what I said above about <code>scope</code>. The <code>scope</code> argument indicates whether to install packages, so they are available for other users on the database: <code>shared</code>, or only accessible to the user calling <code>rxInstallPackages</code>: <code>private</code>. The default value is <code>private</code>. To install to <code>shared</code> scope the user has to be in the <code>rpkgs-shared</code> or <code>db_owner</code> role.</p>
+<p><strong><code>owner</code>:</strong></p>
+<p>A user in the <code>db_owner</code> role can install packages on behalf of other users, and set the <code>owner</code> parameter to a valid database user account.</p>
+<p><strong><code>computeContext</code>:</strong></p>
+<p>The compute context to install under.</p>
+<h4 id="install-already">Install Already</h4>
+<p>Finally, we can talk about actually installing a package. Dane now wants to install the <code>abc</code> package:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">sqlCCConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    server=192.168.57.3;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    database=DataScienceDB; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    uid=dane; pwd=password1234$&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlCC</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlCCConnString</span>, <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCC</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">pkgs</span> &lt;- <span style="color:#268bd2">c</span>(<span style="color:#2aa198">&#34;abc&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxInstallPackages</span>(<span style="color:#268bd2">pkgs</span> = <span style="color:#268bd2">pkgs</span>, <span style="color:#268bd2">verbose</span> = <span style="color:#859900;font-weight:bold">TRUE</span>, <span style="color:#268bd2">computeContext</span> = <span style="color:#268bd2">sqlCC</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>Install R Package</em></p>
+<p>In <em>Code Snippet 14</em> we see how Dane:</p>
+<ul>
+<li>Sets up the connection string for the <em>SQLCC</em>.</li>
+<li>Created the <em>SQLCC</em> and sets it.</li>
+<li>Defines the package(s): <code>pkgs &lt;- c(&quot;abc&quot;)</code>.</li>
+</ul>
+<p>When he calls <code>rxInstallPackages</code>, he follows the progress in the Visual Studio R interactive window:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs2_install_progress.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Installation Progress</em></p>
+<p>Dane sees in <em>Figure 4</em> how the various packages needed for <code>abc</code> downloads and subsequently installed. After a couple of minutes the installation is completed:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs2_install_fiished.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Installation Finished</em></p>
+<p>After the installation has finished, let us see how it works.</p>
+<h4 id="usage">Usage</h4>
+<p>So in <em>Figure 5</em> we see that the installation finished successfully. Dane wants now to start using the new packages he installed in SQL Server, and for testing purposes, he uses the <code>abc.data</code> package (installed as a dependency of the <code>abc</code> package):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>         @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>         @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                library(&#34;abc.data&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                data(human)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                OutputDataSet &lt;-  data.frame(stat.voight)&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span>(([<span style="color:#268bd2">pi</span>] <span style="color:#cb4b16">float</span>, [<span style="color:#268bd2">TajD</span>.<span style="color:#268bd2">m</span>] <span style="color:#cb4b16">float</span>, [<span style="color:#268bd2">TajD</span>.<span style="color:#268bd2">v</span>] <span style="color:#cb4b16">float</span> ))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Using R Package</em></p>
+<p>In <em>Code Snippet 15</em> it is assumed that Dane has logged in as himself and we see how Dane uses <a href="https://www.rdocumentation.org/packages/abc.data/versions/1.0/topics/human"><code>human</code></a> which is a set of R objects containing observed data from three human populations. The call <code>data(human)</code>, loads in four R objects and Dane is interested in <code>stat.voight</code>, which is a data frame with 3 rows and 3 columns. The data frame contains the observed summary statistics for three human populations. In his code, Dane outputs the <code>stat.voight</code> data frame. However, when Dane executes the code, this happens:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs2_error_exec1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Package does not Exist</em></p>
+<p>Hmm, what happened here? We know that Dane installed the package, so why does he get an exception that the package does not exist? The reason is that the package he installed is not installed in the R engine, but installed on the database and is not visible. To be able to use the package Dane needs to execute under the <em>SQLCC</em>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In future posts we talk more about where the packages are installed and how they get loaded etc.</p>
+</blockquote>
+<p>So, how does Dane make the <code>abc.data</code> package execute in the <em>SQLCC</em>. Well, the <code>abc.data</code> package does not know about <em>SQLCC</em>, so Dane needs to use a RevoScaleR wrapper function: <code>rxExec</code>. The <code>rxExec</code> function allows distributed execution of a function, and the signature looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">rxExec</span>(<span style="color:#268bd2">FUN</span>,   <span style="color:#859900;font-weight:bold">...</span>  , <span style="color:#268bd2">elemArgs</span>, <span style="color:#268bd2">elemType</span> = <span style="color:#2aa198">&#34;nodes&#34;</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">oncePerElem</span> = <span style="color:#859900;font-weight:bold">FALSE</span>, <span style="color:#268bd2">timesToRun</span> = <span style="color:#2aa198;font-weight:bold">-1L</span>,
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">packagesToLoad</span> = <span style="color:#859900;font-weight:bold">NULL</span>, <span style="color:#268bd2">execObjects</span> = <span style="color:#859900;font-weight:bold">NULL</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">taskChunkSize</span> = <span style="color:#859900;font-weight:bold">NULL</span>, <span style="color:#268bd2">quote</span> = <span style="color:#859900;font-weight:bold">FALSE</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">consoleOutput</span> = <span style="color:#859900;font-weight:bold">NULL</span>, <span style="color:#268bd2">autoCleanup</span> = <span style="color:#859900;font-weight:bold">NULL</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">continueOnFailure</span> = <span style="color:#859900;font-weight:bold">TRUE</span>, <span style="color:#268bd2">RNGseed</span> = <span style="color:#859900;font-weight:bold">NULL</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">RNGkind</span> = <span style="color:#859900;font-weight:bold">NULL</span>, <span style="color:#268bd2">foreachOpts</span> = <span style="color:#859900;font-weight:bold">NULL</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 16:</strong> <em>Signature of rxExec</em></p>
+<p>In <em>Code Snippet 16</em> we see <code>rxExec</code>&rsquo;s signature. In a future post we look at <code>rxExec</code> in more detail, but for now what interests us are the two first parameters:</p>
+<ul>
+<li><code>FUN</code>: The function to execute.</li>
+<li><code>...</code>: Arguments passed to the function (<code>FUN</code>).</li>
+</ul>
+<p>The first parameter is the function we want <code>rxExec</code> to execute and the second parameter passes in the argument(s) the function requires. So, if we go back to what Dane wants to do, he re-writes his code like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span> @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span> @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   # define a function to be passed to rxExec
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   usePackageInRxFunction &lt;- function()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   {
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     library(&#34;abc.data&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     data(human)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     return(stat.voight)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   }
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   # the &#34;normal&#34; SQLCC stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   sqlCCConnString &lt;- &#34;Driver=SQL Server; server=.; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                       database=DataScienceDB; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                       uid=dane; pwd=password1234$&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   sqlCC &lt;- RxInSqlServer(connectionString = sqlCCConnString, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                          numTasks = 1)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   rxSetComputeContext(sqlCC)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   ret &lt;- rxExec(usePackageInRxFunction)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">   OutputDataSet &lt;- data.frame(ret)&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span>(([<span style="color:#268bd2">pi</span>] <span style="color:#cb4b16">float</span>, [<span style="color:#268bd2">TajD</span>.<span style="color:#268bd2">m</span>] <span style="color:#cb4b16">float</span>, [<span style="color:#268bd2">TajD</span>.<span style="color:#268bd2">v</span>] <span style="color:#cb4b16">float</span> ))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 17:</strong> <em>Executing in SQLCC</em></p>
+<p>We see how Dane in <em>Code Snippet 17</em>:</p>
+<ul>
+<li>Creates a function <code>usePackageInRxFunction</code> where he does the <code>abc.data</code> related work.</li>
+<li>Creates and sets up the <em>SQLCC</em>.</li>
+<li>Calls <code>rxExec</code> with <code>usePackageInRxFunction</code> as argument.</li>
+<li>Returns a data set.</li>
+</ul>
+<p>When Dane executes the code the result is:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs2_exec_success1.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Success</em></p>
+<p>So, everything works fine, and Dane gets a result back. What happens if someone else wants to execute the same code, for example, <code>nielsb</code> who is in the <code>db_owner</code> role? The only thing <code>nielsb</code> changes is the <code>sqlCCConnString</code> parameter:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span> <span style="color:#268bd2">sqlCCConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server; server=.; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                       database=DataScienceDB; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                       uid=nielsb; pwd=password1234$&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 18:</strong> <em>SQLCC Connectionstring for nielsb</em></p>
+<p>When <code>nielsb</code> executes the code in <em>Code Snippet 17</em> but with the <code>sqlCCConnString</code> parameter looking like in <em>Code Snippet 18</em> the outcome is:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs2_error_exec2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>No Package Exception</em></p>
+<p>Hmm, that is strange - we know Dane installed the package (and he just used it), so it has to exist. Dane is part of the <code>rpkgs-shared</code> role so he has permissions to create shared packages? The reason here is even though Dane was in <code>rpkgs-shared</code> role when he ran <code>rxInstallPackages</code> (<em>Code Snippet 14</em>) he did not define the scope for the package. Remember when we looked at the signature and the arguments for <code>rxInstallPackages</code> in <em>Code Snippet 13</em> we said that default value for the <code>scope</code> argument is <code>private</code> and that is how the package is installed regardless of what role Dane is in.</p>
+<p>So to finish off, let <code>user2</code> who is in <code>rpkgs-shared</code> install the same packages in <code>shared</code> scope. Does that work, can you have the same packages installed multiple times? Yes, you can in that you can have the same packages installed in both <code>private</code> as well as <code>shared</code> scope. So <code>user2</code> executes this code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">sqlCCConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    server=192.168.57.3;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    database=DataScienceDB; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    uid=user2; pwd=password1234$&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlCC</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlCCConnString</span>, <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCC</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">pkgs</span> &lt;- <span style="color:#268bd2">c</span>(<span style="color:#2aa198">&#34;abc&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxInstallPackages</span>(<span style="color:#268bd2">pkgs</span> = <span style="color:#268bd2">pkgs</span>, <span style="color:#268bd2">verbose</span> = <span style="color:#859900;font-weight:bold">TRUE</span>, <span style="color:#268bd2">scope</span> = <span style="color:#2aa198">&#34;shared&#34;</span>, <span style="color:#268bd2">computeContext</span> = <span style="color:#268bd2">sqlCC</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 19:</strong> <em>Install R Package</em></p>
+<p>The only changes here in <em>Code Snippet 19</em> compared to the code in <em>Code Snippet 14</em> are the user id (<code>uid</code> -obviously), and <code>scope = &quot;shared&quot;</code> in the <code>rxInstallPackages</code> call. The <code>abc</code> package is now installed in <code>shared</code> scope, and anyone in any of the <code>rpkgs-...</code> roles can use the package.</p>
+<h2 id="summary">Summary</h2>
+<p>This turned out to be a much longer post than I thought it would be, and there are still topics related to RevoScaleR installation functionality that I want to cover, but that comes in future posts.</p>
+<p>So, here is what we covered:</p>
+<ul>
+<li>To use RevoScaleR for package installation both the SQL Server instance as well as the database need to be enabled for package management. You enable package management via <code>RegisterRExt.exe</code> tool and the <code>/installpkgmgmt</code> option. There are additional flags for database enabling, authentication and so forth.</li>
+<li>When enabling the database the process creates a table, stored procedures and roles.</li>
+<li>For a user to be able to install packages he needs to have necessary permissions on <code>sp_execute_external_script1 as well as the </code>EXECUTE ANY EXTERNAL SCRIPT` permission. He also needs to be in a role which allows him to install packages.</li>
+<li>The roles that the enabling process creates are: <code>rpkgs-users</code>, <code>rpkgs-private</code> and <code>rpkgs-shared</code>.</li>
+<li>The roles which allows the user to install packages are <code>rpkgs-private</code> and <code>rpkgs-shared</code> (and <code>db_owner</code>).</li>
+<li>The roles define the scope of the installed packages: <code>private</code> and <code>shared</code>.</li>
+<li>When a user installs a package with <code>private</code> scope, only he can see and use the package.</li>
+<li>If the user installs a package with <code>shared</code> scope, all users in any of the roles, including <code>rpkgs-users</code> can use that package. The user needs to be in the <code>rpkgs-shared</code> (or <code>db_owner</code>) to install a <code>shared</code> package.</li>
+<li>You use the function <code>rxInstallPackages</code> to install a package, and the function needs to run in an <em>SQLCC</em>.</li>
+<li>When the user calls <code>rxInstallPackages</code> he needs to define which scope the package has through the <code>scope</code> argument. If the <code>scope</code> is not defined, it defaults to <code>private</code>.</li>
+<li>To use a package, either in <code>private</code> or <code>shared</code> scope, the code needs to run in <em>SQLCC</em>.</li>
+<li>For a package that has no knowledge about <em>SQLCC</em>, the functions in the package can be run via <code>rxExec</code>.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-06-24-interesting-stuff---week-25/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 25">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-07-01-interesting-stuff---week-26/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 26">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server Machine Learning Services and Extended Events" />
+    <meta property="og:title" content="SQL Server Machine Learning Services and Extended Events" />
+    <meta property="twitter:title" content="SQL Server Machine Learning Services and Extended Events" />
+    
+
+    
+    <meta name="description" content="SQL Server extended events (XEvents) and SQL Server Machine Learning Services">
+    <meta property="og:description" content="SQL Server extended events (XEvents) and SQL Server Machine Learning Services" />
+    <meta property="twitter:description" content="SQL Server extended events (XEvents) and SQL Server Machine Learning Services" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server Machine Learning Services and Extended Events | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-04-08-sql-server-machine-learning-services-and-extended-events/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/extended-events" title="Extended Events">
+                            Extended Events
+                        </a>
+                        
+                        <a class="tag" href="/tags/xevents" title="XEvents">
+                            XEvents
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server Machine Learning Services and Extended Events</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, April 8, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Back in the day when I started with the <strong>SQL Server R Services - Internals</strong> posts, I thought I would use <a href="https://technet.microsoft.com/en-us/library/bb630354(v=sql.105).aspx">SQL Server Extended Events</a> (XEvents) to figure things out. I knew SQL Server and the extensibility architecture supported XEvents because I had come across <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">this</a> documentation, where it (amongst other things) said:</p>
+<p>&ldquo;<em>SQL Server provides a set of extended events to use in troubleshooting operations related to the SQL Server Trusted Launchpad, as well as Python or R jobs sent to SQL Server.</em>&rdquo;</p>
+<p>From the above, it is pretty clear that XEvents is the way to go when drilling down into how things &ldquo;hang together&rdquo;. However, how hard I tried, I could not make &ldquo;head or tails&rdquo; of how to get things to work (I should probably have tried harder), so in the end, I went the <strong>WinDbg</strong> and <strong>WireShark</strong> route.</p>
+<p>Fast forward a year (and a bit) and someone asked a question on an internal forum about XEvents and <strong>SQL Server Machine Learning Services</strong>, and I decided to look into it and to try to understand it a bit better. So this post is the result of me <del>playing around with</del> researching XEvents and SQL Server Machine Learning Services.</p>
+<h2 id="extended-events">Extended Events</h2>
+<p>Let us first look quickly at what Extended Events are.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Please feel free to skip this part if you know about XEvents already.</p>
+</blockquote>
+<p>Once upon a time, the only way for DBA&rsquo;s, developers, and others to identify problems with performance, deadlocks and so forth was to use SQL Trace and SQL Server Profiler together with DBCC and various trace flags. When SQL Server 2005 came along, it expanded upon the diagnostic capabilities with the introduction of Dynamic Management Views (DMV&rsquo;s). However, the diagnostic tools were still intrusive, and you would not want to keep a SQL Trace or SQL Profiler running for an extended period.</p>
+<p>So, in SQL Server 2008 Microsoft introduced Extended Events, which is a general event-handling system for server systems. The Extended Events infrastructure supports the correlation of data from SQL Server, and under certain conditions, the correlation of data from the operating system and database applications. Compared to SQL Profiles and SQL Trace XEvents are less intrusive with minimal negative impact (if any) on performance. Some of the essential concepts/objects are:</p>
+<ul>
+<li>Package</li>
+<li>Event</li>
+<li>Action</li>
+<li>Target</li>
+<li>Event Session</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> The list above of concepts/objects are by no means complete. For example, I do not mention Predicates. The list and following explanations are just meant to give a quick, high-level overview of Extended Events.</p>
+</blockquote>
+<p>Let us look at the concepts/objects:</p>
+<h4 id="package">Package</h4>
+<p>SQL Server Extended Events consists of different type of objects and the <strong>Package</strong> is the &ldquo;top level&rdquo; container for these objects. A <em>Package</em> is registered in the XEvents engine by a binary <strong>Win32</strong> module, and the package exposes objects/functionality related to that module. The following code lists the packages and their respective modules:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">PackageName</span>, <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">Description</span> <span style="color:#268bd2">PackageDesc</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">lm</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">ModuleName</span>, <span style="color:#268bd2">lm</span>.<span style="color:#268bd2">description</span> <span style="color:#268bd2">ModuleDesc</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_packages</span> <span style="color:#268bd2">xp</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_os_loaded_modules</span> <span style="color:#268bd2">lm</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ON</span> <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">module_address</span> = <span style="color:#268bd2">lm</span>.<span style="color:#268bd2">base_address</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Packages and Modules</em></p>
+<p>When you execute the code in <em>Code Snippet 1</em>, you see how there is a one to many relationships between modules and packages, and how all modules are SQL Server dll&rsquo;s. When you work with XEvents you use objects from one or more packages, and objects from different packages can be mixed in an event session (we talk more about event sessions in a bit).</p>
+<h4 id="event">Event</h4>
+<p>The Event is the &ldquo;thing&rdquo; you want to monitor, and it is some point of interest that may or may not happen when executing an application. When the event fires - if it fires - it carries with it the payload (data) related to the occurrence of that point of interest. Execute following code to see all different events:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">EventName</span>, <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">description</span> <span style="color:#268bd2">EventDesc</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">PackageName</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_objects</span> <span style="color:#268bd2">xo</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_packages</span> <span style="color:#268bd2">xp</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ON</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">package_guid</span> = <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">guid</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">object_type</span> = <span style="color:#2aa198">&#39;event&#39;</span>  
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Events and Packages</em></p>
+<p>As you can see, there are quite a few events, and they cover a variety of things. The payload of the Event differs obviously between various events, but you can see the individual data elements in the payload for an Event via  <code>sys.dm_xe_object_columns</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">oc</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">ColumnName</span>, <span style="color:#268bd2">oc</span>.<span style="color:#268bd2">column_id</span>,
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">oc</span>.<span style="color:#268bd2">object_name</span> <span style="color:#268bd2">Event</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_object_columns</span> <span style="color:#268bd2">oc</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_objects</span> <span style="color:#268bd2">xo</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ON</span> <span style="color:#268bd2">oc</span>.<span style="color:#268bd2">object_name</span> = <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">name</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">object_type</span> = <span style="color:#2aa198">&#39;event&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">AND</span> <span style="color:#268bd2">oc</span>.<span style="color:#268bd2">object_name</span> = <span style="color:#2aa198">&#39;sql_statement_completed&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Retrieve Payload Columns for an Event</em></p>
+<p>In <em>Code Snippet 3</em> we see how we select the individual data elements for the Event <code>sql_statement_completed</code>. So, the information returned in the payload is what you see in <code>sys.dm_xe_object_columns</code>. However, if you want more information you can achieve that by using Actions.</p>
+<h4 id="actions">Actions</h4>
+<p>We can think of an Action as an internal function bound to the Event, and it performs a specified task when the Event fires. There are two types of tasks the Action does; either collecting additional information and add it to the Event payload or do something inside the engine, like performing a memory dump, or breaking execution in the default debugger. Run following code to see what actions are available:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">name</span> [<span style="color:#268bd2">Action</span>], <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">description</span> <span style="color:#268bd2">ActionDesc</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_objects</span> <span style="color:#268bd2">xo</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">object_type</span> = <span style="color:#2aa198">&#39;action&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Get Actions</em></p>
+<p>We have seen see that for both events as well as actions, we can collect information. What do we now do with this information?</p>
+<h4 id="targets">Targets</h4>
+<p>The Target is what consumes an Event, and the Target can write to a file, aggregate event data, or start a task that is related to the event. The Target processes the data either synchronously or asynchronously. The code below lists what targets there are:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">name</span> [<span style="color:#268bd2">Target</span>], <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">description</span> <span style="color:#268bd2">TargetDesc</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_objects</span> <span style="color:#268bd2">xo</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">object_type</span> = <span style="color:#2aa198">&#39;target&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Available XEvents Targets</em></p>
+<p>When you run the code in <em>Code Snippet 5</em> you see how a Target is either a file target, like the event file target and the ETW target, or an in-memory target, like event bucketing, event pairing, ring buffer target and so forth. Shortly we see how we use a Target (as well as events and actions).</p>
+<h4 id="event-session">Event Session</h4>
+<p>The Event Session is what ties Events, Actions, Targets and all the other XEVents objects together. In essence, an Event Session is a collection of events, corresponding actions, and the targets that are the destinations for the events we collect.</p>
+<p>When you create an Event Session, it exists in the Extended Events Engine until you drop the Event Session. The Event Session can be started and stopped as needed without having to recreate the session. The flow of creating an Event Session is as follows:</p>
+<ul>
+<li>You first create the Event Session.</li>
+<li>You add Events. Each Event can have additional Actions.</li>
+<li>You add one or more Targets.</li>
+<li>You start the Event Session.</li>
+</ul>
+<h4 id="example-code">Example Code</h4>
+<p>With all the above in mind, let us see what it can look like when creating an Extended Event session:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_event_sessions</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span>=<span style="color:#2aa198">&#39;SimpleTest&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DROP</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SimpleTest</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SimpleTest</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">sqlserver</span>.<span style="color:#268bd2">sql_statement_completed</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">TARGET</span> <span style="color:#268bd2">package0</span>.<span style="color:#268bd2">ring_buffer</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SimpleTest</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span> <span style="color:#859900">STATE</span> = <span style="color:#859900">START</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Create Event Session</em></p>
+<p>In <em>Code Snippet 6</em> we see how we:</p>
+<ul>
+<li>First check whether the Event Session already exists, and if so - we drop it.</li>
+<li>Create the Event Session through the <code>CREATE EVENT SESSION session_name ON SERVER</code> syntax.</li>
+<li>Add the Event(s) we are interested in: <code>ADD EVENT package_name.event_name</code>.</li>
+<li>Add the Target(s): <code>ADD TARGET package_name.target_name</code>.</li>
+<li>Start the session.</li>
+</ul>
+<p>You see in <em>Code Snippet 6</em> how we reference the package name for the Event as well as Target, and how the package for the target is <code>package0</code>. You may wonder what <code>package0</code> is: it is the default package in XEvents, and it contains (among other things) all actions and targets.</p>
+<p>As the Event Session is now running, let us see what happens if we execute a SQL statement, for example: <code>SELECT * FROM sys.databases</code>. When we execute the statement, nothing visible happens, but hopefully, our Target has consumed some event information. The Target for our Event Session is the ring buffer, and to read data from the ring buffer we use code looking like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#859900">CAST</span>(<span style="color:#268bd2">stargets</span>.<span style="color:#268bd2">target_data</span> <span style="color:#859900">AS</span> <span style="color:#268bd2">XML</span>) <span style="color:#859900">AS</span> <span style="color:#268bd2">targetdata</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_session_targets</span> <span style="color:#268bd2">stargets</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">INNER</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_sessions</span> <span style="color:#268bd2">sessions</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">ON</span> <span style="color:#268bd2">sessions</span>.<span style="color:#268bd2">address</span> = <span style="color:#268bd2">stargets</span>.<span style="color:#268bd2">event_session_address</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">sessions</span>.<span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;SimpleTest&#39;</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">AND</span> <span style="color:#268bd2">stargets</span>.<span style="color:#268bd2">target_name</span> = <span style="color:#2aa198">&#39;ring_buffer&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Reading Event Data from the Ring Buffer</em></p>
+<p>When you execute the code in <em>Code Snippet 7</em>, the output is in XML format, and the XML you see below is heavily edited for display:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;sql_statement_completed&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;sqlserver&#34;</span> <span style="color:#268bd2">timestamp=</span><span style="color:#2aa198">&#34;2018-03-30T17:35:16.226Z&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;duration&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;int64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>2115<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;cpu_time&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>0<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;physical_reads&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>0<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;logical_reads&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>266<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;writes&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>0<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;row_count&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>10<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;last_row_count&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;uint64&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>10<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;line_number&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;int32&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>2<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;offset&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;int32&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>4<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;offset_end&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;int32&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>56<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;statement&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;unicode_string&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value&gt;</span>SELECT * FROM sys.databases<span style="color:#268bd2;font-weight:bold">&lt;/value&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;data</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;parameterized_plan_handle&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;type</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;binary_data&#34;</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;value</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/data&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;/event&gt;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Event Information for sql_statement_completed</em></p>
+<p>Notice in <em>Code Snippet 8</em> how we can see the row count (<code>&lt;data name=&quot;row_count&quot;&gt;</code>) and also the SQL statement which caused the event to fire (<code>&lt;data name=&quot;statement&quot;&gt;</code>).</p>
+<blockquote>
+<p><strong>NOTE:</strong> You can also use the UI in <strong>SQL Server Management Studio</strong> (SSMS) to set up Event Sessions.</p>
+</blockquote>
+<h4 id="event-file-target">Event File Target</h4>
+<p>Using the ringbuffer as target fort the events is OK, and it is a &ldquo;quick and dirty&rdquo; way to get things underway. However, it can be somewhat cumbersome to read the data as it is in XML format and there is no UI support for it and so forth. Therefore, in the rest of this post the <code>event_file</code> target is the target of choice for us, instead of the ringbuffer.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Read this <a href="https://www.sqlskills.com/blogs/jonathan/why-i-hate-the-ring_buffer-target-in-extended-events/">blog-post</a> by, &ldquo;Mr Extended Events&rdquo;, <a href="https://www.sqlskills.com/about/jonathan-kehayias/">Jonathan Kehayias</a> for more information about why not to use the ringbuffer.</p>
+</blockquote>
+<p>Just to see the <code>event_file</code> target in action:</p>
+<ul>
+<li>Create a new directory on the SQL Server box, and give it necessary permissions so that various processes can write to the directory (on my machine I created <code>C:\ExtLogs</code>).</li>
+<li>Alter the <code>SimpleTest</code> session like so:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SimpleTest</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DROP</span> <span style="color:#268bd2">TARGET</span> <span style="color:#268bd2">package0</span>.<span style="color:#268bd2">ring_buffer</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SimpleTest</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">TARGET</span> <span style="color:#268bd2">package0</span>.<span style="color:#268bd2">event_file</span>
+</span></span><span style="display:flex;"><span>             (
+</span></span><span style="display:flex;"><span>               <span style="color:#859900">SET</span> <span style="color:#268bd2">filename</span> = <span style="color:#2aa198">&#39;C:\ExtLogs\SimpleTest.xel&#39;</span>,
+</span></span><span style="display:flex;"><span>               <span style="color:#268bd2">max_file_size</span> = <span style="color:#2aa198;font-weight:bold">5</span>
+</span></span><span style="display:flex;"><span>             );
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Alter Session to Use Event File Target</em></p>
+<p>In the code in <em>Code Snippet 9</em> we see how we first drop the original <code>ring_buffer</code> target and then add the <code>event_file</code> target.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The assumption in the code in <em>Code Snippet 9</em> is that the event session exists and is in the <code>START</code> <code>STATE</code>. Oh - and it is not necessary to <code>DROP</code> the <code>ring_buffer</code> target as we can have more than one target in a session.</p>
+</blockquote>
+<p>To see this in action:</p>
+<ul>
+<li>Execute the code we used before: <code>SELECT * FROM sys.databases</code>.</li>
+<li>If everything works, you now see in your directory, a file named something like so: <code>SimpleTest_0_some_long_number.xel</code></li>
+<li>Drag and drop the file into SSMS and you see something like so:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_ssms_event_file.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Output Event File</em></p>
+<p>In <em>Figure 1</em> you see the top part of what is on the SSMS canvas and what you see are the individual events that fired. When you click on one of the events you see the details as so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_ssms_event_file_details.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Event Details</em></p>
+<p>In <em>Figure 2</em>, in the <code>Details</code> pane, we see the individual <code>data</code> elements, and their values from the event outlined in red. To me, I very much prefer what I see in <em>Figure 2</em> to what is in <em>Code Snippet 8</em>, especially since the information is the same.</p>
+<p>You do not explicitly have to drag and drop the event file to the SSMS canvas, you can use the SSMS UI for this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_ssms_target.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Event Details</em></p>
+<p>When you click on the <em>View Target Data</em> as you see in <em>Figure 3</em>, you get the same as in <em>Figure 1</em> and <em>Figure 2</em>.</p>
+<h4 id="more-information">More Information</h4>
+<p>As I mentioned above - this is a very simplified overview of XEvents, and I have skipped a lot of relevant information. Below follows a couple of links if you want to read more about SQL Server Extended Events:</p>
+<ul>
+<li><a href="https://technet.microsoft.com/en-us/library/bb630282(v=sql.110).aspx">Extended Events</a>. Microsoft Extended Events documentation.</li>
+<li><a href="https://www.sqlskills.com/blogs/jonathan/an-xevent-a-day-31-days-of-extended-events/">An XEvent A Day: 31 days of Extended Events</a>. Blog post series by <a href="https://www.sqlskills.com/about/jonathan-kehayias/">Jonathan Kehayias</a> about Extended Events. Jonathan know what he talks about when it comes to Extended Events, among other things he wrote the <a href="https://msdn.microsoft.com/en-us/library/dd822788.aspx">definitive white-paper</a> on Extended Events for Microsoft.</li>
+<li><a href="https://msdn.microsoft.com/en-us/library/ff878115.aspx">Event File Target</a>. Documentation about the Event File target.</li>
+</ul>
+<h2 id="xevents-and-sql-server-machine-learning-services">XEvents and SQL Server Machine Learning Services</h2>
+<p>At this stage I hope we all have at least some basic knowledge of XEvents, so let us now see how XEvents plays with <strong>SQL Server Machine Learning Services</strong>. When you looked through the results from the code in <em>Code Snippet 1</em> (XEvents packages), you might have noticed this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>SqlSatellite Package</em></p>
+<p>Starting with SQL Server 2016, there is a new XEvents package: <code>SQLSatellite</code>, and as there is a new package, the chance is high that there are events exposed through that package as well:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">EventName</span>, <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">description</span> <span style="color:#268bd2">EventDesc</span>, 
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">name</span> <span style="color:#268bd2">PackageName</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_objects</span> <span style="color:#268bd2">xo</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">dm_xe_packages</span> <span style="color:#268bd2">xp</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ON</span> <span style="color:#268bd2">xo</span>.<span style="color:#268bd2">package_guid</span> = <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">guid</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">object_type</span> = <span style="color:#2aa198">&#39;event&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">AND</span> <span style="color:#268bd2">xp</span>.<span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#39;SQLSatellite&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Retrieving Events from the SQLSatellite Package</em></p>
+<p>When I execute the code in <em>Code Snippet 10</em>, I get 34 rows back:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_2.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>SqlSatellite Events</em></p>
+<p>So, <em>Figure 5</em> shows all events from the <code>SQLSatellite</code> package, and I have outlined in red five events that look interesting. Now, let us create an event session with these five events, and see what happens:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_event_sessions</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span>=<span style="color:#2aa198">&#39;SatelliteTest1&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DROP</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SatelliteTest1</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> [<span style="color:#268bd2">SatelliteTest1</span>] <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_authentication_completion</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_authorization_completion</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_cleanup</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">launchpad_launch_start</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">launchpad_resume_sent</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">TARGET</span> <span style="color:#268bd2">package0</span>.<span style="color:#268bd2">event_file</span>
+</span></span><span style="display:flex;"><span>             (
+</span></span><span style="display:flex;"><span>               <span style="color:#859900">SET</span> <span style="color:#268bd2">filename</span> = <span style="color:#2aa198">&#39;C:\ExtLogs\SatelliteTest1.xel&#39;</span>,
+</span></span><span style="display:flex;"><span>               <span style="color:#268bd2">max_file_size</span> = <span style="color:#2aa198;font-weight:bold">5</span>
+</span></span><span style="display:flex;"><span>             )
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span>(<span style="color:#268bd2">MAX_DISPATCH_LATENCY</span> = <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">SECONDS</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SatelliteTest1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span> <span style="color:#859900">STATE</span> = <span style="color:#859900">START</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> &ldquo;Event Session for SQLSatellite&rdquo;</p>
+<p>The code in <em>Code Snippet 11</em> looks similar to the code in <em>Code Snippet 9</em>, except for the <code>WITH(MAX_DISPATCH_LATENCY = 2 SECONDS)</code> event session option. The <code>MAX_DISPATCH_LATENCY</code> option specifies the amount of time that events sit in memory before being dispatched to event session targets. By default, this value is 30 seconds. In the code above, as you can see, the time in memory is 2 seconds.</p>
+<p>Execute the code in <em>Code Snippet 11</em>, and then execute the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>              @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>            , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;d &lt;- 42&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>External Script</em></p>
+<p>When we have executed the code in <em>Code Snippet 12</em>, let us see if some events have fired. Once again, if everything has gone to plan, you now see in your directory, a file named something like so: <code>SatelliteTest1_0_some_long_number.xel</code>. When you drop it on the SSMS canvas you get this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_ssms_ext_script_1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Captured Events</em></p>
+<p>Hmm - Ok, looking at <em>Figure 6</em> I have good news and bad news. The good news is that we captured events from our code execution! The bad news is that we have missing events (<code>satellite_cleanup</code>, <code>launchpad_launch_start</code>, <code>launchpad_resume_sent</code>), and the events we have, look like duplicates (two of both <code>satellite_authentication_completion</code> and <code>satellite_authorization_completion</code>). What is happening?</p>
+<p>Let us look at the &ldquo;alleged&rdquo; duplication issue first. Click on the first <code>satellite_authentication_completion</code> event and you see this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_ssms_ext_script_2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Event Data</em></p>
+<p>In <em>Figure 7</em> you see the <code>data</code> element of the first <code>satellite_authentication_completion</code> event, and you see how the <code>connection_provider</code> is of type <code>ConnectionProviderNamedpipe</code>. The same <code>connection_provider</code> type shows for the first <code>satellite_authorization_completion</code> event as well. However, if you click on either of the second events, the <code>connection_provider</code> type is no longer <code>ConnectionProviderNamedpipe</code> but <code>ConnectionProviderTCP</code>. Ah, so we have two types of connections happening with separate authentication and authorisation events:</p>
+<ul>
+<li>Named Pipes</li>
+<li>TCP Sockets</li>
+</ul>
+<p>That we see two connection types should not come as a surprise to those of you who have read my <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/"><strong>Internals - I</strong></a> and <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/"><strong>Internals - IX</strong></a> posts in the <strong>Microsoft SQL Server R Services</strong> series. In those two posts we discussed how SQL Server makes a named pipes connection to the Launchpad service, and how there is a TCP socket connection established between the SqlSatellite and SQL Server. So, making authorisation and authentication calls for named pipe and TCP socket connections are why we see &ldquo;duplicates&rdquo;.</p>
+<p>What about why we do not see the <code>satellite_cleanup</code>, <code>launchpad_launch_start</code> and <code>launchpad_resume_sent</code> events in <em>Figure 3</em>? Well, I did not read the <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">documentation</a> I linked to above thorough enough because in there it says:</p>
+<p><em>Additional extended events are available for components that are related to and used by SQL Server Machine Learning Services, such as the SQL Server Trusted Launchpad, and BXLServer, the satellite process that starts the R runtime. <strong>These additional extended events are fired from the external processes, and thus must be captured using an external utility</strong>.</em></p>
+<p>Clear as daylight, huh? Do not expect SQL Server to know when external processes fires events. If you want to capture events from processes outside of SQL Server, you need to do it in some other way, not <code>EVENT SESSION</code>.</p>
+<h2 id="events-from-external-processes">Events from External Processes</h2>
+<blockquote>
+<p><strong>NOTE:</strong> Some of the below are copied and re-worded from the <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">Extended events for SQL Server Machine Learning Services</a> page.</p>
+</blockquote>
+<p>So how do we then capture events from external processes, or rather - how do we register with an external process to capture events, and also, how do we define the events we want to capture? Oh, and what processes do we talk about here?</p>
+<p>We start with the last one first: the processes that interests us are:</p>
+<ul>
+<li><code>Launchpad.exe</code> - called in <code>sp_execute_external_script</code> and &ldquo;routes&rdquo; the request to correct external engine.</li>
+<li><code>BxlServer.exe</code> - this is the process that hosts the SqlSatellite.</li>
+</ul>
+<p>To register for events as well as defining the events which interest us, we use a configuration file. This file is the &ldquo;moral equivalent&rdquo; of the <code>CREATE EVENT SESSION</code> statement for SQL Server. What I mean with that is that, in said file, you define pretty much what you do in <code>CREATE EVENT SESSION</code>. The format of the file (taken from the <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">link</a> above), looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;event_sessions&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;event_session</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;[session name]&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">maxMemory=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">dispatchLatency=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">MaxDispatchLatency=</span><span style="color:#2aa198">&#34;2 SECONDS&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;description</span> <span style="color:#268bd2">owner=</span><span style="color:#2aa198">&#34;you&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>XEvents.<span style="color:#268bd2;font-weight:bold">&lt;/description&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;[XEvent Name 1]&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;[XEvent Name 2]&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;target</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;event_file&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;filename&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;[SessionName].xel&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_file_size&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;10&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_rollover_files&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;10&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/target&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;/event_session&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;/event_sessions&gt;</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Configuration File for External Extended Events</em></p>
+<p>When looking at <em>Code Snippet 13</em> we see we have a root element <code>&lt;event_sessions&gt;</code> followed by a child element <code>&lt;event_session&gt;</code>. With this in mind, we see how one config file can support multiple event sessions. The <code>&lt;event_session&gt;</code> element is like an amalgamation of <code>CREATE EVEN SESSION</code> and the <code>WITH</code> event session options in the T-SQL statement for creating an event session. The <code>&lt;event_session&gt;</code> element has following attributes:</p>
+<ul>
+<li><code>name</code> - A mandatory attribute. If you do not set the name, &ldquo;bad things&rdquo; happen.</li>
+<li><code>maxMemory</code> - An optional attribute and it is similar to <code>MAX_MEMORY</code> in SQL Server event session options, and it specifies the maximum amount of memory to allocate to the session for event buffering.</li>
+<li><code>MaxDispatchLatency</code> - Optional attribute, similar to <code>MAX_DISPATCH_LATENCY</code> in SQL Server event session options. The attribute has a default of 30 seconds, and it specifies the amount of time that events sit in memory before being dispatched to event session targets.</li>
+<li><code>dispatchLatency</code> - Optional attribute and this has no equivalent (as far as I can tell) in the SQL Server event session options. However, it is similar to <code>MaxDispatchLatency</code>, in that the attribute specifies the time (in seconds), events sit in memory before being dispatched to event session targets. If both <code>MaxDispatchLatency</code> and <code>dispatchLatency</code> have values, <code>dispatchLatency</code> takes precedence.</li>
+</ul>
+<p>The <code>&lt;description&gt;</code> element is optional, and I do not know what functionality it offers. I can only speculate, but perhaps, some event readers may display the description. Anyway, after the <code>&lt;description&gt;</code> element comes the actual <code>&lt;event&gt;</code> element(s), with attributes for <code>package</code> and <code>name</code> and this is equivalent of <code>ADD EVENT package.event</code>.</p>
+<p>Finally, after the events, we set up the target in the <code>&lt;target&gt;</code> element. The only target I have tried with is the <code>event_file</code>, so keep that in mind. The package for all targets are <code>package0</code> and the <code>name</code> is <code>event_file</code>. The <code>&lt;target&gt;</code> element have child nodes of <code>&lt;parameter&gt;</code> nodes. For the <code>&lt;event_file&gt;</code> target the only required <code>&lt;parameter&gt;</code> is the <code>filename</code>.</p>
+<p>So, <code>filename</code> - this is where things are getting interesting: Having seen how we define the file to write to for SQL Server XEvents (<em>Code Snippet 9</em> and <em>Code Snippet 11</em>), you expect it is the same for the external processes. But no, it is different, and it is even different between Launchpad and BxlServer!</p>
+<p><strong>Launchpad:</strong></p>
+<p>For Launchpad, the filename has to be the actual filename, no path: <code>&lt;parameter name=&quot;filename&quot; value=&quot;launchpadTest.xel&quot; /&gt;</code> for example. Launchpad then writes the event file to the path that the <code>-logFile</code> parameter sets at startup. Default location is <code>C:\\&lt;path_to_SQL_instance\&gt;\MSSQL\LOG\ExtensibilityLog</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You can read more about startup parameters for the Launchpad service in <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/"><strong>Internals - II</strong></a>.</p>
+</blockquote>
+<p><strong>BxlServer:</strong></p>
+<p>You would expect that Launchpad and BxlServer would be similar in how they handle the file name, but as I wrote above they are not. BxlServer requires you to define the file as a relative path to where the <code>BxlServer.exe</code> is, and the BxlServer process needs write permissions on the directory where it writes the file to. So if I want the BxlServer to write the file to the directory I created above, the directory where SQL Server writes the events to, the parameter looks like so: <code>&lt;parameter name=&quot;filename&quot; value=&quot;..\..\..\..\..\..\..\..\..\..\ExtLogs\bxlserver1.xel&quot; /&gt;</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I know the above purely due to <a href="https://www.linkedin.com/in/umachandarjayachandran/">Umachandar Jayachandran</a> (Program Manager in the SQL Server team) told me about it - so no great insight from me.</p>
+</blockquote>
+<p>The two remaining <code>&lt;parameter&gt;</code> nodes: <code>max_file_size</code> and <code>max_rollover_files</code> are both optional and you can read more about them in the <a href="https://msdn.microsoft.com/en-us/library/ff878115.aspx">Event File Target</a> documentation.</p>
+<p>The final thing to cover before a couple of examples is where to place the configuration files and what to name them. You name the files<code>process_name.xevents.xml</code> ( <code>Launchpad.xevents.xml</code>, <code>bxlserver.xevents.xml</code>) and you place them together with the executables for the processes (remember that <code>BxlSever.exe</code> is in two locations, one for R and one for Python):</p>
+<ul>
+<li>Launchpad - <code>C:\\&lt;path_to_SQL_instance\&gt;\MSSQL\Binn</code></li>
+<li>BxlServer R - <code>C:\\&lt;path_to_SQL_instance\&gt;\R_SERVICES\library\RevoScaleR\rxLibs\x64</code></li>
+<li>BxlServer Python - <code>C:\\&lt;path_to_SQL_instance\&gt;\PYTHON_SERVICES\Lib\site-packages\revoscalepy\rxLibs</code></li>
+</ul>
+<h4 id="example">Example</h4>
+<p>Having covered the basics of SQL Server extended events for external processes, let us see an example of what it can look like with SQL Server, Launchpad and BxlServer. So the assumption for this example is that we want to understand what happens when we send and receive data to and from the external engine.</p>
+<p>The first thing we do is to set up a SQL Server event session. We expand and alter the code in <em>Code Snippet 11</em> slightly:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span>(<span style="color:#859900">SELECT</span> <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">server_event_sessions</span> 
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">WHERE</span> <span style="color:#268bd2">name</span>=<span style="color:#2aa198">&#39;SatelliteTest1&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DROP</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SatelliteTest1</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> [<span style="color:#268bd2">SatelliteTest1</span>] <span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_authentication_completion</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_authorization_completion</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_service_start_posted</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_data_send_start</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_data_chunk_sent</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_data_send_completion</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_schema_received</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_outputArgument_received</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_abort_sent</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_abort_received</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">EVENT</span> <span style="color:#268bd2">SQLSatellite</span>.<span style="color:#268bd2">satellite_abort_connection</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ADD</span> <span style="color:#268bd2">TARGET</span> <span style="color:#268bd2">package0</span>.<span style="color:#268bd2">event_file</span>
+</span></span><span style="display:flex;"><span>             (
+</span></span><span style="display:flex;"><span>               <span style="color:#859900">SET</span> <span style="color:#268bd2">filename</span> = <span style="color:#2aa198">&#39;C:\ExtLogs\SatelliteTest1.xel&#39;</span>,
+</span></span><span style="display:flex;"><span>               <span style="color:#268bd2">max_file_size</span> = <span style="color:#2aa198;font-weight:bold">5</span>
+</span></span><span style="display:flex;"><span>             )
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span>(<span style="color:#268bd2">MAX_DISPATCH_LATENCY</span> = <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">SECONDS</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#268bd2">EVENT</span> <span style="color:#859900">SESSION</span> <span style="color:#268bd2">SatelliteTest1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ON</span> <span style="color:#268bd2">SERVER</span> <span style="color:#859900">STATE</span> = <span style="color:#859900">START</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>XEvents SQL Server</em></p>
+<p>In <em>Code Snippet 14</em> we see how we use the authentication and authorisation events from <em>Code Snippet 11</em> and how we add data related events, output argument events and abort events to the session.</p>
+<p>The Launchpad config file looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;event_sessions&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;event_session</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;dataEventsLaunchPad&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">maxMemory=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">dispatchLatency=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">MaxDispatchLatency=</span><span style="color:#2aa198">&#34;2 SECONDS&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;trace_event&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;launchpad_launch_start&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;launchpad_resume_sent&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> 
+</span></span><span style="display:flex;"><span>           <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_authentication_completion&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_messaging&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_message_summary&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;target</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;event_file&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;filename&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;launchpadDataEvents.xel&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_file_size&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;5&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_rollover_files&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;5&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/target&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;/event_session&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;/event_sessions&gt;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Launchpad.xevents.xel Configuration File</em></p>
+<p>For Launchpad we are interested in trace events, the start and resume events, authentication and then finally some message events. Notice how the file name is just the filename with no path. This is per what we discussed earlier.</p>
+<p>Finally the BxlServer config file looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;event_sessions&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;event_session</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;dataEventsBxl&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">maxMemory=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">dispatchLatency=</span><span style="color:#2aa198">&#34;1&#34;</span> 
+</span></span><span style="display:flex;"><span>                 <span style="color:#268bd2">MaxDispatchLatency=</span><span style="color:#2aa198">&#34;2 SECONDS&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;trace_event&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> 
+</span></span><span style="display:flex;"><span>           <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_authentication_completion&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> 
+</span></span><span style="display:flex;"><span>           <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_data_receive_completion&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_schema_sent&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> 
+</span></span><span style="display:flex;"><span>           <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_outputArgument_sent&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_abort_connection&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_cleanup&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_messaging&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;event</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;SQLSatellite&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;satellite_message_summary&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;target</span> <span style="color:#268bd2">package=</span><span style="color:#2aa198">&#34;package0&#34;</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;event_file&#34;</span><span style="color:#268bd2;font-weight:bold">&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;filename&#34;</span> 
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;..\\..\\..\\..\\..\\..\\..\\..\\..\\..\ExtLogs\bxlDataEvents.xel&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_file_size&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;5&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">&lt;parameter</span> <span style="color:#268bd2">name=</span><span style="color:#2aa198">&#34;max_rollover_files&#34;</span> <span style="color:#268bd2">value=</span><span style="color:#2aa198">&#34;5&#34;</span> <span style="color:#268bd2;font-weight:bold">/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">&lt;/target&gt;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&lt;/event_session&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">&lt;/event_sessions&gt;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 16:</strong> <em>bxlserver.xevents.xel Configuration File</em></p>
+<p>The config file for BxlServer looks a little bit like the config file for Launchpad in that we are interested in authentication and trace events. In addition to to those events, we are interested in: data, output arguments, aborts and messages.</p>
+<p>We now create the event session in <em>Code Snippet 14</em> by executing - in SSMS - the code in the code snippet. We then drop the configuration files for the Launchpad (<code>Launchpad.xevents.xel</code>) and BxlServer (<code>bxlserver.xevents.xel</code>) in respective directories (as we mentioned above).</p>
+<blockquote>
+<p><strong>NOTE:</strong> Both Launchpad and BxlServer loads the configuration files at startup. This is not so much an issue with the BxlServer, as each execution results in a startup. However, for Launchpad it is different, as Launchpad starts when the service starts. So if you create a new configuration file for the Launchpad service (as we do here) or do changes to an existing file, you need to restart the Launchpad service afterwards.</p>
+</blockquote>
+<p>Right, we can now execute some <code>sp_execute_external_script</code> code and see what happens (after having restarted the Launchpad service):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>            @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>          , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet &lt;- InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>          , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT name, database_id 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              FROM sys.databases&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 17:</strong> <em>External Script</em></p>
+<p>After execution, you now see in your log directory two <code>xel</code> files, one for the SQL Server <code>SatelliteTest1</code> session and one for the BxlServer. In the <code>..\Log\ExtensibilityLog</code> directory you see one <code>xel</code> file for the Launchpad extended events. If we drag and drop them to the SSMS canvas we see this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_sql_xevents.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>SQL Server Event Data</em></p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_launchpad_xevents.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Launchpad Event Data</em></p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_bxl_xevents.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>BxlServer Event Data</em></p>
+<p>The three figures above show the extended events, after we executed the code in <em>Code Snippet 17</em>, from:</p>
+<ul>
+<li>SQL Server - <em>Figure 8</em>.</li>
+<li>Launchpad - <em>Figure 9</em>.</li>
+<li>BxlServer - <em>Figure 10</em>.</li>
+</ul>
+<p>By looking at the events and the timestamps, we get an idea what the flow is when executing <code>sp_execute_external_script</code>, similar to what we covered in the <strong>SQL Server R Services - Internals</strong>. To see more clearly the flow, I inserted the different events into a table and selected out from the table in the order of the event time, and then it looks like this:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_xevents_event_order2.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Event Order</em></p>
+<p>I have in <em>Figure 11</em> highlighted some events worth saying a couple of words about:</p>
+<ul>
+<li>Green - <code>trace_event</code>. In the <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">documentation</a> it says that the <code>trace_event</code> can include events due to output to stdout and stderr from R. From my testing I can not see that, it only outputs internal trace events, and it looks like SQL Server does not output any trace events at all.</li>
+<li>Yellow - <code>satellite_messaging</code>. This event is really cool, as it fires when the different processes send messages to each other. Useful if you want to see what happens. I only included <code>satellite_messaging</code> for the Launchpad service, as otherwise, the trace becomes too big.</li>
+<li>Blue - <code>satellite_schema_sent/received</code>. BxlServer fires <code>satellite_schema_sent</code> when data goes back to SQL Server, and SQL Server fires <code>satellite_schema_received</code>. In fact regardless if any return data goes back to SQL Server, these two events fires.</li>
+<li>Red - <code>satellite_outputArgument_sent/received</code>. As the name implies, these two events are related to output arguments. They have the same behaviour as the schema events above in that that they fire regardless whether there is an output argument or not.</li>
+</ul>
+<h2 id="event-matrix">Event Matrix</h2>
+<p>During my playing around with extended events for <strong>SQL Server Machine Learning Services</strong> I have tried to keep track and what events fire when and for what processes. There are events I have not been able to see fire at all, but that is most likely due to me not knowing what I am doing. Anyway, the table below lays out what I have seen:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th style="text-align:center">SQL Server</th>
+<th style="text-align:center">Launchpad</th>
+<th style="text-align:center">BxlServer</th>
+<th>Comments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>launchpad_launch_start</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>launchpad_resume_sent</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>trace_event</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td>See above about <code>trace_event</code>.</td>
+</tr>
+<tr>
+<td><code>satellite_authentication_completion</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_authorization_completion</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_service_start_posted</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_data_send_start</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_data_chunk_sent</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_data_send_completion</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_data_receive_completion</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_schema_sent</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td>See above about <code>satellite_schema_sent</code>.</td>
+</tr>
+<tr>
+<td><code>satellite_outputArgument_sent</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td>See above about <code>satellite_outputArgument_sent</code>.</td>
+</tr>
+<tr>
+<td><code>satellite_error</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td>This event is output, regardless if there is an error or not.</td>
+</tr>
+<tr>
+<td><code>satellite_schema_received</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>See above about <code>satellite_schema_received</code>.</td>
+</tr>
+<tr>
+<td><code>satellite_outputArgument_received</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>See above about <code>satellite_outputArgument_received</code>.</td>
+</tr>
+<tr>
+<td><code>satellite_abort_sent</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center">(x)</td>
+<td>See below.</td>
+</tr>
+<tr>
+<td><code>satellite_abort_received</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_abort_connection</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_cleanup</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_message_summary</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_messaging</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td style="text-align:center">x</td>
+<td></td>
+</tr>
+<tr>
+<td><code>satellite_message_coalesced</code></td>
+<td style="text-align:center">x</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>connection_accept</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>See below.</td>
+</tr>
+<tr>
+<td><code>failed_launching</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>See below.</td>
+</tr>
+<tr>
+<td><code>extensibility_session_snapshot</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+<tr>
+<td><code>external_resource_pool</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+<tr>
+<td><code>extensibility_error_ring_buffer_record</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+<tr>
+<td><code>extensibility_session_snapshot</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+<tr>
+<td><code>satellite_unexpected_message_received</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+<tr>
+<td><code>stack_trace</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Should fire if a memory dump is made of the process.</td>
+</tr>
+<tr>
+<td><code>satellite_message_ring_buffer_record</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire. Believe this is more for debug purposes.</td>
+</tr>
+<tr>
+<td><code>satellite_sessionId_mismatch</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire. Believe this is more for debug purposes.</td>
+</tr>
+<tr>
+<td><code>satellite_invalid_sized_message</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire. Believe this is more for debug purposes.</td>
+</tr>
+<tr>
+<td><code>satellite_message_version_mismatch</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire. Believe this is more for debug purposes.</td>
+</tr>
+<tr>
+<td><code>satellite_partial_message</code></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td>Cannot get to fire.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 1:</strong> <em>Event Matrix</em></p>
+<p>In <em>Table 1</em> there are a couple of &ldquo;see below&rdquo;:</p>
+<ul>
+<li><code>satellite_abort_sent</code> - If execution goes OK, SQL Server fires the <code>satellite_abort_sent</code> at the end of execution. If an exception happens in the external engine, SqlSatellite fires <code>satellite_abort_sent</code>.</li>
+<li><code>connection_accept</code> - I am surprised that I cannot see this event fire.  I would have expected at least SQL Server or SqlSatellite to cause the event to happen when they connect.</li>
+<li><code>failed_launching</code> - This I am also surprised not to see fire. I stopped the launchpad service and tried to execute <code>sp_execute_external_script</code>, but no, no <code>failed_launching</code> event.</li>
+</ul>
+<p>I hope that Microsoft, at some stage, can explain to me what I did wrong when I could not see some of the events above fire. When that happens I will update this post.</p>
+<h2 id="summary">Summary</h2>
+<p>So what are the takeaway points in this post:</p>
+<ul>
+<li>With the introduction of R in SQL Server 2016, Microsoft also introduced new extended events for <strong>SQL Server Machine Learning Services</strong>.</li>
+<li>The <code>SQLSatellite</code> package contains the events.</li>
+<li>XEvents are available both for the SQL Server process as well as the external processes: <code>Launchpad.exe</code> and <code>BxlServer.exe</code>.</li>
+<li>The three processes do not publish all the same events.</li>
+<li>To capture events from SQL Server you use the &ldquo;normal&rdquo; <code>CREATE EVENT SESSION</code> syntax.</li>
+<li>For <code>Launchpad.exe</code> and <code>BxlServer.exe</code> you use a configuration file in XML format to register the events that interests you.</li>
+<li>You place the configuration file(s) in the same directory as the executable(s).</li>
+<li>When the external processes target the <code>event_file</code> <code>target</code>, the target filename (and path) differs between the Launchpad process and the BxlServer process.
+<ul>
+<li>For Launchpad the filename is the filename only, and Launchpad writes the file to the <code>..\Log\ExtensibilityLog</code> directory.</li>
+<li>For BxlServer the path is a relative path (relative to BxlServer) to a directory which BxlServer has write access to.</li>
+</ul>
+</li>
+</ul>
+<p>As I mentioned at the beginning of this post, the post came about due to a question on an internal forum, and I just wanted to figure out for myself what goes on with extended events and <strong>SQL Server Machine Learning Services</strong>. The  <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/extended-events-for-sql-server-r-services">documentation</a> about extended events and SQL Server Machine Learning Services was a big help, and without the help from <a href="https://www.linkedin.com/in/umachandarjayachandran/">Umachandar Jayachandran</a> I would never have figured out why I could not see any events from <code>BxlServer.exe</code>.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-03-31-interesting-stuff---week-13/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 13">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-04-08-interesting-stuff---week-14/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 14">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

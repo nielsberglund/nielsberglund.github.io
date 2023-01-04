@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Fix PolyBase in SQL Server 2019 Developers Edition" />
+    <meta property="og:title" content="Fix PolyBase in SQL Server 2019 Developers Edition" />
+    <meta property="twitter:title" content="Fix PolyBase in SQL Server 2019 Developers Edition" />
+    
+
+    
+    <meta name="description" content="How to fix PolyBase not working out of the box, in SQL Server 2019 Developer edition.">
+    <meta property="og:description" content="How to fix PolyBase not working out of the box, in SQL Server 2019 Developer edition." />
+    <meta property="twitter:description" content="How to fix PolyBase not working out of the box, in SQL Server 2019 Developer edition." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Fix PolyBase in SQL Server 2019 Developers Edition | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-11-20-fix-polybase-in-sql-server-2019-developers-edition/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019" title="SQL Server 2019">
+                            SQL Server 2019
+                        </a>
+                        
+                        <a class="tag" href="/tags/polybase" title="Polybase">
+                            Polybase
+                        </a>
+                        
+                    </div>
+                    <h1>Fix PolyBase in SQL Server 2019 Developers Edition</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Wednesday, November 20, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>At <a href="https://www.microsoft.com/en-us/ignite">MS Ignite</a> in Orlando November 4 - 8, 2019, Microsoft announced the general availability of SQL Server 2019. At the same time, the SQL Server 2019 Developers Edition appeared as an MSDN download, and of course, I downloaded it and installed it on my dev box.</p>
+<p>After the installation, I noticed that PolyBase did not start up correctly, and I saw dump files all over the place. After some investigation, I figured out what the issue was, and this blog post describes the fix.</p>
+<h2 id="polybase-intro">PolyBase Intro</h2>
+<p>Before we go into the issue and solution, let us do a quick introduction of PolyBase and also look at the installation of PolyBase.</p>
+<p>PolyBase enables you to, in your SQL Server instance, process Transact-SQL queries that read data from external data sources. Microsoft introduced PolyBase in SQL Server 2016, and in that version of PolyBase the only data-sources you could process data from were: Hadoop and Azure Blob Storage. That changed in SQL Server 2019 where PolyBase now supports:</p>
+<ul>
+<li>Hadoop.</li>
+<li>Azure Blob Storage.</li>
+<li>SQL Server.</li>
+<li>Oracle.</li>
+<li>Teradata.</li>
+<li>MongoDB</li>
+<li>ODBC Generic Types, (only PolyBase in SQL Server 2019 on Windows).</li>
+</ul>
+<h4 id="installation">Installation</h4>
+<p>You either install PolyBase as part of a regular installation of a SQL Server instance, or you add it after installation. In both cases, you select it during feature selection:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-install.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>PolyBase Feature Selection</em></p>
+<p>In <em>Figure 1</em> we see how I chose both the <em>PolyBase Query Service</em> as well as the <em>Java connector for HDFS data sources</em>. After clicking on from there passing <em>Feature Rules</em>, and <em>Instance Configuration</em> we get to <em>PolyBase Configuration</em>:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-install2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>PolyBase Configuration</em></p>
+<p>As we see from <em>Figure 2</em> I choose a standalone PolyBase-enabled instance.</p>
+<p>I click on from there and eventually the installation finishes:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-install3.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Installation Complete</em></p>
+<p>We see in <em>Figure 3</em> how all components are green which indicates that the installation has succeeded. Cool!</p>
+<h2 id="problem">Problem</h2>
+<p>But has the installation succeeded? What usually I do after a SQL installation is to go to <em>Services</em> and change properties for the various SQL services, (automatic startup to manual startup, etc.). When I do this, I see:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-services.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Services</em></p>
+<p>What we see in <em>Figure 4</em> is a view of services a couple of minutes after the installation. We see that the SQL Server service, (<code>MSSQLSERVER</code>), is in <code>Running</code> state. However, the two PolyBase services are still in a <code>Starting</code> state. Something must have gone wrong, but what!</p>
+<blockquote>
+<p><strong>NOTE:</strong> Depending on how long after installation you look at services you may see the PolyBase Engine in a stopped state, but the Data Movement still in a <code>Starting</code> state.</p>
+</blockquote>
+<p>Let us see if we can try and figure out what is wrong. We start by going to the SQL Server log files directory, which is at: <code>&lt;path_to_sql_instance&gt;\MSSQL\Log</code>. In there you find a <code>Polybase</code> directory with a <code>dump</code> subdirectory:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-dump-dir.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>PolyBase Dump Directory</em></p>
+<p>In <em>Figure 5</em> we see how the <code>dump</code> directory contains a <code>.dmp</code> file. Maybe we can find any clues if we open it in <strong>WinDbg</strong>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>Comment: <span style="color:#2aa198">&#39;Stack Trace&#39;</span>
+</span></span><span style="display:flex;"><span>Comment: 
+</span></span><span style="display:flex;"><span>  <span style="color:#2aa198">&#39;&lt;Identity&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     &lt;Element key=&#34;CodePackageName&#34; val=&#34;DwDms.Code&#34;/&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     [snip]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     &lt;Element key=&#34;ExceptionMessage&#34; val=&#34;A network-related or 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      instance-specific error occurred while establishing a connection 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      to SQL Server. The server was not found or was not accessible. 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      Verify that the instance name is correct and that SQL Server is 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      configured to allow remote connections. 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      (provider: TCP Provider, error: 0 - The remote computer refused 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">       the network connection.)&#34;/&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     &lt;Element key=&#34;ExceptionType&#34; val=&#34;System.Data.SqlClient.SqlException&#34;/&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     [snip]
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">     &lt;/Identity&gt;&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Exception in File</em></p>
+<p>Hmm, in <em>Code Snippet 1</em> we see an excerpt of the top of the file, (I have &ldquo;snipped&rdquo; out parts for brevity), and we see an error about how PolyBase cannot connect to SQL Server via the TCP provider.</p>
+<h2 id="fix">Fix</h2>
+<p>The error we see in <em>Code Snippet 1</em> is a big clue since TCP is not an enabled network protocol by default for SQL Server Developer edition.</p>
+<p>Let us enable TCP/IP as a network protocol for SQL Server. We enable network protocols using the <em>SQL Server Configuration Manager</em>. Open <em>SQL Server Configuration Manager</em> either via the Windows <strong>Start</strong> menu or from <em>Computer Manager</em>:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-compmngr.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>SQL Server Configuration Manager</em></p>
+<p>In <em>Figure 6</em> we see, outlined in blue, <em>SQL Server Configuration Manager</em>, and how we have expanded <em>SQL Server Network Configuration</em>, (outlined in red). On the right-hand side in <em>Figure 6</em> we see how the TCP/IP protocol is indeed disabled.</p>
+<p>To enable we right-click on the TCP/IP protocol and in the menu choose <strong>Enable</strong>. When we do that a <em>Warning</em> dialog &ldquo;pops&rdquo; up:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-enable-warning.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Warning Dialog</em></p>
+<p>So, we see in <em>Figure 7</em> that any changes will not happen until the SQL Server instance is restarted. Cool, let us restart the service. We go back to <em>Services</em> as in <em>Figure 4</em>, and we right-click on the SQL Server service, and choose <strong>Restart</strong>:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-stop-service.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Stop Services</em></p>
+<p>When we try to restart we get the warning we see in <em>Figure 8</em>, telling us we need to also restart the <em>PolyBase Data Movement</em> service, and the <em>Launchpad</em> service.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The <em>Launchpad</em> service is part of SQL Server Machine Learning Services.</p>
+</blockquote>
+<p>I click <strong>Yes</strong> as in <em>Figure 8</em>, and almost immediately I see:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-stop-control.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Can Not Stop Service</em></p>
+<p>The problem that manifests itself by what we see in <em>Figure 9</em> is that the <em>PolyBase Data Movement</em> service is in a <code>Starting</code> state, and cannot be stopped.</p>
+<p>What do we do now? Well, we can try and restart the machine, but that seems like overkill, (and it may not work). So let us try to use a command from the command prompt, where we can force the termination of a service: <code>taskkill</code>.</p>
+<p>To use the <code>taskkill</code> command, we need to know either the process-id, (<code>PID</code>), of the process we want to terminate, or the process name. To get the <code>PID</code> we open <em>Task Manager</em> and under the services tab we find the SQL Server service:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-task-manager.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Task Manager</em></p>
+<p>We see in <em>Figure 10</em> the <code>PID</code>, (highlighted in yellow), which we now use to terminate the SQL Server process:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-task-kill.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Task Manager</em></p>
+<p>As we see in <em>Figure 11</em> I called <code>taskkill</code> from command prompt which I opened as administrator. I used the process-id from <em>Figure 10</em>, and I used the <code>/F</code> flag to indicate I wanted to force the termination. The command executed successfully, and as we see in <em>Figure 11</em> the process has been terminated.</p>
+<p>What is left to do now is to start the SQL Server process, followed by the PolyBase Data Movement service and the PolyBase Engine service. The PolyBase Data Movement service may still be in the state of `Starting, but by right-clicking on the service and choose <strong>Start</strong> it will start:</p>
+<p>
+  <img src="/images/posts/sql-2k19-polybase-issue-services-running.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Services Running</em></p>
+<p>We see in <em>Figure 12</em> how the services are up and running.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, we saw how we fix the issue where the PolyBase services do not start on a SQL Server 2019 Developer Edition.</p>
+<p>We said it was due to that TCP/IP is not by default an enabled SQL Server network protocol for the Developer edition. Therefore the PolyBase services cannot connect to the SQL Server instance at startup. We fixed it by:</p>
+<ul>
+<li>Enable the TCP/IP protocol under <em>SQL Server Network Configuration</em> in <em>SQL Server Configuration Manager</em>.</li>
+<li>Retrieve the process-id, (<code>PID</code>), for the SQL Server service.</li>
+<li>Forcing the process to be terminated by the <code>taskkill /PID &lt;process-id&gt; /F</code> command.</li>
+<li>Restart the SQL Server service, followed by the PolyBase services.</li>
+</ul>
+<p>Another way to do this is to install SQL Server without the PolyBase features. After installation you enable the TCP/IP protocol, restart SQL Server, and then install the PolyBase features.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-11-17-interesting-stuff---week-46-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 46, 2019">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2019-11-24-interesting-stuff---week-47-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 47, 2019">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

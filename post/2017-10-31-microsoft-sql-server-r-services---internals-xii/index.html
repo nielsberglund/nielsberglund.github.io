@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XII" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XII" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XII" />
+    
+
+    
+    <meta name="description" content="More about the TCP/IPpackets sent from SQL Server to SqlSatellite.">
+    <meta property="og:description" content="More about the TCP/IPpackets sent from SQL Server to SqlSatellite." />
+    <meta property="twitter:description" content="More about the TCP/IPpackets sent from SQL Server to SqlSatellite." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XII | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XII</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Tuesday, October 31, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 13:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 12:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>The last few posts in this series has been about communication between SQL Server and SqlSatellite. We have discussed the connection between the two, and we have also seen how packets are sent from SQL Server to SqlSatellite. In this post we&rsquo;ll continue looking at what causes the packets to be send and what sends them. We will specifically look at the packet containing the external script, as well as the packet that contains the data (<code>@input_data_set_1</code>).</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, we executed code looking like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(30)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-42&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              SELECT TOP(1) y, rand1, rand2, rand3, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      rand4, rand5 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              FROM dbo.rand_1M&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>External Script with Data Select</em></p>
+<p>When executing the code in <em>Code Snippet 1</em>, and filtering on TCP event in <em>Process Monitor</em>, the output from the filtering looked like below:</p>
+<p>
+  <img src="/images/posts/sql_r_services_10_procmon_output3.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Process Monitor Output Data Select</em></p>
+<p>By using <em>WireShark</em> we determined that the two highlighted packets (length 350, and 6300 respectively) contained the external script (packet with length 350), and the result from the <code>SELECT</code> (length 6300). We could however not determine what the two initial packets were, and what caused them to be sent - and in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we set out to try to find out more about those packets.</p>
+<p>By doing some <em>WinDbg</em> <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a> we found out that the two packets are sent during authentication between SQL Server and the SqlSatellite and they are sent inside the <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> routine. The flow of calls can be illustrated as in the figure below:</p>
+<p>
+  <img src="/images/posts/sql_r_services_11_calls.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Flow in SQL Server</em></p>
+<p>It is worth noting that the second <code>WriteAsync</code> is done on a separate thread from the first, but still within the <code>AuthenticateConnection</code> routine. We now know what causes the two first packets to be sent, and what routines are involved. We also know what the two following packets are for (script and data), but we do not know what routines are involved (other than <code>WriteMessage</code>), and we definitely don&rsquo;t know what the two packets with a length of 28 is for. As mentioned in the beginning of this post, this is now what we will try and figure out.</p>
+<h2 id="helper-tools">Helper Tools</h2>
+<p>To help us figure out the things we want, we will use <em>WinDbg</em> and <em>Process Monitor</em>. In the case of <em>Process Monitor</em>, we&rsquo;ll use it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</p>
+<h4 id="windbg">WinDbg</h4>
+<p>We have used <em>WinDbg</em> throughout this series, and in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we discussed how to set it up etc. The <em>WinDbg</em> we have used up until now is the &ldquo;classic&rdquo; <em>WinDbg</em>, that has been available throughout the years. In August Microsoft released a preview version of a more modern <a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86"><em>WinDbg</em> application</a>.</p>
+<p>It has been updated to have more modern visuals, faster windows, a full-fledged scripting experience, and Time Travel Debugging (whatever that is):</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_windbg1.jpg" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>New WinDbg</em></p>
+<p>So, going forward in this series, the new <em>WinDbg</em> is the debugger I&rsquo;ll use.</p>
+<h2 id="script-packets">Script Packets</h2>
+<p>Let us first start with the script packets, and the code we&rsquo;ll use for this is what we also used in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(30)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-42&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Basic External Script</em></p>
+<p>The reason for using simple code like in <em>Code Snippet 1</em>, is that it might make it easier to understand what is happening, and we can compare with what is happening when executing some other, not so basic, code. Notice how in <em>Code Snippet 2</em> there is a <code>Sys.sleep</code>. It is there to make it easier to determine - when debugging - when data is sent to R and when data is coming back.</p>
+<p>Before executing the code in <em>Code Snippet 2</em>:</p>
+<ul>
+<li>start up <em>Process Monitor</em> and run it as admin</li>
+<li>set up the filters we used in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+<p>After <em>Process Monitor</em> has been set up, you can execute the code. When you execute, look closely at the <em>Process Monitor</em> output, especially what it looks like at the time you hit <code>Sys.sleep</code>. After execution the output should look like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Process Monitor Output</em></p>
+<p>The red line in <em>Figure 4</em> illustrates where <code>Sys.sleep</code> happens. Now let us drill down into the two packets with length 204 and the packet with a length of 28. As we did in Internals - <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a> and <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, we&rsquo;ll set some breakpoints in <em>WinDbg</em>:</p>
+<ul>
+<li>Start <em>WinDbg</em> as admin.</li>
+<li>Attach to the SQL Server process - (as I have said so many times before, DO NOT do this on a production machine)</li>
+</ul>
+<p>Let&rsquo;s now set some break-points:</p>
+<ul>
+<li><code>bp sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li><code>bp sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>bp sqllang!Tcp::WriteAsync</code></li>
+</ul>
+<p>We use the <code>ConnectToSatellite</code> break-point as a &ldquo;navigation&rdquo; aid, e.g. we know that what we are interested in will happen after <code>ConnectToSatellite</code>. We should also keep in mind that there will be two <code>sqllang!Tcp::WriteAsync</code> calls after <code>ConnectToSatellite</code>, which is related to the authentication between SQL Server and SqlSatellite (see <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>), and whatever we are interested in comes after those two calls.</p>
+<p>Execute the code in <em>Code Snippet 2</em>, and continue when you hit the first <code>WriteMessage</code> (this call is related top the named pipe connection between SQL Server and the launchpad service). Notice how you break at <code>ConnectToSatellite</code>, and when you continue, there are two <code>WriteAsync</code> straight after it (this is the authentication calls we covered in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>). Now things are getting somewhat interesting; after the second <code>WriteAsync</code>, continue past <code>WriteMessage</code>, and you will break at <code>WriteAsync</code>, which is where the script is being sent to SqlSatellite.</p>
+<p>At that point, let&rsquo;s have a look at the call-stack. If you use the old <em>WinDbg</em>, you do a <code>kc</code>, and in the new <em>WinDbg</em> you look at the call-stack window:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_windbg_callstack.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Call-stack Window in New WinDbg</em></p>
+<p>In <em>Figure 5</em> we see the call-stack, and I have also copied it out to the code snippet below to get a &ldquo;fuller&rdquo; view of the stack, (I only show the stack from <code>sqllang!SpExecuteExternalScript</code> onwards):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0xb0</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span> + <span style="color:#2aa198;font-weight:bold">0x7d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">PostSetupMessage</span> + <span style="color:#2aa198;font-weight:bold">0x376</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span> + <span style="color:#2aa198;font-weight:bold">0x62</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">Open</span> + <span style="color:#2aa198;font-weight:bold">0x96</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span> + <span style="color:#2aa198;font-weight:bold">0xe5</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">StartupQuery</span> + <span style="color:#2aa198;font-weight:bold">0x316</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">SetupQueryScanAndExpression</span> + <span style="color:#2aa198;font-weight:bold">0x3fa</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">InitForExecute</span> + <span style="color:#2aa198;font-weight:bold">0x34</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">snip</span>]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Call Stack</em></p>
+<p>When we look at the call-stack in <em>Figure 5</em> or <em>Code Snippet 3</em> we see some &ldquo;old friends&rdquo;; <code>sqllang!CUDXR_ExternalScript::Open</code> and <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> amongst them. The routine that sends the packet seems to be <code>sqllang!CSatelliteProxy::PostSetupMessage</code>.</p>
+<p>To try to prove that we start by looking at code in <code>PostSetupMessage</code>, specifically around where <code>WriteMessage</code> is called. In the <em>WinDbg</em> console, do <code>uf sqllang!CSatelliteProxy::PostSetupMessage</code> and look for <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>. The region containing <code>WriteMessage</code> looks something like so (I have taken out some memory addresses etc.):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">PostSetupMessage</span>+<span style="color:#2aa198;font-weight:bold">0x362</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">eax</span>,<span style="color:#268bd2">dword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rax</span>+<span style="color:#2aa198;font-weight:bold">4</span>]
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">dword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rcx</span>+<span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">A0h</span>],<span style="color:#268bd2">eax</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">rdx</span>,<span style="color:#268bd2">rcx</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">rcx</span>,<span style="color:#268bd2">r12</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">call</span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">jmp</span>     <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">PostSetupMessage</span>+<span style="color:#2aa198;font-weight:bold">0x37d</span> <span style="color:#268bd2">Branch</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>PostSetupMessage and WriteMessage</em></p>
+<p>We know that <code>WriteMessage</code> causes the <code>WriteAsync</code> and in <em>Code Snippet 4</em> we see that after the <code>WriteMessage</code> call, the code &ldquo;jumps&rdquo; to <code>PostSetupMessage+0x37d</code>. Logically, we then can believe that when <code>PostSetupMessage+0x37d</code> is hit, the packet should have been sent. So now we set a break-point at <code>PostSetupMessage+0x37d</code>, and we use <em>Process Monitor</em> to capture TCP traffic, the same way we did above.</p>
+<p>Before you execute the code in <em>Code Snippet 2</em>, it is probably a good idea to clear the display in <em>Process Monitor</em>, so you more easily can see what happens. Execute the code, and let it continue until it breaks for the third time (after <code>ConnectToSatellite</code>) at <code>WriteAsync</code>. At this stage the <em>Process Monitor</em> output looks like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_procmon2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> *Process Monitor Output *</p>
+<p>As we see in <em>Figure 6</em>, the packet containing the script has not been sent yet, but as soon as we continue the code in <em>WinDbg</em>, the packet is sent and is visible in <em>Process Monitor</em>. At this stage the code will hit the break-point at <code>PostSetupMessage+0x37d</code>, so we can now with certainty say that the script packet is sent from inside <code>PostSetupMessage</code>, and it has (in our example) a length of 204. So what about the packet with a length of 28?</p>
+<p>We have seen how that packet is sent straight after the packet with a length of 204, so we&rsquo;ll investigate this packet in the same way we did with the &ldquo;204&rdquo; packet. Execute the code again, but at this time continue until you hit the <code>WriteAsync</code> that comes after the &ldquo;204&rdquo; packet. At that stage have a look at the call-stack:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0xb0</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span> + <span style="color:#2aa198;font-weight:bold">0x7d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span> + <span style="color:#2aa198;font-weight:bold">0x50</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span> + <span style="color:#2aa198;font-weight:bold">0x3e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span> + <span style="color:#2aa198;font-weight:bold">0xa4</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span> + <span style="color:#2aa198;font-weight:bold">0x23b</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">StartupQuery</span> + <span style="color:#2aa198;font-weight:bold">0x316</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">SetupQueryScanAndExpression</span> + <span style="color:#2aa198;font-weight:bold">0x3fa</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">InitForExecute</span> + <span style="color:#2aa198;font-weight:bold">0x34</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Call Stack for &ldquo;28&rdquo; Packet</em></p>
+<p>At a cursory glance at the call-stack in <em>Code Snippet 5</em>, it looks quite similar to the call-stack in <em>Code Snippet 4</em>. However, when you start to look closer you can see it is not the same at all. There are no calls to <code>ConnectToSatellite</code> or <code>PostSetupMessage</code>, instead there are calls to some new routines:</p>
+<ul>
+<li>sqllang!CUDXR_ExternalScript::PushEOS</li>
+<li>sqllang!CSatelliteCargoContext::SendChunkEnd</li>
+<li>sqllang!CSatelliteCargoContext::SendChunkEndMessage</li>
+</ul>
+<p>It seems that the call-stacks in code snippets 4 and 5 originates both from <code>sqlmin!CQScanUdx::Open</code>, however from different locations. What is somewhat strange is that if we were to do an <code>uf sqlmin!CQScanUdx::Open</code>, we would not see any calls to <code>sqllang!CUDXR_ExternalScript::PushEOS</code> from the <code>Open</code> routine, so they must be &ldquo;hidden&rdquo; down deep in the code. To get a better feel for what goes on we can try to trace through the calls in <code>sqlmin!CQScanUdx::Open</code>:</p>
+<ul>
+<li>Remove all breakpoints.</li>
+<li>Set a breakpoint at <code>sqlmin!CQScanUdx::Open</code>.</li>
+</ul>
+<p>Execute the code again, and when you hit the breakpoint at <code>Open</code>, you execute the <code>wt</code>, (Trace and Watch), command. However do it with the <code>-l</code> option, which specifies the maximum depth of the calls to display. If you don&rsquo;t set the <code>-l</code> option, the <code>wt</code> will just go on and on and on. When I do it on my server I use a level of 4 (<code>wt -l 4</code>), and the end of the trace looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//lot of other code
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EstimateDataChunkRows</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">GetTypeSizeInBytes</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EstimateDataChunkRows</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">floor</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">MSVCR120</span>!<span style="color:#268bd2">floor</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">EstimateDataChunkRows</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXC_ExternalScript</span>::<span style="color:#268bd2">EUdxTypeGet</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">PrepareChunkEndPacket</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WaitWriteDone</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Trace and Watch of sqlmin!CQScanUdx::Open</em></p>
+<p>In <em>Code Snippet 6</em> we definitely see how the routines mentioned above are being called during <code>sqlmin!CQScanUdx::Open</code>. Based on their names we understand that the packet being sent has to do with informing the SqlSatellite that no more script data is coming.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In the code in <em>Code Snippet 6</em>, you can for now dismiss the first lines of code that has to do with <code>EstimateDataChunkRows</code>.</p>
+</blockquote>
+<p>So the flow looks something like this (heavily abbreviated):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">PostSetupMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">Open</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Abbreviated Flow</em></p>
+<p>Please note that the flow in <em>Code Snippet 7</em> is for when no result data (no <code>@input_data_1</code>) is being sent. When we have result data the flow will look somewhat different as we will see below.</p>
+<h2 id="input-data">Input Data</h2>
+<p>Above we saw the packets for the external script and the end of script; how they were sent and what did send them. Now we&rsquo;ll have a look at the packets that are sent for data which is input for the script (<code>@input_data_1</code>). The code we&rsquo;ll use looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(30)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-InputDataSet&#39;</span>,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 42&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>External Script with SELECT</em></p>
+<p>The difference between the code in <em>Code Snippet 8</em> and the code in <em>Code Snippet 2</em>, is that in <em>Code Snippet 8</em> we are selecting an input data set, that will be passed to the SqlSatellite together with the script.</p>
+<p>We&rsquo;ll use <em>Process Monitor</em> to be able to see when the packets are being sent, and initially we&rsquo;ll just run through the code and see the output in <em>Process Monitor</em>. Remove whatever breakpoints you have, and execute the code in <em>Code Snippet 8</em>. As you did above have a close look at the output from <em>Process Monitor</em> when the external code hits <code>Sys.sleep</code>. The output looks like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_procmon3.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Process Monitor Output</em></p>
+<p>As in <em>Figure 4</em>, the red line you see in <em>Figure 7</em> illustrates where control has been handed over to the SqlSatellite (we hit <code>Sys.sleep()</code>). The packets we are interested in are the three just above the red line, with lengths of 2023, 28, and 28. We do know that the &ldquo;2023&rdquo; packet contains the data from the <code>SELECT</code>, and that one of the &ldquo;28&rdquo; packets is the &ldquo;end of script&rdquo; packet from above. We do not know which one it is, and we do not know what the second &ldquo;28&rdquo; packet is.</p>
+<blockquote>
+<p><strong>NOTE:</strong> From above, if you wonder why a packet sending just one integer has a size of 2023, that&rsquo;s something we&rsquo;ll look a bit into in next post.</p>
+</blockquote>
+<p>To look more into the three packets we are interested in, we set breakpoints at:</p>
+<ul>
+<li><code>bp sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>bp sqllang!Tcp::WriteAsync</code></li>
+<li><code>bp sqllang!CUDXR_ExternalScript::PushEOS</code></li>
+</ul>
+<p>Clear the display in <em>Process Monitor</em> and execute the code in <em>Code Snippet 8</em>. Let the code continue through until you hit the break-point for <code>PushEOS</code>. At this stage the output in <em>Process Monitor</em> looks like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_procmon4.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Process Monitor Output at PushEOS</em></p>
+<p>Based on what we saw when we looked at how script packets were sent, what we see in <em>Figure 8</em> is what we expected. We see how the script packet has been sent (length 234), and we are waiting for the end of script packet. What is somewhat different though, is the call-stack (from <code>SpExecuteExternalScript</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span> + <span style="color:#2aa198;font-weight:bold">0x1af</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x79</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Call Stack at PushEOS with Input Data</em></p>
+<p>Notice in <em>Code Snippet 9</em> how <code>sqlmin!CQScanUdx::Open</code> is not in the stack at all. We&rsquo;ll come back to that in a little bit. Continue the execution from the break-point and stop at <code>WriteMessage</code>, and wait a second or two. Look at the output from <em>Process Monitor</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_procmon5.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Process Monitor Output at WriteMessage</em></p>
+<p>In <em>Figure 9</em> we now see how the input data packet (length 2023) have been sent, even though we haven&rsquo;t executed <code>WriteMessage</code>! When we now continue execution we will see how we hit:</p>
+<ul>
+<li><code>sqllang!Tcp::WriteAsync</code>, which sends a packet with a length of 28.</li>
+<li>another <code>WriteMessage</code>, followed by</li>
+<li><code>sqllang!Tcp::WriteAsync</code>, which sends a second packet with a length of 28.</li>
+</ul>
+<p>At this stage we are now at the red line in <em>Figure 7</em>. Having seen this, there are some questions:</p>
+<ol>
+<li>where did the data packet originate from, but no <code>sqllang!Tcp::WriteAsync</code> were called?</li>
+<li>we saw two packets with a length of 28, we know one must be the script end packet, but which is it, and what is the other packet?</li>
+</ol>
+<p>Let&rsquo;s start with point 1, where does the input data come from? For one reason or another it doesn&rsquo;t originate from a <code>WriteMessage</code> followed by an <code>sqllang!Tcp::WriteAsync</code>. However, we do know that the data is sent as a TCP packet, so somewhere some code having to do with sockets need to be called. If we &ldquo;spelunk&rdquo; down in Windows documentation, we can see that there is a function named <code>WSPSend</code>. According to the <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms742292(v=vs.85).aspx">documentation</a>: &ldquo;The WSPSend function sends data on a connected socket.&rdquo;.</p>
+<p>With that in mind, perhaps there is something in SQL Server that would be named something similar; <code>x *!*WSPSend*</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSend</span> (<span style="color:#859900;font-weight:bold">void</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">MSAFD_WSPSendMsg</span> (<span style="color:#859900;font-weight:bold">void</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSendTo</span> (<span style="color:#859900;font-weight:bold">void</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSendDisconnect</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Low Level Socket Calls</em></p>
+<p>What we see in <em>Code Snippet 10</em> looks promising! Let&rsquo;s start from the top, and set a break-point at <code>mswsock!WSPSend</code>. After having cleared out the display in <em>Process Monitor</em> we then execute the code in <em>Code Snippet 8</em> again. It seems our hunch about <code>WSPSend</code> being used for low level socket sends is correct, as when the code executes each <code>WriteAsync</code> is followed by a <code>WSPSend</code>.</p>
+<p>When the code breaks at <code>PushEOS</code> things are getting interesting. As expected we see in <em>Process Monitor</em> that the 2023 packet has not been sent yet. When continuing we immediately hit <code>mswsock!WSPSend</code>, which indicates that a package is about to be sent. At this point, look at the call-stack:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSend</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">WS2_32</span>!<span style="color:#268bd2">WSASend</span> + <span style="color:#2aa198;font-weight:bold">0x16c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">GatherWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0x181</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIGatherWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0xad</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteGatherMessages</span> + <span style="color:#2aa198;font-weight:bold">0xa6</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendPackets</span> + <span style="color:#2aa198;font-weight:bold">0x34</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendRemainingChunk</span> + <span style="color:#2aa198;font-weight:bold">0x149</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span> + <span style="color:#2aa198;font-weight:bold">0x2f</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span> + <span style="color:#2aa198;font-weight:bold">0x1af</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x79</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Call Stack Sending Data Packet</em></p>
+<p>We&rsquo;ll look closer at the call-stack as in <em>Code Snippet 11</em> shortly, but now we continue execution of the code. We immediately see the 2023 packet being sent, followed by hitting the <code>WriteMessage</code> break-point. Continuing on from there we hit <code>WriteAsync</code> followed by <code>WSPSend</code>, and at this stage the call-stack looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSend</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">WS2_32</span>!<span style="color:#268bd2">WSASend</span> + <span style="color:#2aa198;font-weight:bold">0x16c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0x174</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0xb0</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span> + <span style="color:#2aa198;font-weight:bold">0x7d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span> + <span style="color:#2aa198;font-weight:bold">0x50</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span> + <span style="color:#2aa198;font-weight:bold">0x3e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span> + <span style="color:#2aa198;font-weight:bold">0x7c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span> + <span style="color:#2aa198;font-weight:bold">0x1af</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x79</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Call Stack First 28 packet</em></p>
+<p>Continuing on from there, a 28 packet is being sent, and we eventually break at <code>WSPSend</code> again, and now the call-stack looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">mswsock</span>!<span style="color:#268bd2">WSPSend</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">WS2_32</span>!<span style="color:#268bd2">WSASend</span> + <span style="color:#2aa198;font-weight:bold">0x16c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0x174</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIWriteAsync</span> + <span style="color:#2aa198;font-weight:bold">0xb0</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span> + <span style="color:#2aa198;font-weight:bold">0x7d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span> + <span style="color:#2aa198;font-weight:bold">0x50</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEnd</span> + <span style="color:#2aa198;font-weight:bold">0x3e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span> + <span style="color:#2aa198;font-weight:bold">0xa4</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span> + <span style="color:#2aa198;font-weight:bold">0x1af</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x79</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span> + <span style="color:#2aa198;font-weight:bold">0x81</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span> + <span style="color:#2aa198;font-weight:bold">0x4dc</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span> + <span style="color:#2aa198;font-weight:bold">0x322</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt; + <span style="color:#2aa198;font-weight:bold">0x40d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span> + <span style="color:#2aa198;font-weight:bold">0xa9e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span> + <span style="color:#2aa198;font-weight:bold">0x983</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span> + <span style="color:#2aa198;font-weight:bold">0x140e</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Call Stack Second 28 packet</em></p>
+<p>When the code in <em>Code Snippet 13</em> continues, it will cause the second 28 packet to be sent.</p>
+<p>So at this stage we have now sent three packets, let&rsquo;s now go back to the call-stack in <em>Code Snippet 11</em> and see what causes the result data packet to be sent. Before we do that however let&rsquo;s address the question that was asked when we looked at <em>Code Snippet 9</em>: where is <code>sqlmin!CQScanUdx::Open</code>?</p>
+<p>Remember, when we did not send any result data into the SqlSatellite, the end of script was called from inside <code>sqlmin!CQScanUdx::Open</code> as in <em>Code Snippet 7</em>. When result data is sent to the SqlSatellite <code>sqlmin!CQScanUdx::Open</code> is still being called obviously (otherwise no connection to the satellite would be made etc.), but the end of script message is not sent by <code>Open</code>, but instead after the result data has been sent.</p>
+<p>So, <em>Code Snippet 11</em> and the call-stack which sent result data: we can see how the result data is being sent from <code>sqllang!CSatelliteCargoContext::SendPackets</code> and an abbreviated flow looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendPackets</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 14:</strong> <em>Abbreviated Flow Result Data</em></p>
+<p>Then, as we&rsquo;ve seen, two packets with a size of 28 is sent. One is the end packet for the external script, and one is to indicate that no more result data will be sent. The flow, including sending the result data, looks like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanUdx</span>::<span style="color:#268bd2">PushNextChildRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendPackets</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">PushEOS</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 15:</strong> <em>Abbreviated Flow Result Data</em></p>
+<p>From what we&rsquo;ve seen we can assume that <code>sqlmin!CQScanUdx::PushNextChildRow</code> pushes data into <code>CSatelliteCargoContext</code> from which the data is sent through the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. After the result data has been sent, packets are sent to indicate that no more data (or script) is coming.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we set out trying to figure out who and what sent the following packets from SQL Server to the SqlSatellite:</p>
+<ul>
+<li>External script packet</li>
+<li>Packet containing the input data</li>
+</ul>
+<p>We also wanted to figure out what the packets with a length of 28 were for.</p>
+<p><strong>EDIT:</strong> The figure below, and the flow has been edited, as I had forgotten the sending of the actual external script. It is now in the flow as point 6.</p>
+<p>Instead of &ldquo;re-hashing&rdquo; what we have covered above, the following figure depicts, from a high level, what is being sent and by who. The figure somewhat condenses what you see in <em>Figure 2</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_calls.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Flow in SQL Server</em></p>
+<p>The numbered arrows shows the communication out from SQL Server, and in what order it happens:</p>
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent.</li>
+<li>The first end packet is sent.</li>
+<li>The second end packet is sent.</li>
+</ol>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-10-29-interesting-stuff---week-43/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 43">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-11-05-interesting-stuff---week-44/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 44">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

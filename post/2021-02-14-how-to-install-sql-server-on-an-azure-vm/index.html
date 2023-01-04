@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="How To Install SQL Server on an Azure VM" />
+    <meta property="og:title" content="How To Install SQL Server on an Azure VM" />
+    <meta property="twitter:title" content="How To Install SQL Server on an Azure VM" />
+    
+
+    
+    <meta name="description" content="We look at how we deploy SQL Server to an Azure Virtual Machine.">
+    <meta property="og:description" content="We look at how we deploy SQL Server to an Azure Virtual Machine." />
+    <meta property="twitter:description" content="We look at how we deploy SQL Server to an Azure Virtual Machine." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>How To Install SQL Server on an Azure VM | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2021-02-14-how-to-install-sql-server-on-an-azure-vm/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure" title="Azure">
+                            Azure
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-vm" title="Azure VM">
+                            Azure VM
+                        </a>
+                        
+                    </div>
+                    <h1>How To Install SQL Server on an Azure VM</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, February 14, 2021
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A while ago, I wanted to do a quick test on a new SQL installation, and I wanted the SQL installation to be on a &ldquo;pristine&rdquo; server. I was not keen on creating a new virtual machine on my local dev-box, as for that I would need to create a VM image etc., and it seemed like too much hassle for a lazy person like me. The obvious choice then is to do it in the cloud. How hard can that be, what could possibly go wrong?!</p>
+<p>It turned out to not be as straight-forward as I thought it would be, but eventually, I managed to get it right. Since I probably need to do it again some time, I thought I&rsquo;d write a post about it, so I have something to go back to. So here we go &hellip;</p>
+<h2 id="pre-reqs">Pre-reqs</h2>
+<p>The assumption is that you have an Azure subscription. If you do not, you can sign up for a free account <a href="https://azure.microsoft.com/en-gb/free/">here</a>.</p>
+<h2 id="create-resource">Create Resource</h2>
+<p>When we have an account/subscription we log onto the portal:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-portal-1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Azure Portal</em></p>
+<p>After we have logged in to the portal, we see something like in <em>Figure 1</em>. To create anything in Azure, we create a new Azure resource. We do that via the <em>Create a resource</em> menu.  We click on the &ldquo;hamburger&rdquo; menu we see outlined in red in <em>Figure 1</em> to get to that menu. When clicking on the menu, a list is presented where the first item is <em>Create a resource</em>. Click on that, and we see:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-create-resource-1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Create Resource</em></p>
+<p>Looking at <em>Figure 2</em>, I do not see anything that really stands out. Sure, we see some items outlined in red in the figure that relates to data and databases. However, when we &ldquo;drill down&rdquo; into those items there is nothing there that refers explicitly to SQL installations on a VM, it is all more related to managed databases.</p>
+<p>I guess we could go into the <em>Compute</em> item and deploy a VM. Having done that, we upload the SQL Server install media and do a manual installation of SQL Server on the VM. However, I don&rsquo;t see that being much better than doing it on a VM on my local machine, and I thought there has to be something better.</p>
+<h4 id="azure-sql">Azure SQL</h4>
+<p>After extensive &ldquo;research&rdquo;, (read Google:ing), I found something that might help:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-azure-sql-1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Azure SQL - I</em></p>
+<p>If I enter <em>Azure SQL</em>, in the <em>Search the Marketplace</em> search-box a drop-down list pops up, (or should it be down), and in the list is an entry for <em>Azure SQL</em> as outlined in red in <em>Figure 3</em>. Clicking on that we get something like so:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-azure-sql-2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Azure SQL - II</em></p>
+<p>In <em>Figure 4</em>, we see how we can create and manage SQL Server resources, including SQL Server virtual machines, (outlined in red).</p>
+<p>So let us click on the <em>Create</em> button which in <em>Figure 4</em> is outlined in yellow:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-deploy-option-1.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>SQL Deployment Option</em></p>
+<p>After clicking on the <em>Create</em> button, we see a form as in <em>Figure 5</em>, where we have some choices. We are interested in the <em>SQL virtual machine</em> option which is outlined in red. When we click on the drop-down list-box outlined in yellow, we get a list as so:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-deploy-options.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>SQL &amp; OS Versions</em></p>
+<p>The list in <em>Figure 6</em> shows us some of the various SQL Server and operating system versions we can deploy. We see, outlined in red that we want to deploy SQL Server 2019 Developer Edition on Windows Server 2019.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I should have mentioned this in the pre-reqs above; you have to have licenses for the OS and SQL edition you choose.</p>
+</blockquote>
+<p>We choose the version we want to use and click on the <em>Create</em> button.</p>
+<h2 id="create-vm">Create VM</h2>
+<p>After clicking the <em>Create</em> button we see:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-new.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Create a VM</em></p>
+<p>In <em>Figure 7</em> we see the top part of the <em>Create a virtual machine</em> page. We see, outlined in red, the &ldquo;tabs&rdquo; for setting up different aspects of the VM.</p>
+<h4 id="basics">Basics</h4>
+<p>We start at the <em>Basics</em> tab and, as the name implies, here we set the base settings for the VM:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-basics.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Basic VM Details</em></p>
+<p>What <em>Figure 8</em> shows is the main part of the <em>Basics</em> tab. We see how I have filled in the various details for my VM:</p>
+<ul>
+<li>the subscription I want to use.</li>
+<li>what resource group the VM should be placed in. In this case, I have decided to create a new resource group for the VM: <code>rg-sqlvm</code>.</li>
+<li>name of the VM.</li>
+<li>the SQL Server image is defaulted to what you chose from the list in <em>Figure 6</em>, but you can change it.</li>
+<li>the region where you want the VM to be located.</li>
+<li>size of the VM.</li>
+<li>various account information</li>
+</ul>
+<p>I have outlined <em>Region</em> and <em>Size</em> in <em>Figure 8</em> because you may get a different price for your VM depending on the region. So if you just want to do a quick test, choose a region with low price.</p>
+<p>Having filled in all necessary information, you can now go ahead and click on the <em>Review + create</em> button in the lower left-hand corner in <em>Figure 8</em>. If you were to do that your VM and SQL installation would be created with default settings and the information you entered under the <em>Basics</em> tab.</p>
+<p>In my case, I wanted to configure the VM and SQL installation somewhat, and what I wanted to customise was:</p>
+<ul>
+<li>Disks</li>
+<li>SQL Server settings</li>
+</ul>
+<p>So, let us move on to <em>Disks</em>.</p>
+<h4 id="disks">Disks</h4>
+<p>I want to customise disks settings because the VM installation uses somewhat expensive Premium SSD disks by default. Since this is just an installation for &ldquo;quick and dirty&rdquo; tests, I want to change to not use the default disks. I click on the <em>Disks</em> tab:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-disks.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Disks</em></p>
+<p>We see in <em>Figure 9</em> how I have chosen <em>Standard HDD</em> as disk type form my VM. That is the only thing I change related to disks for my installation, and I now go on to SQL settings.</p>
+<h4 id="sql-server-settings">SQL Server Settings</h4>
+<p>There are a couple of things I want to change related to SQL Settings:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-sql-settings-1.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>SQL Server Settings - I</em></p>
+<p>In <em>Figure 10</em>, outlined in red, we see some of the settings I want to change:</p>
+<ul>
+<li>I change the networking to be <em>Public</em> to connect directly to SQL Server over port 1433.</li>
+<li>I enable SQL authentication. The login name and password default to what you set up for the VM.</li>
+</ul>
+<p>There is one more SQL setting I want to change:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-sql-settings-2.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>SQL Server Settings - II</em></p>
+<p>Since I am doing some SQL Server Machine Learning Services, we see in <em>Figure 11</em> how I have enabled it.</p>
+<p>There is nothing more I want to change, so I click the <em>Review + create</em> button outlined in red in <em>Figure 11</em>.</p>
+<h4 id="review--create">Review &amp; Create</h4>
+<p>When I click the <em>Review + create</em> button, I am presented with the VM and SQL Server settings. When I am happy with the settings I click <em>Create</em>:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-review-create-1.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Create VM - I</em></p>
+<p>In <em>Figure 12</em> we see how the deployment has started, and - outlined in yellow - we see the various components being deployed and the state of the deployment. After a while we see something like so:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-review-create-2.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Create VM - II</em></p>
+<p>The deployment has finished as we see in <em>Figure 13</em>, and we can click the <em>Go to resource</em> button:</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-createvm-review-create-3.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>Deployed Resource</em></p>
+<p>Clicking the button takes us to the VM and shows information about the VM as we see in <em>Figure 14</em>. What interests us is what we see outlined in red - the public IP address.</p>
+<h2 id="connecting-to-sql-server">Connecting to SQL Server</h2>
+<p>Having the address, we can connect to the SQL Server. My tool of choice for connecting to SQL is Azure Data Studio, (ADS):</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-connect-1.png" alt="">
+
+</p>
+<p><strong>Figure 15:</strong> <em>Connection Dialog</em></p>
+<p>To connect I enter the connection details in the ADS <em>Connection</em> dialog as in <em>Figure 15</em>, and then I click <em>Connect</em>, (outlined in red):</p>
+<p>
+  <img src="/images/posts/azure-vm-sql-connect-2.png" alt="">
+
+</p>
+<p><strong>Figure 16:</strong> <em>SQL Server Overview</em></p>
+<p>After I have connected I see in the Server Explorer my new instance, (outlined in red), and an overview of the installed instance, (outlined in yellow).</p>
+<p>I can now go ahead and create databases, running queries, etc. like I would do on an on-prem SQL Server!</p>
+<h2 id="summary">Summary</h2>
+<p>To summarise:</p>
+<ul>
+<li>Log in to the Azure Portal.</li>
+<li>Add a new Azure SQL resource.</li>
+<li>Choose the SQL virtual machine deployment option.</li>
+<li>Enter the settings for the VM and the SQL Server instance.</li>
+<li>Deploy the VM and SQL Server.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2021-02-14-interesting-stuff---week-7-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 7, 2021">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2021-02-21-interesting-stuff---week-8-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 8, 2021">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

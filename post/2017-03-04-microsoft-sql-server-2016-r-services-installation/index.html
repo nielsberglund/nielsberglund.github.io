@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server 2016 R Services Installation" />
+    <meta property="og:title" content="Microsoft SQL Server 2016 R Services Installation" />
+    <meta property="twitter:title" content="Microsoft SQL Server 2016 R Services Installation" />
+    
+
+    
+    <meta name="description" content="SQL Server R Services series. This first post look at installation of SQL Server R Services.">
+    <meta property="og:description" content="SQL Server R Services series. This first post look at installation of SQL Server R Services." />
+    <meta property="twitter:description" content="SQL Server R Services series. This first post look at installation of SQL Server R Services." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server 2016 R Services Installation | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/revoscaler" title="RevoScaleR">
+                            RevoScaleR
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/julia" title="Julia">
+                            Julia
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server 2016 R Services Installation</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, March 4, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A couple of weeks beck I wrote a <a href="/post/2017-02-25-microsoft-r-server/">blog-post where I compared CRAN R with Microsoft R Server</a>. The comparison was basically how large data sets are handled. In the post I mentioned that SQL Server 2016 (and later) is the delivery mechanism for Microsoft R Server on the Windows platform. In this post we will look at how to install and enable SQL Server R Services.</p>
+<p>This post is the first in a series of posts about SQL Server R Services and to see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the &ldquo;Microsoft R Server&rdquo; post I wrote that CRAN R, as good as it is, in certain scenarios it is less then ideal:</p>
+<ul>
+<li>Data movement - the data you work with has to be moved from source to your machine.</li>
+<li>Operationalization - having created an awesome model, how do you put it in production.</li>
+<li>Scale / performance - R is single threaded and all data has to be in memory.</li>
+</ul>
+<p>SQL Server R Services addresses these issues, which we will see later. For now let us see what SQL Server R Services is.</p>
+<h2 id="introduction">Introduction</h2>
+<p>Back in 2015 Microsoft bought Revolution Analytics. Revolution Analytics is a company who developed a big data, large scale multiprocessor computing, and multi-core functionality version of R: <strong>Revolution R Enterprise</strong>, which Microsoft re-branded to Microsoft R Server. At the heart of Microsoft R Server is RevoscaleR; an R package providing both High Performance Computing (HPC) and High Performance Analytics (HPA) capabilities for R.  HPC allows distribution of the execution of essentially any R function across cores and nodes, and deliver the results back to the user, whereas HPA adds the ability to handle very large datasets (Big Data).</p>
+<p>SQL Server R Services is the conduit between SQL Server and Microsoft R Server, and allows the execution of R code from inside SQL Server. Hmm, execution of R code from inside SQL Server, let&rsquo;s think about the implications of being able to do that, and put that in relation to the CRAN R issues above:</p>
+<ul>
+<li>A data scientist can theoretically create his model(s) from inside the database. If the source of the data is the database, there are no movement of data.</li>
+<li>The model(s) can be stored in the database and subsequently be used to analyze/predict new data. For example, a stored procedure can be created to output predictions. All of a sudden the issue of operationalization has been solved.</li>
+<li>SQL Server is multi-threaded and supports parallelism, which should take care of the scale and performance issues in R. Furthermore the various RevoScaleR functions are optimized for multi-threading as well as large data volumes.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> If you are executing R code from an IDE (and not from inside SQL Server), you can still have your code execute on SQL Server by using an RevoScaleR feature; the <em>compute context</em>. The <em>compute context</em> is not &ldquo;in scope&rdquo; for this blog-post, but you can read more about it <a href="https://msdn.microsoft.com/microsoft-r/scaler/rxcomputecontext">here</a>.</p>
+</blockquote>
+<h2 id="installation">Installation</h2>
+<p>The SQL Server R Services has to be explicitly installed in SQL Server, it is not like SQLCLR - which just needs to be enabled. Installing SQL Server R Service can be done when installing a new SQL Server instance or it can be added afterwards as a new feature. Here we&rsquo;ll see how we install the R Services together with a new instance of SQL Server:</p>
+<p>
+  <img src="/images/posts/sql_installation_type.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>SQL Server Installation Type</em></p>
+<p>In <em>Figure 1</em> we are choosing to do a new installation of SQL Server. We then choose what features we want installed:</p>
+<p>
+  <img src="/images/posts/sql_r_services_in_db.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Features to Install</em></p>
+<p>When you install SQL Server 2016, you find a new feature under the <em>Database Engine Services</em>: <em>R Services (In-Database)</em>, as in Figure 2. This is the install option when you want to integrate with R from within SQL Server. In the <em>Feature Selection</em> dialog, under <em>Shared Features</em> you also have <em>R Server (Standalone)</em>, what is that all about:</p>
+<p>
+  <img src="/images/posts/sql_windows_r_server.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Windows R Server</em></p>
+<p>SQL Server 2016 acts as the delivery mechanism for Microsoft R Server on Windows, and the <em>R Server</em> feature allows you to install Microsoft R Server independent of SQL Server. For example, if a data scientist want to run R on his or her own machine.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You may wonder why, in <em>Figure 3</em>, the check box for R Server is checked, but &ldquo;dimmed&rdquo; out? This is because, on this particular machine, I have already installed the standalone R Server once.</p>
+</blockquote>
+<p>Go ahead and install after you have chosen the various features to install on your new instance. After successful installation we should check and make sure everything works, but before that let&rsquo;s talk about a couple of very important pieces of the SQL Server R Services &ldquo;puzzle&rdquo;.</p>
+<h2 id="sql-server-launchpad">SQL Server Launchpad</h2>
+<p>Let us start with the launchpad service. After installation, if you go to <em>Services</em>, you will see your newly installed SQL Server instance <em>SQL Server (InstanceName)</em>, but also a new service which hasn&rsquo;t been in earlier versions of SQL Server; the Launchpad service. You can see it in <em>Figure 4</em> below:</p>
+<p>
+  <img src="/images/posts/sql_launchpad.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Windows R Server</em></p>
+<p>In the <em>Introduction</em> section I wrote how SQL Server R Services is the conduit between SQL Server and Microsoft R Server, and the launchpad service plays a big part of this. The service acts as a &ldquo;routing&rdquo; mechanism between SQL Server and external languages/runtimes. The responsibility of the launchpad service is to &ldquo;spin up&rdquo; and calling into the correct runtime when calling from inside SQL Server.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Right now, the only &ldquo;runtime&rdquo;/language supported by the launchpad service is R.</p>
+</blockquote>
+<p>Another piece of the &ldquo;puzzle&rdquo; is the the extended stored procedure: <code>sp_execute_external_script</code></p>
+<h2 id="sp_execute_external_script">sp_execute_external_script</h2>
+<p>This is the procedure that will be used when executing R code inside SQL Server. The procedure will call into the launchpad service, and have the launchpad service &ldquo;route&rdquo; the call to the correct runtime.</p>
+<p>The syntax for the procedure as copied from <a href="https://msdn.microsoft.com/en-us/library/mt604368.aspx">MSDN</a>, looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>             @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;language&#39;</span>, 
+</span></span><span style="display:flex;"><span>             @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;script&#39;</span>, 
+</span></span><span style="display:flex;"><span>             @<span style="color:#268bd2">input_data_1</span> = ] <span style="color:#2aa198">&#39;input_data_1&#39;</span> 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">input_data_1_name</span> = ] <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;input_data_1_name&#39;</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">output_data_1_name</span> = <span style="color:#2aa198">&#39;output_data_1_name&#39;</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">parallel</span> = <span style="color:#2aa198;font-weight:bold">0</span> | <span style="color:#2aa198;font-weight:bold">1</span> ] 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">params</span> = ] <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@parameter_name data_type [ OUT | OUTPUT ] [ ,...n ]&#39;</span> 
+</span></span><span style="display:flex;"><span>             [ , @<span style="color:#268bd2">parameter1</span> = ] <span style="color:#2aa198">&#39;value1&#39;</span> [ <span style="color:#859900">OUT</span> | <span style="color:#859900">OUTPUT</span> ] [ ,...<span style="color:#268bd2">n</span> ] 
+</span></span><span style="display:flex;"><span>[ <span style="color:#859900">WITH</span> &lt;<span style="color:#268bd2">execute_option</span>&gt; ] 
+</span></span><span style="display:flex;"><span>[;] 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#268bd2">execute_option</span>&gt;::= 
+</span></span><span style="display:flex;"><span>{ 
+</span></span><span style="display:flex;"><span>  { <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> <span style="color:#268bd2">UNDEFINED</span> } 
+</span></span><span style="display:flex;"><span>  | { <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> <span style="color:#859900">NONE</span> } 
+</span></span><span style="display:flex;"><span>  | { <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ( &lt;<span style="color:#268bd2">result_sets_definition</span>&gt; ) } 
+</span></span><span style="display:flex;"><span>}  
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#268bd2">result_sets_definition</span>&gt; ::=  
+</span></span><span style="display:flex;"><span>{ 
+</span></span><span style="display:flex;"><span>  (
+</span></span><span style="display:flex;"><span>    { <span style="color:#859900">column_name</span> 
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">data_type</span> 
+</span></span><span style="display:flex;"><span>      [ <span style="color:#859900">COLLATE</span> <span style="color:#859900">collation_name</span> ] 
+</span></span><span style="display:flex;"><span>      [ <span style="color:#859900">NULL</span> | <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span> ] } 
+</span></span><span style="display:flex;"><span>      [,...<span style="color:#268bd2">n</span> ]  
+</span></span><span style="display:flex;"><span>  ) 
+</span></span><span style="display:flex;"><span>  | <span style="color:#859900">AS</span> <span style="color:#859900">OBJECT</span> 
+</span></span><span style="display:flex;"><span>      [ <span style="color:#268bd2">db_name</span> . [ <span style="color:#859900">schema_name</span> ] . | <span style="color:#859900">schema_name</span> . ] 
+</span></span><span style="display:flex;"><span>      {<span style="color:#859900">table_name</span> | <span style="color:#268bd2">view_name</span> | <span style="color:#268bd2">table_valued_function_name</span> } 
+</span></span><span style="display:flex;"><span>  | <span style="color:#859900">AS</span> <span style="color:#859900">TYPE</span> [ <span style="color:#859900">schema_name</span>.]<span style="color:#268bd2">table_type_name</span> 
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Syntax of sp_execute_external_script</em></p>
+<p>If you look at the syntax and thinks it looks convoluted, you are right. But do not worry, in a future blog-post we will look more in detail at what <code>sp_execute_external_script</code> does, and further down in this post we will see a very simple example of it. One thing to notice though is the first parameter in the proc: <code>@language</code>. This parameter defines the language/runtime, and as mentioned a couple of times before, right now the only language/runtime supported is R. There are rumors that <a href="https://www.python.org/">Python</a> will be supported in the future, as well as <a href="http://julialang.org/">Julia</a>.</p>
+<h2 id="making-sure-it-works">Making Sure it Works</h2>
+<p>Now when we have installed the SQL Server R Services, and also have had a (very) short introduction to some of the &ldquo;moving parts&rdquo;, let&rsquo;s enable SQL Server R Services, and execute something to actually see it works.</p>
+<h3 id="enable-sql-server-r-services">Enable SQL Server R Services</h3>
+<p>Enable, what do you mean enable? I have just installed it, isn&rsquo;t that enough? No it is not, after installation you need to enable the services. This is a bit like what you do with SQLCLR, you are enabling the execution of SQLCLR on the instance. Here you enable the execution of external scripts. To enable external scripts you change the configuration of the SQL Server instance you are on:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_configure</span>  <span style="color:#2aa198">&#39;external scripts enabled&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RECONFIGURE</span>  <span style="color:#859900">WITH</span> <span style="color:#268bd2">OVERRIDE</span>  
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Execute sp_configure</em></p>
+<p>When you have executed the code as in <em>Code Snippet 2</em>, you might think all is good. Unfortunately it is not, you now have to restart the instance of SQL Server! However, after the restart you can test and see that it works.</p>
+<h3 id="executing-r-script">Executing R Script</h3>
+<p>To test it out we will execute a very simple R script:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>  @<span style="color:#859900">language</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>, 
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">script</span>=<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet&lt;-InputDataSet&#39;</span>, 
+</span></span><span style="display:flex;"><span>                                 @<span style="color:#268bd2">input_data_1</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 42&#39;</span> 
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> (([<span style="color:#268bd2">TheAnswer</span>] <span style="color:#cb4b16">int</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>));  
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Test That R Installation Works</em></p>
+<p>Let&rsquo;s look at the various parts of the code in <em>Code Snippet 3</em>:</p>
+<ul>
+<li>We start with the <code>@language</code> parameter. We now know that it should be R.</li>
+<li>Then we define the <code>@script</code> parameter. This is where our R code will go. In the code we are saying that output data (<code>OutputDataSet</code>) is whatever coming in (<code>InputDataSet</code>).</li>
+<li>In <code>@inout_data_1</code> we define the input dataset</li>
+<li>We finally &ldquo;formats&rdquo; the output in the <code>WITH RESULT SETS ...</code> part.</li>
+</ul>
+<p>When you execute the code, the output should be like so:</p>
+<p>
+  <img src="/images/posts/r_result_set.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Result of Execution of R Script</em></p>
+<p>Congratulations, you have now executed R code inside SQL Server. How cool is that?!</p>
+<p>In future blog-posts we will look at:</p>
+<ul>
+<li>How things work under the cover</li>
+<li>What exactly is <code>sp_execute_external_script</code></li>
+<li>Some real world examples</li>
+</ul>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-02-26-interesting-stuff---week-8/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 8">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-03-05-interesting-stuff---week-9/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 9">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

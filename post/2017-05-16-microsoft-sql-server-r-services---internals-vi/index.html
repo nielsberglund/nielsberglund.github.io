@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals VI" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals VI" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals VI" />
+    
+
+    
+    <meta name="description" content="This post looks at the directories created by the launchpad service in SQL Server R Services when executing an external script.">
+    <meta property="og:description" content="This post looks at the directories created by the launchpad service in SQL Server R Services when executing an external script." />
+    <meta property="twitter:description" content="This post looks at the directories created by the launchpad service in SQL Server R Services when executing an external script." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals VI | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals VI</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Tuesday, May 16, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the seventh post in a series about <strong>Microsoft SQL Server R Services</strong>, and the sixth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In this post we will look at the directories that are created when we execute <code>sp_execute_external_script</code>.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we spoke about how Windows user accounts are created during installation, and together with the user account; directories named as the individual Windows accounts are created in the <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. These directories act as storage for files, results, objects, etc., during execution of an external script.</p>
+<p>When a user executes an external script in SQL Server, that account is being mapped to one of the 20 Windows account created, and it is under that Windows account the external part of the script is executed. Subsequently the files, etc., mentioned above, ends up in a sub-directory of the user account directory.</p>
+<p>During execution the launchpad service creates working directories (the sub-folders above) and processes. The sub-directories are created with a <code>Guid</code> as name, and the processes will get the same name as the sub-directory. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we saw an excerpt from a log- showing among other things the creation of directories and processes. Below in <em>Code Snippet 1</em> you see a part of that file:</p>
+<pre tabindex="0"><code>WorkingDirectory(C:\...\MSSQLSERVER01\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF) created (1)
+WorkingDirectory(C:\...\MSSQLSERVER01\E7AB7781-A8C7-421F-BAA0-074075B41082) created (1)
+
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save
+    -e &#34;library(RevoScaleR);
+    sessionDirectory &lt;- &#39;C:\...\5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF&#39;;
+    sessionId &lt;- &#39;5F3BEB48-4E0A-4D0C-ACCF-3D8C6EB972EF&#39;;
+  
+CreateProces(C:\...\R_SERVICES\bin\x64\rterm.exe
+    --slave --no-restore --no-save 
+    -e &#34;library(RevoScaleR); 
+    sessionDirectory &lt;- &#39;C:\...\E7AB7781-A8C7-421F-BAA0-074075B41082&#39;;
+    sessionId &lt;- &#39;E7AB7781-A8C7-421F-BAA0-074075B41082&#39;;
+</code></pre><p><strong>Code Snippet 1:</strong> <em>Excerpt from Creation of Processes and Directories</em></p>
+<p>Notice how, in <em>Code Snippet 1</em>, the working directories are created first, followed by the processes. In the example above, two directories are created first followed by two processes. This happens for the two first directories and processes. After the two first ones, one directory will be created followed by one process, and so on, and so on. You can also see from the log how the name of the directory is used when creating the processes.</p>
+<h2 id="directories">Directories</h2>
+<p>So, what is the purpose of the working directories? Well, we said in the beginning it was to store files etc., during execution of external scripts. So let us see what happens, when executing. The code we&rsquo;ll use in this post is similar to the code in the other posts in the series:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>  
+</span></span><span style="display:flex;"><span>             @<span style="color:#859900">language</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>             @<span style="color:#268bd2">script</span>=<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             pid &lt;- Sys.getpid()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             d &lt;- getwd()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(paste0(&#34;WorkDir: &#34;, d))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             cat(&#34;\n&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">             OutputDataSet&lt;-data.frame(ProcessId=pid,WorkingDir=d)&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">ProcessID</span> <span style="color:#cb4b16">int</span>, [<span style="color:#268bd2">WorkingDir</span>] <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">1024</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>));
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> Code to Execute*</p>
+<p>As you see in <em>Code Snippet 2</em>, we retrieve both the process id, as well as the working directory, and these two variables are output in the result set. The working directory is further more printed out, in the <code>cat</code> function.</p>
+<p>Let&rsquo;s execute the code in <em>Code Snippet 2</em>, but before you do that:</p>
+<ol>
+<li>Stop the launchpad service if it is running.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Start the launchpad service again.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ol>
+<p>The result of the execution looks something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_dir1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Resultset from Code Execution</em></p>
+<p>In <em>Figure 1</em> we see that we executed in a process with an id of: 9092, and that the reported working directory is <code>E0A85B09-65C6-BD28-71A6B14917E9</code>. So let us then go to the account - MSSQLSERVER01 - and see what it looks like:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_dir2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Content of Account Directory After Execution</em></p>
+<p>Strange, we see 6 different directories, but not the directory that is reported to be the working directory. So let us try to figure out what happens:</p>
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Open the <code>rlauncher.config</code> file in a text editor and change the value of <code>JOB_CLEANUP_ON_EXIT</code> to 0, and save the file (you need to this as admin).</li>
+<li>Restart the launchpad service.</li>
+</ol>
+<blockquote>
+<p><strong>NOTE:</strong> By setting the <code>JOB_CLEANUP_ON_EXIT</code> to 0 we tell the launchpad service to not delete any directories etc., after we have executed (the executing process will still be torn down though). By doing this we hope that we&rsquo;ll be able to see something that will cast some light on this.</p>
+</blockquote>
+<p>Execute the code in <em>Code Snippet 2</em> and see what is returned as working directory, and compare that with the directories under the user account directory under <code>ExtensibilityData</code>. When I executed the code on my box, the working directory name returned in the result was <code>5DA4E521-5A5D-4E14-B3FC-769F994A7AD3</code>, and the directory structure looked like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_dir3.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Directory Structure Including Working Directory</em></p>
+<p>So, there is a directory, but if you look at the contents you will see it is empty. The other directories though have content, and looks similar to:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_dir_content.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Content</em></p>
+<p>If you browse through the directories you will see that the content in all of them except for one (and the working directory), looks like what we see in <em>Figure 4</em>. The one where it is different looks something like what we have in <em>Figure 5</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_dir_content_rscript.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Directory with Different Content</em></p>
+<p>In <em>Figure 5</em> we see how there is a file <code>&lt;Guid-Value&gt;.R, and how the </code>stdout.txt` file has a 1kb size. In another post we&rsquo;ll look at the content of the directories, and what it means.</p>
+<p>However, we still haven&rsquo;t really figured out about the working directory, and how it is created. If you remember from <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a>, how we said that the launchpad service creates a number of directories (5+1 as default) as well as processes when an external script is executed, and after execution one process and directory is torn down. So why have I seven directories when the default settings has not changed on the SQL instance I run this on, I really should have six?</p>
+<p>We actually saw the answer to that in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, when we at one stage looked at the <code>rlauncher.log</code> file and saw what is logged when executing an external script with a <code>TRACE_LEVEL</code> of 4. Instead of going back to that post, let us repeat it here:</p>
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Open the <code>rlauncher.config</code> file in a text editor and change the value of <code>TRACE_LEVEL</code> to 4, and save the file (you need to this as admin). Oh, and keep the setting of <code>JOB_CLEANUP_ON_EXIT</code> at 0, as per above.</li>
+<li>Delete the log files in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\Log\ExtensibilityLog</code></li>
+<li>Restart the launchpad service.</li>
+<li>Execute the code again.</li>
+</ol>
+<p>On my box, the working directory came back as <code>67F7F651-8465-4F6B-B90E-0571DD84677D</code>, and that directory also existed in the directory structure for the used user account, exactly as above. Then drilling down into the <code>rlauncher.log</code> file, around the time we executed, we see this (this is heavily redacted, to make it readable):</p>
+<pre tabindex="0"><code>Session(67F7F651-8465-4F6B-B90E-0571DD84677D) [SqlSatellite] created.
+Session(67F7F651-8465-4F6B-B90E-0571DD84677D) 
+    CleanupOnExit=0, Settings.JobCleanupOnExit=0
+Session 67F7F651-8465-4F6B-B90E-0571DD84677D assigned to MSSQLSERVER01 user
+
+ProcessPool(MSSQLSERVER01-ss-2) with minimum processes 5 created
+ProcessPool(MSSQLSERVER01-ss-2) 
+    started GrowAsyncWorker() thread 11744 [00002DE0].
+
+WorkingDirectory(C:\...\MSSQLSERVER01\C23EA5B2-620C-473A-99F5-8BB37CCDA0B7) 
+    created (0)
+WorkingDirectory(C:\...\MSSQLSERVER01\3AEBD29C-E024-46F6-A25E-27E680AF9729) 
+    created (0)
+
+CreateProces(
+    C:\...\R_SERVICES\bin\x64\rterm.exe  --slave --no-restore --no-save 
+    -e &#34;library(RevoScaleR); sessionDirectory &lt;- 
+    &#39;C:\...\\MSSQLSERVER01\\C23EA5B2-620C-473A-99F5-8BB37CCDA0B7&#39;;
+    sessionId &lt;- &#39;C23EA5B2-620C-473A-99F5-8BB37CCDA0B7&#39;;
+    ...
+
+CreateProces(
+    C:\...\R_SERVICES\bin\x64\rterm.exe  --slave --no-restore --no-save 
+    -e &#34;library(RevoScaleR); sessionDirectory &lt;- 
+    &#39;C:\...\\MSSQLSERVER01\\3AEBD29C-E024-46F6-A25E-27E680AF9729&#39;;
+    sessionId &lt;- &#39;3AEBD29C-E024-46F6-A25E-27E680AF9729&#39;;
+ 
+ ...
+
+Session[67F7F651-8465-4F6B-B90E-0571DD84677D] 
+    attached to pooled processes [3AEBD29C-E024-46F6-A25E-27E680AF9729]
+
+...
+</code></pre><p><strong>Code Snippet 3:</strong> <em>Partial Log from Executing</em></p>
+<p>From <em>Code Snippet 3</em> we see what we also saw in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>:</p>
+<ul>
+<li>A session is created.</li>
+<li>A process pool is created.</li>
+<li>Working directories are created.</li>
+<li>Processes are created pointing to the working directories.</li>
+<li>The session created initially is being attached to one of the pooled processes.</li>
+</ul>
+<p>But, when looking at the session it has the same &ldquo;name&rdquo; as the working directory, and we see how the session is attached to one of the processes. So it seems that the creation of a session also creates a directory. The process that the session is attached to becomes the process the external script is executed under, and the directory created together with the session becomes the working directory.</p>
+<p>Is there any way we can see if the theory of a session-directory being created?</p>
+<p>Seeing that we haven&rsquo;t used WinDbg for a while, let&rsquo;s try and see if we can confirm what is happening. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we looked at the call chain when executing an external script, and it looked something bit like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">1.</span> <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">2.</span>  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteSessionManager</span>::<span style="color:#268bd2">ConstructSatelliteSession</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">2.</span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteJobObject</span>::<span style="color:#268bd2">CreateSatelliteJobObject</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">2.</span>      <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteSessionManager</span>::<span style="color:#268bd2">CreateNewSessionObject</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3.</span>        <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">Launch</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>          <span style="color:#268bd2">Rlauncher</span>!<span style="color:#2aa198">&#34;MiscCalls&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>            <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>              <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CreateProcessForSatelliteSession</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">PhysicalUserContext</span>::<span style="color:#268bd2">LaunchProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateProcessInternalW</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>          <span style="color:#268bd2">Rlauncher</span>!<span style="color:#2aa198">&#34;MiscCalls&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>            <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>              <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CreateProcessForSatelliteSession</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">PhysicalUserContext</span>::<span style="color:#268bd2">LaunchProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                  <span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateProcessInternalW</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">Satellite_ResourceManager</span>::<span style="color:#268bd2">AssociateProcessToJobObject</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">Satellite_ResourceManager</span>::<span style="color:#268bd2">AssociateProcessToJobObject</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteJobObject</span>::<span style="color:#268bd2">AssociateProcess</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">4.</span>                  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteJobObject</span>::<span style="color:#268bd2">AssociateProcess</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>High Level Call Chain</em></p>
+<ol>
+<li>Initially a call to <code>LaunchServTask</code> happens.</li>
+<li>We then create a satellite session, a job object and a session object.</li>
+<li>We then come into the code path were we launch the launcher and create the RTerm processes: <code>launchpad!CLaunchContext::Launch</code>.</li>
+<li>In there we do multiple calls to the launcher dll (<code>Rlauncher!&quot;MiscCalls&quot;</code>), create the actual processes and assigns that to the job object. We initially create two processes, and one of the processes will be mapped to the session (as we saw from the log-file). This is then repeated multiple times.</li>
+</ol>
+<p>So, somewhere in the call chain in <em>Code Snippet 4</em>, our directories are created. To try and figure out what happens, let&rsquo;s:</p>
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
+<li>Restart the launchpad service.</li>
+<li>Open WinDbg and attach to the launchpad service (you need to run WinDbg as admin).</li>
+</ol>
+<blockquote>
+<p><strong>NOTE:</strong> The <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach to a process, and what commands to use.</p>
+</blockquote>
+<p>Now, let&rsquo;s set some break points at:</p>
+<ol>
+<li><code>bp launchpad!SatelliteSessionManager::CreateNewSessionObject</code></li>
+<li><code>bp KERNELBASE!CreateDirectoryW</code></li>
+<li><code>bp launchpad!SQLSatellite_LaunchProcess</code></li>
+</ol>
+<p>So what we try to do is to establish in what order things happen, and how many times the <code>KERNELBASE!CreateDirectoryW</code> is called. While we execute we should also, in file explorer, see what directories are created in the user account directory. Let&rsquo;s run the code now.</p>
+<p>The output from the debugger looked for me like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SatelliteSessionManager</span>::<span style="color:#268bd2">CreateNewSessionObject</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">CreateDirectoryW</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LaunchProcess</span>:
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Creation of Directories and Processes</em></p>
+<p>In <em>Code Snippet 5</em> we see how:</p>
+<ul>
+<li>Three directories are created initially, the first one being the directory for the session.</li>
+<li>Then two processes, which will use the second and third directory.</li>
+<li>Then one directory followed by one process, until we&rsquo;re done.</li>
+</ul>
+<p><strong>UPDATE &amp; EDIT:</strong> The following is somewhat edited, and I have added a couple of pictures to make things more understandable. I have added <em>Figure 6</em>, and <em>Figure 7</em> and rearranged (and added) some text.</p>
+<p>The above is in line what we discussed in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, as well as <em>Code Snippet 1</em> where we saw how two directories are created initially, followed by two processes. However, it is not two directories, but three - where the first directory will become the working directory, and the rest of the directories will be backing directories for the R processes.</p>
+<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we had a figure like below, in order to show what happens:</p>
+<p>
+  <img src="/images/posts/sql-launchpad_processes_post.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Launchpad, Directories and Processes</em></p>
+<p>We now see that that <em>Figure 6</em> is not entirely correct, as it leaves out the creation of the working directory. The following figure (where some of the internal callas are taken out) should be more accurate:</p>
+<p>
+  <img src="/images/posts/sql_r_services_6_launchpad_working_dir.png" alt="">
+
+
+<strong>Figure 7:</strong> <em>Launchpad, Directories and Processes</em></p>
+<p>So, that&rsquo;s fine - we now &ldquo;kind of&rdquo; understands how the working directory is created. Now, when you look at <em>Figure 4</em>, you see that inside one of the created directories are some files, and a sub-directory. When we ran the code after having set the break points, as above, we did not see any <code>KERNELBASE!CreateDirectoryW</code> calls which would have created the sub directories. What&rsquo;s up with that, and where do the files in the directories come from, and what do they do? Questions, questions, so many questions. Hopefully we&rsquo;ll get some answers in subsequent posts!</p>
+<h2 id="summary">Summary</h2>
+<p>When we execute an external script, processes are created with backing directories. The script is executed in a session, and that session do have a backing directory as well. That directory becomes the working directory for the R process the script execute in.</p>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-05-14-interesting-stuff---week-19/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 19">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-05-20-facebook-prophet-and-microsoft-r-server/" data-toggle="tooltip" data-placement="top" title="Facebook Prophet and Microsoft R Server">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQLCLR and Certificates" />
+    <meta property="og:title" content="SQLCLR and Certificates" />
+    <meta property="twitter:title" content="SQLCLR and Certificates" />
+    
+
+    
+    <meta name="description" content="We discuss the use of TRUSTWORTHY and certificates in SQL Server when deploying SQLCLR assemblies.">
+    <meta property="og:description" content="We discuss the use of TRUSTWORTHY and certificates in SQL Server when deploying SQLCLR assemblies." />
+    <meta property="twitter:description" content="We discuss the use of TRUSTWORTHY and certificates in SQL Server when deploying SQLCLR assemblies." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQLCLR and Certificates | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-07-01-sqlclr--certificates/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlclr" title="SQLCLR">
+                            SQLCLR
+                        </a>
+                        
+                        <a class="tag" href="/tags/trustworthy" title="TRUSTWORTHY">
+                            TRUSTWORTHY
+                        </a>
+                        
+                        <a class="tag" href="/tags/assemblies" title="assemblies">
+                            assemblies
+                        </a>
+                        
+                        <a class="tag" href="/tags/certificates" title="certificates">
+                            certificates
+                        </a>
+                        
+                    </div>
+                    <h1>SQLCLR and Certificates</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, July 1, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post originates, like the one about <a href="/post/2017-06-25-creating-r-stored-procedures-in-sql-server-2016-using-sqlrutils/">sqlrutils</a>, from a question on a Microsoft forum - this time the <a href="https://social.msdn.microsoft.com/Forums/sqlserver/en-US/home?forum=sqlnetfx">.NET Framework inside SQL Server</a> forum. As the name implies, the forum cover questions about the usage of SQLCLR (.NET inside SQL Server), and the <a href="https://social.msdn.microsoft.com/Forums/sqlserver/en-US/35b8bce5-8ea9-4fd4-aa87-1764a2071e92/long-lasting-pfx-file-for-sqlclr-externalaccess-signing?forum=sqlnetfx">question</a> was about signing of SQLCLR assemblies in order to assigning other permission sets than <code>SAFE</code> to the assembly.</p>
+<p>As I, back in the day, taught SQLCLR as part of Developmentor&rsquo;s SQL Server curriculum, I thought that it&rsquo;d be interesting if I tried to answer the question, and also make a blog-post about it. That way I&rsquo;d remember what to do the next time the question came up.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In another post, I wrote this about Developmentor: <em>Developmentor were back in the day THE training company to go to if you wanted highly, highly technical training about COM, .NET, SQL Server, etc. <a href="http://www.javaworld.com/article/2073792/core-java/a-eulogy--developmentor--rip.html">This article</a> by my old colleague <a href="http://blogs.tedneward.com/">Ted Neward</a> (@tedneward) sums DM up quite accurately (apart from the fact that DM hadn&rsquo;t closed its doors when the article was written, ooops).</em> Ted was probably more accurate than he at the time thought, since DM went out of business somewhat later.</p>
+</blockquote>
+<p>Anyway, let&rsquo;s see what this is all about&hellip;</p>
+<h2 id="sqlclr">SQLCLR</h2>
+<p>SQLCLR is where the .NET framework is embedded in the SQL engine, and you execute .NET code in the SQL Server process. Since you execute .NET code, you can <em>almost</em> do anything you can in a &ldquo;normal&rdquo; .NET application.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I wrote &ldquo;almost&rdquo; above, as there actually are certain limitations. For this discussion however, the limitations have <strong>almost</strong> no impact on what we want to do.</p>
+</blockquote>
+<p>The way SQLCLR works is that you compile your code into a dll, and you then register the <strong>assembly</strong> with SQL Server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> &lt;<span style="color:#268bd2">some_name</span>&gt; 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198">&#39;F:\some_path\somedll.dll&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#268bd2">PERMISSION_SET</span> = <span style="color:#268bd2">SAFE</span> | <span style="color:#268bd2">EXTERNAL_ACCESS</span> | <span style="color:#268bd2">UNSAFE</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Creating an Assembly from Absolute Path</em></p>
+<p>The code does the following:</p>
+<ul>
+<li><code>CREATE ASSEMBLY</code> - creates an assembly with a given name (whatever you want it to be).</li>
+<li><code>FROM</code> - defines where the original assembly lives. The <code>FROM</code> statement can also take an UNC patch or a binary definition of the assembly. The installation files for this project uses the binary representation.</li>
+<li><code>WITH PERMISSION_SET</code> - sets the permissions. If you don&rsquo;t specify the permission set, it defaults to <code>SAFE</code>. More about that below.</li>
+</ul>
+<h3 id="permission-sets">Permission Sets</h3>
+<p>Seeing that your code runs in the same process as the SQL Server engine (scary thought), Microsoft introduced the notion of permission sets to indicate what the code is allowed to do. From <em>Code Snippet 1</em> you see there are three options:</p>
+<ul>
+<li><code>SAFE</code> - the code is not doing anything that you cannot do in T-SQL. You are confined to do things inside the database you are executing in.</li>
+<li><code>EXTERNAL_ACCESS</code> - you can get outside of the local database, but only via &ldquo;approved&rdquo; assemblies, such as <code>ADO.NET</code>, etc.</li>
+<li><code>UNSAFE</code> - You can do pretty much what you want. As I mentioned above, there are certain limitations, but very few.</li>
+</ul>
+<p>Let us look at a very simple example of this, where we have code looking like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c#" data-lang="c#"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading.Tasks</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">SqlClrCert</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">public</span> <span style="color:#859900">class</span> <span style="color:#cb4b16">Functions</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">fn_clr_Adder</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">public</span> <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">fn_clr_LongRunningAdder</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">t</span> = <span style="color:#268bd2">Task</span>.<span style="color:#268bd2">Factory</span>.<span style="color:#268bd2">StartNew</span>(() =&gt; <span style="color:#268bd2">LongRunning</span>(<span style="color:#268bd2">x</span>, <span style="color:#268bd2">y</span>));
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">t</span>.<span style="color:#268bd2">Result</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">LongRunning</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">y</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">wait</span> = (<span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>) * <span style="color:#2aa198;font-weight:bold">100</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Thread</span>.<span style="color:#268bd2">Sleep</span>(<span style="color:#268bd2">wait</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#859900">return</span> <span style="color:#268bd2">x</span> + <span style="color:#268bd2">y</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Code to Use in SQL Server</em></p>
+<p>As you can see, the code in <em>Code Snippet 2</em> has two public functions, and we are interested in being able to use both from inside SQL Server. The second public function <code>fn_clr_LongRunningAdder</code> emulates that we do something that takes a long time, so we have to use threads. When compiling this code, it compiles into an assembly: <code>SqlClrTest.dll</code>.</p>
+<p>To use it from a database in SQL Server we need to create an assembly in SQL Server, as per what we see in <em>Code Snippet 1</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> <span style="color:#268bd2">CertTest</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198">&#39;W:\&lt;path_to_dll&gt;\SqlClrCert.dll&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Create Assembly in SQL Server</em></p>
+<p>When the assembly has been created we can go ahead and create the T-SQL wrapper functions for the two functions we have in the assembly:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">FUNCTION</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_Adder</span>(@<span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, @<span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">RETURNS</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">NAME</span> <span style="color:#268bd2">CertTest</span>.[<span style="color:#268bd2">SqlClrCert</span>.<span style="color:#268bd2">Functions</span>].<span style="color:#268bd2">fn_clr_Adder</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">FUNCTION</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_LongRunningAdder</span>(@<span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, @<span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">RETURNS</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">NAME</span> <span style="color:#268bd2">CertTest</span>.[<span style="color:#268bd2">SqlClrCert</span>.<span style="color:#268bd2">Functions</span>].<span style="color:#268bd2">fn_clr_LongRunningAdder</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Create T-SQL Wrapper Functions</em></p>
+<p>If you want more information about the <code>CREATE FUNCTION</code> syntax, have a look <a href="https://docs.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql">here</a>. When the functions are created we can try and start use them, and we&rsquo;ll begin with <code>dbo.fn_clr_Adder</code>:</p>
+<blockquote>
+<p><strong>NOTE:</strong> Before you execute the function you may have to enable SQLCLR in the database: <code>sp_configure 'clr enabled', 1</code> followed by <code>RECONFIGURE</code>.</p>
+</blockquote>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_Adder</span>(<span style="color:#2aa198;font-weight:bold">21</span>, <span style="color:#2aa198;font-weight:bold">21</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Execute dbo.fn_clr_Adder</em></p>
+<p>When you execute the code, you should get back a result, cool! What happens if you now try to execute the long running adder:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_LongRunningAdder</span>(<span style="color:#2aa198;font-weight:bold">21</span>, <span style="color:#2aa198;font-weight:bold">21</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Execute dbo.fn_clr_LongRunningAdder</em></p>
+<p>Ouch, a very nasty error:</p>
+<p>
+  <img src="/images/posts/sqlclrcert_exec1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Error from Executing the Procedure</em></p>
+<p>What you see in <em>Figure 1</em> is SQL Server&rsquo;s way of telling you that you are about to do something, potentially, stupid - and that this is not supported under default permission settings.</p>
+<p>So, if we go back to <em>Code Snippet 1</em> and look what options we have; maybe using the <code>WITH PERMISSION_SET</code> clause will help. So just to make sure that we start from the beginning, let&rsquo;s drop the functions and the assembly:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">FUNCTION</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_Adder</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">FUNCTION</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">fn_clr_LongRunningAdder</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#268bd2">ASSEMBLY</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">CertTest</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Dropping Functions and Assembly</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> I am using SQL Server 2016, and its new <code>DROP ... IF EXISTS ...</code> syntax.</p>
+</blockquote>
+<p>We can now re-create the assembly with <code>UNSAFE</code> permissions:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">ASSEMBLY</span> <span style="color:#268bd2">CertTest</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#2aa198">&#39;W:\&lt;path_to_dll&gt;\SqlClrCert.dll&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#268bd2">PERMISSION_SET</span> = <span style="color:#268bd2">UNSAFE</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Create Assembly in SQL Server with UNSAFE Permission Set</em></p>
+<p>That should do the rick, so try and run it:</p>
+<p>
+  <img src="/images/posts/sqlclrcert_permission_set_unsafe1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Error from Trying to Create the Assembly</em></p>
+<p>Eish, not good! It looks like we need to do some more things with the assembly in order to be able to create it as <code>UNSAFE</code>.</p>
+<h2 id="assembly-authorization">Assembly Authorization</h2>
+<p>In <em>Figure 2</em> we see that the error has something to do with authorization of the assembly: <em>CREATE ASSEMBLY for assembly &lsquo;SqlClrCert&rsquo; failed
+because assembly &lsquo;SqlClrCert&rsquo; is not authorized for PERMISSION_SET = UNSAFE</em>. So it is not enough to say what permissions the assembly needs to have, there are certain requirements on the environment as well.</p>
+<p>From the error we can see that in order to be authorized either of the following requirements need to be true:</p>
+<ul>
+<li>The database owner (DBO) has <code>UNSAFE ASSEMBLY</code> permission and the database has the <code>TRUSTWORTHY</code> database property on.</li>
+<li>The assembly is signed with a certificate that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
+<li>The assembly is signed with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
+</ul>
+<p>Of the three options above, we&rsquo;ll look at the two first ones (<code>TRUSTWORTHY</code> and certificate). I&rsquo;ll skip the asymmetric key, as it - in my mind - is too inflexible to use in production.</p>
+<h3 id="trustworthy">TRUSTWORTHY</h3>
+<p>The <code>TRUSTWORTHY</code> setting defines whether SQL Server trusts code in the particular database to access external resources (a bit like: &ldquo;Trust me, I am a professional!&rdquo;). The way to set it on is through <code>ALTER DATABASE</code> syntax:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">DATABASE</span> &lt;<span style="color:#268bd2">your_db_name</span>&gt;
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">TRUSTWORTHY</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Set Database to Trustworthy</em></p>
+<p>To see if <code>TRUSTWORTHY</code> will fix the issue for us, run the code in <em>Code Snippet 8</em>, followed by the code in <em>Code Snippet 7</em>. The <code>CREATE ASSEMBLY</code> statement in <em>Code Snippet 7</em> should now work without any issues. If you want, you can now go on and create the functions as in <em>Code Snippet 4</em>, and then execute the long running function as we do in <em>Code Snippet 6</em>. This should just work now! That was not too hard was it - why even bother doing it any other way?</p>
+<p>Well, <code>TRUSTWORTHY</code> is kind of coarse grained, after having set it to <code>ON</code>, all assemblies can now be created with elevated permissions (<code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>) - in that particular database. If you do not have full control over the database, this can become a security hole.</p>
+<p>My personal opinion is that the risks of <code>TRUSTWORTHY</code> are over exaggerated by some experts in the SQL server community, and I have yet to come across anyone that has been &ldquo;bitten&rdquo; by using <code>TRUSTWORTHY</code>. Here at <a href="/Derivco">Derivco</a> we are huge proponents of SQLCLR and the majority of our SQLCLR assemblies are <code>UNSAFE</code>, and we use <code>TRUSTWORTHY</code> all the time.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In order to create an assembly as <code>UNSAFE</code>, the user need to be part of <strong>sysadmin</strong>.</p>
+</blockquote>
+<p>In the case of <code>TRUSTWORTHY</code> it is not the assembly as such being authorized, but the database.</p>
+<h3 id="certificates">Certificates</h3>
+<p>The second way to authorize an assembly for <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code> is by the use of certificates. For this purpose the certificate can be self-signed (preferably a certificate common for your corporation). The steps to authorize using a certificate are:</p>
+<ul>
+<li>Create a certificate, if you don&rsquo;t already have one.</li>
+<li>Create a <code>.pfx</code> file from the certificate. Pfx stands for Personal Information Exchange, and we&rsquo;ll use it to sign your assembly.</li>
+<li>Sign the dll with the <code>.pfx</code> file.</li>
+<li>In the database create a SQL Server certificate from the original certificate.</li>
+<li>In the database create login from the certificate.</li>
+<li>Grant the login necessary permissions (<code>UNSAFE ASSEMBLY</code> in our example).</li>
+<li>Create the dll in the database.</li>
+</ul>
+<p>To do all this above, we use tools from the Windows SDK. On my box, the path to these tools are at: <code>C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64</code>.</p>
+<p>Let&rsquo;s start with making a certificate, and for this we use the <code>makecert.exe</code> tool:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">makecert</span> -<span style="color:#268bd2">r</span> -<span style="color:#268bd2">pe</span> -<span style="color:#268bd2">n</span> <span style="color:#2aa198">&#34;CN=Niels Test Root Authority&#34;</span> 
+</span></span><span style="display:flex;"><span>         -<span style="color:#268bd2">a</span> <span style="color:#268bd2">sha256</span> -<span style="color:#268bd2">sky</span> <span style="color:#268bd2">signature</span> -<span style="color:#268bd2">cy</span> <span style="color:#268bd2">authority</span> 
+</span></span><span style="display:flex;"><span>         -<span style="color:#268bd2">sv</span> <span style="color:#268bd2">NielsTestPvk</span>.<span style="color:#268bd2">pvk</span> -<span style="color:#268bd2">len</span> <span style="color:#2aa198;font-weight:bold">2048</span> 
+</span></span><span style="display:flex;"><span>         -<span style="color:#268bd2">m</span> <span style="color:#2aa198;font-weight:bold">144</span> <span style="color:#268bd2">NielsTestCert</span>.<span style="color:#268bd2">cer</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Create a Certificate Using makecert.exe</em></p>
+<p>To see what the various flags used above means, you can run <code>makecert.exe -?</code> and <code>makecert.exe -!</code>. Some explanations:</p>
+<ul>
+<li><code>-r</code> - Create a self signed certificate.</li>
+<li><code>-pe</code> - Make the generated private key exportable.</li>
+<li><code>-a</code> - The signature&rsquo;s digest algorithm.</li>
+<li><code>-sv</code> - The PVK file to be created.</li>
+<li><code>-m</code> - Number of months the certificate will be valid for.</li>
+</ul>
+<p>When you run the code in <em>Code Snippet 9</em>, a couple of dialog boxes will &ldquo;pop up&rdquo; asking for you to define password for the private key, and then to enter the password for the private key. After execution you should see two newly created files in the directory where you ran the code: a <code>.cer</code> file, and a <code>.pvk</code> file.</p>
+<p>Having created the certificate, we now create the <code>.pfx</code> using the <code>pvk2pfx.exe</code> tool:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">PVK2PFX</span> -<span style="color:#268bd2">pvk</span> <span style="color:#268bd2">NielsTestPvk</span>.<span style="color:#268bd2">pvk</span> 
+</span></span><span style="display:flex;"><span>        -<span style="color:#268bd2">spc</span> <span style="color:#268bd2">NielsTestCert</span>.<span style="color:#268bd2">cer</span> 
+</span></span><span style="display:flex;"><span>        -<span style="color:#268bd2">pfx</span> <span style="color:#268bd2">NielsTestPfx</span>.<span style="color:#268bd2">pfx</span>
+</span></span><span style="display:flex;"><span>        -<span style="color:#268bd2">pi</span> <span style="color:#268bd2">testPwd</span>
+</span></span><span style="display:flex;"><span>        -<span style="color:#268bd2">po</span> <span style="color:#268bd2">testPwd</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Create a .pfx File Using pvk2pfx.exe</em></p>
+<p>The flags should be fairly self explanatory, the two that need some sort of explanation may be:</p>
+<ul>
+<li><code>-pi</code> - The password for the <code>.pvk</code> file.</li>
+<li><code>-po</code> - Password to set for the <code>.pfx</code> file.</li>
+</ul>
+<p>Executing the code in <em>Code Snippet 10</em> should result in a third file in your directory; a <code>.pfx</code> file.</p>
+<p>The last thing to do before doing things inside SQL Server is to sign your assembly. You sign the assembly with the newly created <code>.pfx</code> file, and you use the <code>signtool.exe</code> tool for this. Copy your <code>.pfx</code> file to where your dll is (or vise versa), and then run <code>signtool.exe</code> with the <code>sign</code> command:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">signtool</span> <span style="color:#268bd2">sign</span> /<span style="color:#268bd2">f</span> <span style="color:#268bd2">NielsTestPfx</span>.<span style="color:#268bd2">pfx</span> 
+</span></span><span style="display:flex;"><span>              /<span style="color:#268bd2">p</span> <span style="color:#268bd2">testPwd</span> <span style="color:#268bd2">SqlClrTest</span>.<span style="color:#268bd2">dll</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Sign the dll Using signtool.exe</em></p>
+<p>The <code>/p</code> flag defines the password to use for opening the <code>.pfx</code> file.</p>
+<p>Having done all this, we can now go to the database and do the final steps. First we need to create a SQL Server certificate from the certificate we created in <em>Code Snippet 9</em>. The certificate should be created in the <code>master</code> database:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">CERTIFICATE</span> <span style="color:#268bd2">NielsTestCert</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">FILE</span> = <span style="color:#2aa198">&#39;W:\&lt;path_to_cert&gt;\NielsTestCert.cer&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Create a SQL Server Certificate</em></p>
+<p>With a certificate created, we now create a login from the certificate, and also <code>GRANT</code> it the necessary permissions (<code>UNSAFE ASSEMBLY</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">LOGIN</span> <span style="color:#268bd2">login_NielsTestCert</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">CERTIFICATE</span> <span style="color:#268bd2">NielsTestCert</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GRANT</span> <span style="color:#268bd2">UNSAFE</span> <span style="color:#268bd2">ASSEMBLY</span> <span style="color:#859900">TO</span> <span style="color:#268bd2">login_NielsTestCert</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Create a SQL Server Login and Grant Permissions</em></p>
+<p>We are now back to where we were in <em>Code Snippet 7</em>, where we want to create the assembly with <code>UNSAFE</code> permission set. Before you run the code in <em>Code Snippet 7</em>, make sure that the database is set to <code>TRUSTWORTHY OFF</code>, and the run the code.</p>
+<p>After successfully created the assembly with the necessary permission set, you can run the code to create the functions (<em>Code Snippet 4</em>), and the execute the long running adder (<em>Code Snippet 6</em>). All of this should work fine! Congratulations, you have now used certificates to deploy an <code>UNSAFE</code> assembly.</p>
+<p>This may seem like a lot of work, but after you have done the initial setup: certificate, <code>.pfx</code>, and certificate in the SQL Server instance together with a login - you can now use this for any assembly. The only thing you need to do is to sign the assembly with the <code>.pfx</code> file.</p>
+<h2 id="dependent--referenced-assemblies">Dependent / Referenced Assemblies</h2>
+<p>We have seen from the above how we can deploy assemblies to a database with elevated permissions by using either <code>TRUSTWORTHY</code> or certificates. But what about referenced assemblies?</p>
+<p>In an earlier <a href="/post/2017-02-11-rabbitmq---sql-server/">post</a> I wrote about how to send data from SQL Server to RabbitMQ, and in our code we referenced the .NET client for RabbitMQ. When deploying our code to the database, the referenced assembly also need to be deployed - and in all likelihood have the same elevated permissions as our assembly. In that example we used <code>UNSAFE</code>.</p>
+<p>If we use <code>TRUSTWORTHY</code>, things will just work fine, as the authorization is on the database level (and that&rsquo;s how we did it in that post). What if we do not use <code>TRUSTWORTHY</code>, but certificates as above? That will work too - you can sign the referenced dll with the <code>.pfx</code> file and deploy it as you normally would. This also works for strong named assemblies like Microsoft&rsquo;s!</p>
+<h2 id="summary">Summary</h2>
+<p>So to sum it up:</p>
+<ul>
+<li>To deploy an assembly to SQL Server with elevated permissions, either the assembly or the database need to be authorized for this.</li>
+<li>You can authorize the database by setting <code>TRUSTWORTHY ON</code>.</li>
+<li>Assemblies can be authorized by either using certificates or asymmetric keys. I definitely prefer certificates over the keys.</li>
+</ul>
+<p>When it comes to the debate over &ldquo;how dangerous&rdquo; <code>TRUSTWORTHY</code> is, I call &ldquo;BS&rdquo; on the arguments that <code>TRUSTWORTHY</code> should not be used!</p>
+<h3 id="sql-server-2017">SQL Server 2017</h3>
+<p>Oh, one last thing: in SQL Server 2017, there are some changes to how things work, and I will make a separate blog-post about that.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-06-25-interesting-stuff---week-25/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 25">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/" data-toggle="tooltip" data-placement="top" title="SQL Server 2017, SQLCLR and Permissions">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

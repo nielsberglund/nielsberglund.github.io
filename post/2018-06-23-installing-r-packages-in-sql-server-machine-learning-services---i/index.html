@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Installing R Packages in SQL Server Machine Learning Services - I" />
+    <meta property="og:title" content="Installing R Packages in SQL Server Machine Learning Services - I" />
+    <meta property="twitter:title" content="Installing R Packages in SQL Server Machine Learning Services - I" />
+    
+
+    
+    <meta name="description" content="How can we install R packages in SQL Server Machine Learning Services">
+    <meta property="og:description" content="How can we install R packages in SQL Server Machine Learning Services" />
+    <meta property="twitter:description" content="How can we install R packages in SQL Server Machine Learning Services" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Installing R Packages in SQL Server Machine Learning Services - I | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-06-23-installing-r-packages-in-sql-server-machine-learning-services---i/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/rgui" title="Rgui">
+                            Rgui
+                        </a>
+                        
+                        <a class="tag" href="/tags/r-package-manager" title="R Package Manager">
+                            R Package Manager
+                        </a>
+                        
+                    </div>
+                    <h1>Installing R Packages in SQL Server Machine Learning Services - I</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, June 23, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post was supposed to be a single post about how to install R packages in SQL Server Machine Learning Services, but once again I completely misjudged the scope of the topic. So this one post turned into a series of posts about how to install R packages in <strong>SQL Server Machine Learning Services</strong> and this is the first post in the series.</p>
+<p>To see other posts in the series go to <a href="/sql_server_ml_services_install_packages"><strong>Install R Packages in SQL Server ML Services Series</strong></a>.</p>
+<p>As you may know, I am in the process of writing the follow-up post to <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a>. However, I have a hard time getting into the flow of things, so I use any excuse I can, to not have to write. So when <a href="https://www.linkedin.com/in/dane-bax/">Dane Bax</a>, a colleague of mine, contacted me a couple of days ago with a <strong>SQL Server Machine Learning Services</strong> problem, I jumped at the chance to help him, and also write a post about it.</p>
+<p><a href="https://www.linkedin.com/in/dane-bax/">Dane</a> works for a sister company of <a href="/Derivco">Derivco</a> as a data scientist and at both <a href="/Derivco">Derivco</a> and the sister company - <a href="https://www.microgaming.co.uk/">Microgaming</a> we are now looking at using SQL Server Machine Learning Services.</p>
+<p>His problem was that he wanted to use a CRAN package - <code>bsts</code> - which is not part of a standard SQL Server R installation. He tried a couple of things to get it installed but got errors, so he decided to get in touch with me.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The package name <code>bsts</code> stands for <em>Bayesian Structural Time Series</em> and it performs time series regression using dynamic linear models fit using MCMC.</p>
+</blockquote>
+<h2 id="background">Background</h2>
+<p>First of all; why would we need to install R packages if I already have R, either on my local machine or via SQL Server ML Services? Well, the answer to that is that there are a multitude of packages &ldquo;in the wild&rdquo; who do not necessarily come with your R engine of choice, and <code>bsts</code> is an excellent example of this.</p>
+<p>If you are an R developer you are probably accustomed to installing packages on your R development environment at will, and - more or less - at whatever location you choose. When using SQL Server ML Services however, it does not work like that as SQL Server cannot load packages from external libraries, even if that library is on the same computer. So when using SQL Server ML Services, you can only install packages to a default library associated with the instance.</p>
+<p>The installation of packages can be done in different ways which is what this post is about - but before that, let us look at something somewhat different: <strong>Rtools</strong>.</p>
+<h2 id="rtools">Rtools</h2>
+<p>The cool thing with R is that it is open source and you can run it on multiple platforms (Windows, Mac, Linux). So in essence, whatever package you want to use you can run on your platform of choice. If you install a package on Mac or Windows, R downloads and installs a pre-compiled (for your OS) packet. On Linux, R downloads the source of the package and builds it on your machine. For the build, R requires some external tools: <code>make</code>, <code>tar</code>, <code>gzip</code>, C/C++ compiler and so forth.</p>
+<p>Why I mention this here is that certain packages do not have a binary built for Windows, and if you want to install such a package, you need to build the package from source on your environment. The problem with this is that most of the tools needed to build the package may not exist in the Windows environment.</p>
+<p>To be able to compile from source on Windows, the people behind R have made available an installer which installs the required tools for compilation of packages: <strong>Rtools</strong>. So if you think that you ever need to compile an R package from source, then ensure that you have <em>Rtools</em> installed. Why I bring this up is that the <code>bsts</code> package has a dependency on a package that needs to be compiled.</p>
+<h4 id="rtools-installation">Rtools Installation</h4>
+<p>While you can install R packages to a remote machine, keep in mind that <em>Rtools</em> is not an R package as such, and it is not installed into the engine - but onto the machine where R is. So, for us here, we need to be on the machine that hosts SQL Server ML Services and run the installation on that machine.</p>
+<p>We need first to download the installer for <em>Rtools</em>, and when you browse to the <a href="https://cran.r-project.org/bin/windows/Rtools/index.html">download page</a>, you see there are multiple versions dependent on what version of R you have. To find the R version of your SQL Server ML Services installation you can run following code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                  @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;print(R.Version()$version)&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Retrieve R Version</em></p>
+<p>When I run the code in <em>Code Snippet 1</em> on my SQL Server ML Services instance, I see that the R version is <code>3.3.3</code>, so I download <code>Rtools35.exe</code> to my SQL Server machine and run the installer. By default <em>Rtools</em> installs to <code>C:\RTools</code> and R looks for compilers in the default installation path. If you install anywhere else, you have to point R to the path of <code>gcc</code>, <code>g++</code> and <code>ld</code>, by setting a variable called BINPREF. <em>Rtools</em> installation instructions discuss this in detail. During the install ensure you check the checkbox for &ldquo;Add rtools to system PATH&rdquo;:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_rtools_path.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Adding Rtools to PATH</em></p>
+<p>After having checked the box for editing the PATH as in <em>Figure 1</em>, click through and let the install finish. After installation, it is a good practice to check that the PATH is set. You can do this by running <code>RTerm.exe</code> (on the SQL Server box) and execute <code>Sys.getenv('PATH')</code> from RTerm&rsquo;s command prompt. You find <code>RTerm.exe</code> at the <code>R_SERVICES\bin\x64</code> directory under the path to the SQL Server instance. For example: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.MSSQLSERVER\R_SERVICES\bin\x64</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Just a word of caution here. When I installed <code>Rtools35.exe</code> I had to manually add to PATH the path to the compilers: <code>C:\Rtools\mingw_64\bin</code>. So look out for that .</p>
+</blockquote>
+<p>You should also check that you can call the C++ compiler: <code>system('g++ -v')</code> (this is how I realised the path was not correct). That should result in something like:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_rtools_g&#43;&#43;.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Checking for C++ Compiler</em></p>
+<p>If everything looks OK, <em>Rtools</em> have now been installed, and the various instances of R (from SQL Server ML instances) can share the <em>Rtools</em> toolchain.</p>
+<h2 id="r-packages-installation">R Packages Installation</h2>
+<p>When we install R packages for SQL Server ML Services we install them on a per SQL Server instance, and we can install these packages different in ways:</p>
+<ul>
+<li>R packet managers.</li>
+<li>T-SQL.</li>
+<li>RevoScaleR.</li>
+</ul>
+<p>Regardless how we install the packages, they can only be installed to the default packet library for that instance. The file system folder for this library has restricted access and to write to this folder you need admin rights. Well, that is not entirely correct - with some configuration changes even non-admin can install packages via T-SQL and RevoScaleR. However, as we see later, the installation is against the current database.</p>
+<h4 id="r-code-for-installation">R Code for Installation</h4>
+<p>Before we look at the ways we can install and the tools for installation; what does the code we use to do the installation look like?</p>
+<p>As you probably know, the way to install R packages is through the <code>install.packages</code> command. The command has quite a few parameters as you can see <a href="https://www.rdocumentation.org/packages/utils/versions/3.5.0/topics/install.packages">here</a>, but when I install packages I use only a few of the parameters, regardless of the way I install the package:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># get the library path</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">libPath</span> &lt;- <span style="color:#268bd2">.libPaths</span>()<span style="color:#268bd2">[1]</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">install.packages</span>(<span style="color:#2aa198">&#34;pkg_name&#34;</span>, <span style="color:#268bd2">lib</span> = <span style="color:#268bd2">libPath</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">repos</span> = <span style="color:#2aa198">&#34;url_for_the_repo&#34;</span>, 
+</span></span><span style="display:flex;"><span>                  <span style="color:#268bd2">dependencies</span> = <span style="color:#859900;font-weight:bold">TRUE</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Install Packages Command</em></p>
+<p>In <em>Code Snippet 2</em> we see how I first retrieve the library path. This is where I install the package to, and once again - I can only install to the default instance directory. Then in the <code>install.packages</code> call I use these parameters:</p>
+<ul>
+<li>First parameter is always the name of the package(s) to install.</li>
+<li><code>lib</code>: is for the library folder to install to.</li>
+<li><code>repos</code>: the base URL(s) of the repositories to use. If left out, the repo used is the Microsoft MRAN repo, which may not be what you want.</li>
+<li><code>dependencies</code>: indicating whether to also install missing packages which these packages depend on/link to/import/suggest (and so on recursively).</li>
+</ul>
+<p>So that is the code for installation of packages. What if you want to see what packages are installed on a particular instance of SQL Server ML Services? For that you can execute something like so from <strong>SQL Server Management Studio</strong> (SSMS):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>                    @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>, 
+</span></span><span style="display:flex;"><span>                    @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    OutputDataSet &lt;- data.frame(
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    installed.packages()[,c(&#34;Package&#34;, &#34;Version&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                        &#34;Depends&#34;, &#34;License&#34;, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                        &#34;Built&#34;, &#34;LibPath&#34;)]);&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">Package</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">255</span>), <span style="color:#859900">Version</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">100</span>), 
+</span></span><span style="display:flex;"><span>                   <span style="color:#268bd2">Depends</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">4000</span>), <span style="color:#268bd2">License</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">1000</span>), 
+</span></span><span style="display:flex;"><span>                   <span style="color:#268bd2">Built</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">100</span>), <span style="color:#268bd2">LibPath</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">2000</span>)));
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Retrieve Installed R Packages</em></p>
+<p>So now when we have seen some code how to install packages (and also see what packages already exists), in this post let us look at using R packet managers for the installation.</p>
+<h2 id="r-packet-managers">R Packet Managers</h2>
+<p>What is an R packet manager? It is an R command line tool or GUI installed on the SQL Server Machine Learning Services machine that can run with elevated permissions and target the R engine for the instance on which you want to install the package. The easiest is to use either of the R tools that come as part as part of SQL Server&rsquo;s R service:</p>
+<ul>
+<li>The command line tool: <code>Rterm.exe</code>.</li>
+<li>The GUI: <code>Rgui.exe</code>.</li>
+</ul>
+<p>Once again you need to be able to run them with elevated access, so you need admin rights on the machine, and they can only run locally.</p>
+<p>So let us say that <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> (from above) wants to install the <code>bsts</code> package mentioned above and he has admin rights on the machine SQL Server is installed on. The choice he has is to use <code>Rterm.exe</code> or <code>Rgui.exe</code>. Dane is not really into command line, so he uses <code>Rgui.exe</code>:</p>
+<ul>
+<li>He logs onto the SQL Server machine either directly or via <em>Terminal Services</em>.</li>
+<li>He navigates to where <code>Rgui.exe</code> is (the same path as above for <code>Rterm.exe</code>).</li>
+<li>He right clicks on <code>Rgui.exe</code>:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_rgui.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Run Rgui as Admin</em></p>
+<p>When he clicks on &ldquo;Run as administrator&rdquo; the Rgui application starts up in the context of the R engine of the instance of SQL Server ML Services:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_rgui2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Rgui</em></p>
+<p>In the R Console in Rgui Dane now enters this code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span>&gt; <span style="color:#268bd2">libPath</span> &lt;- <span style="color:#268bd2">.libPaths</span>()<span style="color:#268bd2">[1]</span>
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">install.packages</span>(<span style="color:#2aa198">&#34;bsts&#34;</span>, <span style="color:#268bd2">repos</span> = <span style="color:#2aa198">&#34;https://cloud.r-project.org/&#34;</span>, 
+</span></span><span style="display:flex;"><span>+                  <span style="color:#268bd2">dependencies</span>=<span style="color:#859900;font-weight:bold">TRUE</span>, <span style="color:#268bd2">lib</span> = <span style="color:#268bd2">libPath</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Install bsts</em></p>
+<p>In <em>Code Snippet 4</em> we see that Dane uses the open source <em>CRAN</em> repo which hosts <code>bsts</code>. When he executes the code, it looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Execute install.packages</em></p>
+<p>At the highlighted question in <em>Figure 4</em> (at the bottom) it is best to answer no. Even though Dane said no to compilations, quite a lot of compilations happens for the <code>Boom</code> package:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_compile.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>C++ Compilation</em></p>
+<p>The installation process runs for quite a while, due to the compilation of the <code>Boom</code> package, but eventually, it finishes:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_success.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Install Success</em></p>
+<p>Dane can now check and see if the <code>bsts</code> package has installed and he executes the code in <em>Code Snippet 3</em> to verify that <code>bsts</code> is indeed installed together with the dependent packages. To further confirm that the package exists and functions he can try to load it from <em>SSMS</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                  @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;library(&#34;bsts&#34;)&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Loading the bsts Library</em></p>
+<p>Executing the code in <em>Code Snippet 8</em> results in:</p>
+<p>
+  <img src="/images/posts/sql_ml_install_r_pckgs_loading_bsts.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Loading bsts</em></p>
+<p>From <em>Figure 7</em> it seems that everything has worked, sweet!</p>
+<p>That is cool, no?! Well, there is one drawback with this: Dane has to have admin rights on the SQL Server box and, no offense Dane, but who in their right minds would give Dane those rights on a production SQL Server box!</p>
+<p>Jokes aside, using an R packet manager may be too inconvenient, e.g. anytime a developer want to install packages, someone with admin rights on the box needs to install said packages. In coming posts we look at other options for installing packages.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we covered:</p>
+<ul>
+<li>When you install packages sometimes they require compilation. For that, <strong>Rtools</strong> should be on the box where SQL Server ML Services lives.</li>
+<li>There are multiple ways we can install packages:
+<ul>
+<li>R packet managers.</li>
+<li>T-SQL.</li>
+<li>RevoScaleR.</li>
+</ul>
+</li>
+<li>An R packet manager is an R command line tool or GUI installed on the SQL Server Machine Learning Services machine that can run with elevated permissions and target the R engine for the instance on which you want to install the package.</li>
+<li>SQL Server ML Services ships with two R packet manager: <code>Rterm.exe</code> and <code>Rgui.exe</code>.</li>
+<li>These two packet managers lives in <code>\\&lt;path_to_SQL_Server_instance&gt;\R_SERVICES\bin\x64</code>.</li>
+<li>When using a packet manager to install a package, you run the packet manager from an elevated command prompt.</li>
+<li>You can use the R command <code>install.packages</code> to install a package from the package manager.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-06-17-interesting-stuff---week-24/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 24">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-06-24-sp-execute-external-script-and-permissions/" data-toggle="tooltip" data-placement="top" title="sp_execute_external_script and Permissions">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

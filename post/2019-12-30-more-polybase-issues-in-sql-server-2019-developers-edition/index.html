@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="More PolyBase Issues in SQL Server 2019 Developers Edition" />
+    <meta property="og:title" content="More PolyBase Issues in SQL Server 2019 Developers Edition" />
+    <meta property="twitter:title" content="More PolyBase Issues in SQL Server 2019 Developers Edition" />
+    
+
+    
+    <meta name="description" content="Here we look at how to fix weird error messages when we want to create External Tables">
+    <meta property="og:description" content="Here we look at how to fix weird error messages when we want to create External Tables" />
+    <meta property="twitter:description" content="Here we look at how to fix weird error messages when we want to create External Tables" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>More PolyBase Issues in SQL Server 2019 Developers Edition | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-12-30-more-polybase-issues-in-sql-server-2019-developers-edition/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019" title="SQL Server 2019">
+                            SQL Server 2019
+                        </a>
+                        
+                        <a class="tag" href="/tags/polybase" title="Polybase">
+                            Polybase
+                        </a>
+                        
+                    </div>
+                    <h1>More PolyBase Issues in SQL Server 2019 Developers Edition</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, December 30, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>A couple of weeks ago, I published the post <a href="/post/2019-11-20-fix-polybase-in-sql-server-2019-developers-edition/"><strong>Fix PolyBase in SQL Server 2019 Developers Edition</strong></a>. In the post, I discussed how to fix an issue in SQL Server 2019 Developers edition, where the PolyBase services do not start up after installation.</p>
+<p>The fix in the post works fine, i.e. the services start after the fix. However some days after I published the post there was a question on a SQL Server 2019 forum, where the poster says he cannot create an external file format on the SQL Server 2019 Developer Edition. Sure enough, when I tried to do the same on my &ldquo;fixed&rdquo; instance, I could not either.</p>
+<p>So in this post, I look at how to fix that second issue.</p>
+<h2 id="demo-data--code">Demo Data / Code</h2>
+<p>The following code is for you who want to follow along and try it out for yourselves:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">MyOraSourceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">MyOraSourceDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">emp</span>
+</span></span><span style="display:flex;"><span>(  
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">EMPNO</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">ENAME</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>), 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">JOB</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>), 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">MGR</span> <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">HIREDATE</span> <span style="color:#cb4b16">date</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">SAL</span> <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">COMM</span> <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">DEPTNO</span> <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">emp</span> (<span style="color:#268bd2">EMPNO</span>,<span style="color:#268bd2">ENAME</span>,<span style="color:#268bd2">JOB</span>,<span style="color:#268bd2">MGR</span>,<span style="color:#268bd2">HIREDATE</span>,<span style="color:#268bd2">SAL</span>,<span style="color:#268bd2">COMM</span>,<span style="color:#268bd2">DEPTNO</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span> (<span style="color:#2aa198;font-weight:bold">7369</span>,<span style="color:#2aa198">&#39;SMITH&#39;</span>,<span style="color:#2aa198">&#39;CLERK&#39;</span>,<span style="color:#2aa198;font-weight:bold">7902</span>, <span style="color:#2aa198">&#39;1980-12-17&#39;</span>,<span style="color:#2aa198;font-weight:bold">800</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">20</span>)
+</span></span><span style="display:flex;"><span>, (<span style="color:#2aa198;font-weight:bold">7521</span>,<span style="color:#2aa198">&#39;WARD&#39;</span>,<span style="color:#2aa198">&#39;SALESMAN&#39;</span>,<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;1981-02-20&#39;</span>,<span style="color:#2aa198;font-weight:bold">1250</span>,<span style="color:#2aa198;font-weight:bold">500</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7499</span>,<span style="color:#2aa198">&#39;ALLEN&#39;</span>,<span style="color:#2aa198">&#39;SALESMAN&#39;</span>,<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;1981-02-22&#39;</span>,<span style="color:#2aa198;font-weight:bold">1600</span>,<span style="color:#2aa198;font-weight:bold">300</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7566</span>,<span style="color:#2aa198">&#39;JONES&#39;</span>,<span style="color:#2aa198">&#39;MANAGER&#39;</span>,<span style="color:#2aa198;font-weight:bold">7839</span>,<span style="color:#2aa198">&#39;1981-04-02&#39;</span>,<span style="color:#2aa198;font-weight:bold">2975</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">20</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7654</span>,<span style="color:#2aa198">&#39;MARTIN&#39;</span>,<span style="color:#2aa198">&#39;SALESMAN&#39;</span>,<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;1981-09-28&#39;</span>,<span style="color:#2aa198;font-weight:bold">1250</span>,<span style="color:#2aa198;font-weight:bold">1400</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;BLAKE&#39;</span>,<span style="color:#2aa198">&#39;MANAGER&#39;</span>,<span style="color:#2aa198;font-weight:bold">7839</span>,<span style="color:#2aa198">&#39;1981-05-01&#39;</span>,<span style="color:#2aa198;font-weight:bold">2850</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7782</span>,<span style="color:#2aa198">&#39;CLARK&#39;</span>,<span style="color:#2aa198">&#39;MANAGER&#39;</span>,<span style="color:#2aa198;font-weight:bold">7839</span>,<span style="color:#2aa198">&#39;1981-06-09&#39;</span>,<span style="color:#2aa198;font-weight:bold">2450</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">10</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7788</span>,<span style="color:#2aa198">&#39;SCOTT&#39;</span>,<span style="color:#2aa198">&#39;ANALYST&#39;</span>,<span style="color:#2aa198;font-weight:bold">7566</span>,<span style="color:#2aa198">&#39;1987-04-19&#39;</span>,<span style="color:#2aa198;font-weight:bold">3000</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">20</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7839</span>,<span style="color:#2aa198">&#39;KING&#39;</span>,<span style="color:#2aa198">&#39;PRESIDENT&#39;</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198">&#39;1981-11-17&#39;</span>,<span style="color:#2aa198;font-weight:bold">5000</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">10</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7844</span>,<span style="color:#2aa198">&#39;TURNER&#39;</span>,<span style="color:#2aa198">&#39;SALESMAN&#39;</span>,<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;1981-09-08&#39;</span>,<span style="color:#2aa198;font-weight:bold">1500</span>,<span style="color:#2aa198;font-weight:bold">0</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7876</span>,<span style="color:#2aa198">&#39;ADAMS&#39;</span>,<span style="color:#2aa198">&#39;CLERK&#39;</span>,<span style="color:#2aa198;font-weight:bold">7788</span>,<span style="color:#2aa198">&#39;1987-05-23&#39;</span>,<span style="color:#2aa198;font-weight:bold">1100</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">20</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7900</span>,<span style="color:#2aa198">&#39;JAMES&#39;</span>,<span style="color:#2aa198">&#39;CLERK&#39;</span>,<span style="color:#2aa198;font-weight:bold">7698</span>,<span style="color:#2aa198">&#39;1981-12-03&#39;</span>,<span style="color:#2aa198;font-weight:bold">950</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">30</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7902</span>,<span style="color:#2aa198">&#39;FORD&#39;</span>,<span style="color:#2aa198">&#39;ANALYST&#39;</span>,<span style="color:#2aa198;font-weight:bold">7566</span>,<span style="color:#2aa198">&#39;1981-12-03&#39;</span>,<span style="color:#2aa198;font-weight:bold">3000</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">20</span>)
+</span></span><span style="display:flex;"><span>,(<span style="color:#2aa198;font-weight:bold">7934</span>,<span style="color:#2aa198">&#39;MILLER&#39;</span>,<span style="color:#2aa198">&#39;CLERK&#39;</span>,<span style="color:#2aa198;font-weight:bold">7782</span>,<span style="color:#2aa198">&#39;1982-01-23&#39;</span>,<span style="color:#2aa198;font-weight:bold">1300</span>,<span style="color:#859900">null</span>,<span style="color:#2aa198;font-weight:bold">10</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Create Source Database</em></p>
+<p>The code in <em>Code Snippet 1</em> creates a database and a table with some data. The database is what we use as the source database. Typically for demo purposes, I use an Oracle database as the source, but for this, we use a local SQL Server database.</p>
+<p>We also need a database which we work from, i.e. the target database:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">MyTargetDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Create Target Database</em></p>
+<p>In <em>Code Snippet 2</em> we see how I create the database we will work in. For now, we only create the database, and later we add &ldquo;stuff&rdquo;.</p>
+<h2 id="external-table">External Table</h2>
+<p>PolyBase enables a database in a SQL Server instance to process Transact-SQL queries that read data from external data sources. The data in the remote data source is exposed via external table(s).</p>
+<p>In our case, we emulate a remote Oracle database through our <code>MyOraSourceDB</code> database, and the data source is the <code>emp</code> table. What we want to do is to query the &ldquo;remote&rdquo; <code>emp</code> table from inside the <code>MyTargetDB</code>. To do this, we create an external table targeting the <code>emp</code> table in the <code>MyOraSourceDB</code> database.</p>
+<p>The signature for <code>CREATE EXTERNAL TABLE</code> looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#859900">TABLE</span> { <span style="color:#268bd2">database_name</span>.<span style="color:#859900">schema_name</span>.<span style="color:#859900">table_name</span> | 
+</span></span><span style="display:flex;"><span>                        <span style="color:#859900">schema_name</span>.<span style="color:#859900">table_name</span> | 
+</span></span><span style="display:flex;"><span>                        <span style="color:#859900">table_name</span> }
+</span></span><span style="display:flex;"><span>    ( &lt;<span style="color:#268bd2">column_definition</span>&gt; [ ,...<span style="color:#268bd2">n</span> ] )
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">WITH</span> (
+</span></span><span style="display:flex;"><span>        <span style="color:#859900">LOCATION</span> = <span style="color:#2aa198">&#39;folder_or_filepath&#39;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">DATA_SOURCE</span> = <span style="color:#268bd2">external_data_source_name</span>
+</span></span><span style="display:flex;"><span>        [ , <span style="color:#268bd2">FILE_FORMAT</span> = <span style="color:#268bd2">external_file_format_name</span> ]
+</span></span><span style="display:flex;"><span>        [ , &lt;<span style="color:#268bd2">reject_options</span>&gt; [ ,...<span style="color:#268bd2">n</span> ] ]
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>[;]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Create External Table</em></p>
+<p>We see in <em>Code Snippet 3</em> the main portion of <code>CREATE EXTERNAL TABLE</code>. Notice the <code>DATA_SOURCE</code>, and <code>FILE_FORMAT</code> arguments.</p>
+<h4 id="data_source">DATA_SOURCE</h4>
+<p>Specifies the name of the external data source that contains the location of the external data. External data sources can be:</p>
+<ul>
+<li>Hadoop, (SQL Server 2016+).</li>
+<li>Azure Blob Storage, (SQL Server 2016+).</li>
+<li>SQL Server, (SQL Server 2019+).</li>
+<li>Oracle, (SQL Server 2019+).</li>
+<li>Teradata, (SQL Server 2019+).</li>
+<li>Mongo DB, (SQL Server 2019+).</li>
+<li>Cosmos DB, (SQL Server 2019+).</li>
+<li>Generic ODBC sources, (only in SQL Server 2019 Windows).</li>
+</ul>
+<p>The signature of <code>CREATE EXTERNAL DATA SOURCE</code> is as follows:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#859900">DATA</span> <span style="color:#859900">SOURCE</span> &lt;<span style="color:#268bd2">data_source_name</span>&gt;  
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span>
+</span></span><span style="display:flex;"><span>(    
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">LOCATION</span>                  = <span style="color:#2aa198">&#39;&lt;prefix&gt;://&lt;path&gt;[:&lt;port&gt;]&#39;</span>
+</span></span><span style="display:flex;"><span>  [,   <span style="color:#268bd2">CONNECTION_OPTIONS</span>        = <span style="color:#2aa198">&#39;&lt;name_value_pairs&gt;&#39;</span>]
+</span></span><span style="display:flex;"><span>  [,   <span style="color:#268bd2">CREDENTIAL</span>                = &lt;<span style="color:#268bd2">credential_name</span>&gt; ]
+</span></span><span style="display:flex;"><span>  [,   <span style="color:#268bd2">PUSHDOWN</span>                  = <span style="color:#859900">ON</span> | <span style="color:#859900">OFF</span>]
+</span></span><span style="display:flex;"><span>  [,   <span style="color:#859900">TYPE</span>                      = <span style="color:#268bd2">HADOOP</span> | <span style="color:#268bd2">BLOB_STORAGE</span> ]
+</span></span><span style="display:flex;"><span>  [,   <span style="color:#268bd2">RESOURCE_MANAGER_LOCATION</span> = <span style="color:#2aa198">&#39;&lt;resource_manager&gt;[:&lt;port&gt;]&#39;</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span>[;]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Create External Data Source - I</em></p>
+<p>In <em>Code Snippet 4</em> we see that most of <code>Create External Data Source</code> arguments are optional. In our code further below, we use <code>LOCATION</code> and <code>CREDENTIAL</code>.</p>
+<h4 id="file_format">FILE_FORMAT</h4>
+<p>The <code>CREATE EXTERNAL FILE FORMAT</code> specifies the layout of the data referenced by an external table. You use this for external tables, not referencing relational data.</p>
+<p>The command differs depending on the actual remote file format. The code the poster used in the forum, mentioned above, looked like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">FILE</span> <span style="color:#268bd2">FORMAT</span> <span style="color:#268bd2">csv_file</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">FORMAT_TYPE</span> = <span style="color:#268bd2">DELIMITEDTEXT</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">FORMAT_OPTIONS</span>
+</span></span><span style="display:flex;"><span>  (
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">FIELD_TERMINATOR</span> = <span style="color:#2aa198">&#39;,&#39;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">STRING_DELIMITER</span> = <span style="color:#2aa198">&#39;&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  )
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Create External File Format</em></p>
+<p>As we see in <em>Code Snippet 5</em>, the poster wanted to define the format for <code>.csv</code> files. He:</p>
+<ul>
+<li>Named the format: <code>csv_file</code>.</li>
+<li>Defined the type: <code>DELIMITEDTEXT</code>.</li>
+<li>Defined what terminates a field, and what delimits a string.</li>
+</ul>
+<p>A bit further down we see what happened when the poster wanted to execute the statement.</p>
+<h2 id="the-issues">The Issue(s)</h2>
+<p>Let us look at the issue which occurred for the forum post as well for me. When we execute the code in <em>Code Snippet 5</em> we see the following:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-syntax1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Incorrect Syntax</em></p>
+<p>What we see in <em>Figure 1</em>, <em>incorrect syntax exception</em>, is strange, as I have executed the same code in a SQL Server 2019 Big Data Cluster, (BDC), without any issues, and the forum poster executed the same in SQL Server 2019 Enterprise Edition also without any issues.</p>
+<p>Ok, but what about creating an external table against a relational data source - where we do not need to define an external file format? Let us go back to the databases we created above, and - in the <code>MyTargetDB</code> - create an external table against the <code>emp</code> table in <code>MyOraSourceDB</code>. We start with the external data source:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">MASTER</span> <span style="color:#859900">KEY</span> <span style="color:#268bd2">ENCRYPTION</span> <span style="color:#859900">BY</span> <span style="color:#268bd2">PASSWORD</span> = <span style="color:#2aa198">&#39;&lt;some-secret-password&gt;&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">SCOPED</span> <span style="color:#268bd2">CREDENTIAL</span> [<span style="color:#268bd2">oracleCred</span>]
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">IDENTITY</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;sa&#39;</span>, <span style="color:#268bd2">SECRET</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;&lt;some-other-secret-password&gt;&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#859900">DATA</span> <span style="color:#859900">SOURCE</span> <span style="color:#268bd2">OraConnection</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> 
+</span></span><span style="display:flex;"><span>( 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">LOCATION</span> = <span style="color:#2aa198">&#39;sqlserver://localhost&#39;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">CREDENTIAL</span> = [<span style="color:#268bd2">oracleCred</span>]
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Create External Data Source - II</em></p>
+<p>You may wonder why we, in <em>Code Snippet 6</em>, create a master key and a scoped credential? Well, we create the credential as the &ldquo;remote&rdquo; data source, in this case, the <code>MyOraSourceDB</code> requires authentication. The master key is required to protect the scoped credential.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If the database in question already have a master key, you do not need to create a new.</p>
+</blockquote>
+<p>As for creating the data source we:</p>
+<ul>
+<li>Give it a name.</li>
+<li>Sets the location. The <code>sqlserver</code> prefix indicates this is a SQL Server instance.</li>
+<li>Assign the credential created above.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> If the remote data source had been an Oracle server, the <code>LOCATION</code> would be like: `oracle://[IP-address]'.</p>
+</blockquote>
+<p>All this seems correct, however, when we execute the code in <em>Code Snippet 6</em> we get:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-type-generic.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Type Generic not Supported</em></p>
+<p>The exception we see in <em>Figure 2</em> is, once again, strange, as when I run the same code in SQL Server 2019 BDC it works fine. What is going on here?</p>
+<h2 id="solution">Solution</h2>
+<p>Above we have seen two instances of where we received exceptions for operations in SQL Server 2019 Developers Edition that works fine in other editions, (BDC, Enterprise, etc.).</p>
+<p>As Developers edition is equivalent to Enterprise edition, PolyBase should just work. When I looked into these issues, the only explanation I could come up with was that some settings differ during setup between Developer and Enterprise Edition, (and BDC for that matter).</p>
+<p>So what I did was that I connected to my BDC, and looked at the configuration:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">name</span>, <span style="color:#268bd2">value</span>, <span style="color:#268bd2">value_in_use</span>, <span style="color:#268bd2">description</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">configurations</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">where</span> <span style="color:#268bd2">name</span> <span style="color:#859900">like</span> <span style="color:#2aa198">&#39;%polybase%&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Get Config Detail for PolyBase</em></p>
+<p>When I executed the code on my BDC instance the result looked like so:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-bdc-pb-config.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>BDC PolyBase Config</em></p>
+<p>We see in <em>Figure 3</em> how all PolyBase related configuration settings are enabled. Now, what if we run the code in <em>Code Snippet 7</em> on my local Developer edition:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-bdc-pb-config2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Local Developer Edition PolyBase Config</em></p>
+<p>Oh, notice in <em>Figure 4</em>, outlined in red, how PolyBase is <strong>NOT</strong> enabled. That certainly looks like a smoking gun. So, let us enable PolyBase:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_configure</span> <span style="color:#2aa198">&#39;polybase enabled&#39;</span>, <span style="color:#2aa198;font-weight:bold">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RECONFIGURE</span> <span style="color:#859900">WITH</span> <span style="color:#268bd2">OVERRIDE</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Enable PolyBase</em></p>
+<p>After I execute the code in <em>Code Snippet 8</em> and run <code>EXEC sp_configure 'polybase enabled'</code> I see:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-pb-enabled.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Local Developer Edition PolyBase Config</em></p>
+<p>Yay, seeing <em>Figure 5</em>, it looks like PolyBase is enabled. To try it out, run the code in <em>Code Snippet 5</em>. When I run it I get:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-success1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Command Completed Successfully</em></p>
+<p>As we see in <em>Figure 6</em>, it looks like all is OK.</p>
+<p>Let us now go to the code for the external data source and see what happens when we try to create it. So I execute the <code>CREATE EXTERNAL DATA_SOURCE</code> part of <em>Code Snippet 6</em>, and that succeeds as well.</p>
+<p>Cool, so we have the external data source. Now it is time for the external table:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#859900">TABLE</span> [<span style="color:#268bd2">dbo</span>].[<span style="color:#268bd2">emp_ora</span>]
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">EMPNO</span>] <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">ENAME</span>] <span style="color:#268bd2">NVARCHAR</span>(<span style="color:#2aa198;font-weight:bold">50</span>),
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">JOB</span>] <span style="color:#268bd2">NVARCHAR</span>(<span style="color:#2aa198;font-weight:bold">50</span>),
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">MGR</span>] <span style="color:#cb4b16">int</span>,
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">HIREDATE</span>] <span style="color:#cb4b16">DATE</span>,
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">SAL</span>] <span style="color:#cb4b16">int</span>,
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">COMM</span>] <span style="color:#cb4b16">int</span>,
+</span></span><span style="display:flex;"><span>  [<span style="color:#268bd2">DEPTNO</span>] <span style="color:#cb4b16">int</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> (<span style="color:#859900">LOCATION</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;[MyOraSourceDB].[dbo].[emp]&#39;</span>, 
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">DATA_SOURCE</span> = [<span style="color:#268bd2">OraConnection</span>]);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>External Table</em></p>
+<p>In <em>Code Snippet 9</em> we see how we use more or less the same DDL as for the original, remote, table. The only difference is that we define a location which is <code>database.schema.tablename</code>, as well as the data source. After we execute the code in <em>Code Snippet 9</em>, we can query the table: <code>SELECT * FROM dbo.emp_ora</code>:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-query.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Query Result</em></p>
+<p>We see in <em>Figure 7</em> the first 5 rows in the external table. However, the data is not persisted in the external table; it is loaded from the remote table. We can prove that by executing: <code>EXEC sp_spaceused 'dbo.emp_ora'</code>:</p>
+<p>
+  <img src="/images/posts/sql-pb-issues2-space.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Space Used</em></p>
+<p>As we see in <em>Figure 8</em> the table has no rows!</p>
+<h2 id="summary">Summary</h2>
+<p>In the <a href="/post/2019-11-20-fix-polybase-in-sql-server-2019-developers-edition/"><strong>Fix PolyBase in SQL Server 2019 Developers Edition</strong></a> post we saw how to fix the issue when the PolyBase services do not start up after installation of SQL Server 2019 Developers Edition.</p>
+<p>In this post, we looked at how to fix the errors we see in <em>Figure 1</em> and <em>Figure 2</em> when we try to either create an external file format or an external data source.</p>
+<p>The solution is simple: <code>EXEC sp_configure 'polybase enabled', 1</code> followed by <code>RECONFIGURE WITH OVERRIDE</code>.</p>
+<p>Yes, the fix is simple, but I cannot help but think that the error messages could be more descriptive.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-12-23-how-to-deploy-sql-server-2019-big-data-cluster-using-azure-data-studio/" data-toggle="tooltip" data-placement="top" title="How to Deploy SQL Server 2019 Big Data Cluster Using Azure Data Studio">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2020-01-05-interesting-stuff---christmas-new-year-week-1-2020/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Christmas, New Year, Week 1, 2020">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

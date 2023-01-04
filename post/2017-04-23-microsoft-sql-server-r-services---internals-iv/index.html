@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals IV" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals IV" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals IV" />
+    
+
+    
+    <meta name="description" content="Launchpad service, number of processes, process pool. More about process creation in the launchpad service">
+    <meta property="og:description" content="Launchpad service, number of processes, process pool. More about process creation in the launchpad service" />
+    <meta property="twitter:description" content="Launchpad service, number of processes, process pool. More about process creation in the launchpad service" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals IV | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals IV</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, April 23, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the fifth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fourth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I wrote about how the launchpad service creates multiple processes when executing an external script.</p>
+<p>Seeing that some of the conclusions I came to was somewhat educated guesses, I asked you guys to correct me where I was in-correct and/or add more information. After that post - Bob Albright (<a href="https://twitter.com/bob_albright">@bob_albright</a>) - wrote me an email and pointed me to some resources around process creation, as well as some demo code. Thanks Bob!</p>
+<p>So today we&rsquo;ll drill even further into the creation of processes, and see how they are used.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we talked about how, during installation of an R enabled SQL Server instance, 20 Windows accounts are created. These accounts are created for the purpose to be able to provide isolation between users when executing external scripts.</p>
+<p>In addition to the Windows user accounts created during installation, folders named as the individual Windows accounts are also created in the <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> folder. These folders act as storage for files, results, objects, etc., during execution of an external script.</p>
+<p>When a user executes an external script in SQL Server, that account is being mapped to one of the 20 Windows account created, and it is under that Windows account the external part of the script is executed. Subsequently the files, etc., mentioned above, ends up in that folder somewhere. I write somewhere, because it is not entirely correct to say that the files, results, etc., are stored directly in the user folder. They are in fact stored in sub-folders of the user folder.</p>
+<p>During execution the launchpad service creates working directories (the sub-folders above) and processes, and assigns the working directories and processes the same names (<code>Guid</code> values).</p>
+<p><em>Figure 1</em> below shows the flow when executing a script:</p>
+<p>
+  <img src="/images/posts/sql-launchpad_processes_post.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Flow when Executing a Script</em></p>
+<p>As per the figure:</p>
+<ul>
+<li>We see backing folders in <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> for the group of user accounts that are mapped to SQL Server users when executing code via <code>sp_execute_external_script</code>.</li>
+<li>When executing, <code>launchpad!CLaunchContext::LaunchServTask</code> is called, and a satellite session and a session object is created.</li>
+<li>Then the working directories (the sub-folders mentioned above), and RTerm processes are created. In the figure the working directories are named <code>WorkingDir1</code> etc., whereas in reality the names are <code>Guid</code> values. The processes are RTerm processes and are assigned the same <code>Guid</code> as the working directory name. So a RTerm process always executes &ldquo;under&rdquo; one user account sub-folder.</li>
+<li>After two initial directories and processes have been created, one of the two processes are assigned to the created session.</li>
+<li>When the process has been assigned to the session, the script is executed via; <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> and <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>. This normally happens while the third process is created.</li>
+<li>Processes and working directories 4 - 6 are created. These processes are available for subsequent executions.</li>
+<li>When the execution has finished the session is torn down together with the process.
+<ul>
+<li>At this stage we now have 5 processes running, and 5 working folders.</li>
+</ul>
+</li>
+</ul>
+<p>The above is in essence what <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> covered, and if you want all the &ldquo;nitty-gritty&rdquo;, please read that <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">post</a>.</p>
+<h2 id="processes">Processes</h2>
+<p>In the <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we figured out that, by default, the launchpad service creates 5 processes, plus the process that is used for execution, when executing an external script. In the post I assumed that the reason for creating 5 (well 6 actually), was for performance, and I also wondered where that magic number 5 came from - seeing I couldn&rsquo;t find it in any config files. That&rsquo;s where <a href="https://twitter.com/bob_albright">Bob&rsquo;s</a> email comes in, as he pointed me to a <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">blog-post</a> by the <a href="https://blogs.msdn.microsoft.com/sql_server_team/">SQL Server engineering</a> team, a.k.a TIGER (cool name!).</p>
+<p>So, that particular blog-post mentions that the number of processes spun up can be controlled by a setting in the <code>rlauncher.config</code> file: <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>. If not set, it defaults to 5, and in the end, when executing, the setting + 1 processes has been created as per above.</p>
+<p>The post also &ldquo;kind of&rdquo; confirms that my assumption about performance being a reason for spinning up multiple processes is correct, considering that a user may execute concurrent requests and it takes around 100 ms to spin up a process. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> I mentioned how the processes that are created are added to a pool of processes. So, the  assumption on my part is that when there are multiple processes available, a new request will not execute on a newly created process, but will use a process from the pool.</p>
+<p>Let us see if we can confirm the points about the config setting as well as performance.</p>
+<h3 id="controlling-number-of-processes">Controlling Number of Processes</h3>
+<p>Initially we&rsquo;ll begin with looking into the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting and see if it has any effect on the number of processes being created. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we looked at the number of processes having been spun up while the code was executing and we saw something like so:</p>
+<p>
+  <img src="/images/posts/sql-launchpad-rterm_processes.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>RTerm Processes</em></p>
+<p>So 6 processes alive while the code is executing. After the code has finished, the executing process is torn down, and we have 5 processes in the pool. That was without having changed any settings, so let&rsquo;s change the settings:</p>
+<ol>
+<li>Stop the launchpad service.</li>
+<li>Open the <code>rlauncher.config</code> file with your text editor of choice (you need to run the editor as administrator).</li>
+</ol>
+<p>The config file looks something like what you see in <em>Figure 3</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rlauncher_config.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>RLauncher Configuration</em></p>
+<p>As you see, there is no <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting. Let us add the setting with a value of 15: <code>PROCESS_POOL_SQLSATELLITE_GROWTH=15</code> and see what happens.</p>
+<ol>
+<li>Save the config file after you have added the setting as per above.</li>
+<li>Restart the launchpad service.</li>
+</ol>
+<p>Well, it looks like the launchpad service started, so the setting is not causing any issues (yet). We&rsquo;ll now execute some code and try and figure out if more processes will be created. We use the same code as we did in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, where the code has a pause statement, so we can easier look at what is happening:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>                    @<span style="color:#859900">language</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>                    @<span style="color:#268bd2">script</span>=<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet&lt;-InputDataSet;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              Sys.sleep(120);&#39;</span>,
+</span></span><span style="display:flex;"><span>                    @<span style="color:#268bd2">input_data_1</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 42&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> (([<span style="color:#268bd2">TheAnswer</span>] <span style="color:#cb4b16">int</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>));
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Execute with Sys.sleep</em></p>
+<p>As in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I use <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><em>Process Explorer</em></a> from <strong>Sysinternals</strong>. So, let&rsquo;s go ahead and see what happens:</p>
+<ol>
+<li>Start <em>Process Explorer</em>, order by Process, and scroll down to where you see process names starting with &ldquo;RT&rdquo; (on my box there are none at this stage), or where those processes should be.
+<ul>
+<li>If you at this stage see RTerm, restart the launchpad service again and kill those processes.</li>
+</ul>
+</li>
+<li>Execute the code in <em>Code Snippet 1</em>.</li>
+</ol>
+<p>While the code is running, take a quick look in <em>Process Explorer</em>, and you should see something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processes15.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>RTerm Processes after Setting Change</em></p>
+<p>In <em>Figure 4</em> you can now see 16 <code>RTerm.exe</code> processes running. Once again, the reason for 16 instead of 15 is that the launchpad service spins up the number it is supposed to, plus one more. After the execution has finished, you will see 15 RTerm processes.</p>
+<p>So yes, the setting does have impact. If you want, you can now delete the setting from the config file and restart the launchpad service.</p>
+<h3 id="process-pool-impact-on-executions-from-the-same-session--concurrent-executions">Process Pool Impact on Executions from the Same Session / Concurrent Executions</h3>
+<p>Above I mentioned that I thought that by spinning up these processes, we&rsquo;ll get a performance benefit when executing concurrently or if we are, under the same <code>SPID</code>, doing subsequent executions. After all, as mentioned above, the processes are added to a process pool, and they should then be available for usage. A bit like connection pooling in ADO.NET or thread pooling in the .CLR.</p>
+<h4 id="same-session-multiple-execs">Same Session Multiple Execs</h4>
+<p>Let us start with looking what happens when doing multiple executions in the same SQL Server session (<code>SPID</code>).</p>
+<p>So the way we will do this is to look at the process id of the RTerm processes, and the process id of the executing code. The process id&rsquo;s of the RTerm process we get from <em>Process Explorer</em>, and in <em>Figure 5</em> below you see the process id&rsquo;s in the outlined column furthest to the right:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>RTerm ProcessId&rsquo;s</em></p>
+<p><em>Figure 5</em> tells us how we can see the id&rsquo;s of the RTerm processes, but how can we see the process id under which the code executes? It&rsquo;s not like we have <code>@@SPID</code> in the external engine. Fortunately R has a function to get the process id of the process in which the code is executing: <code>Sys.getpid()</code>. So if we change the code to something like in <em>Code Snippet 2</em>, we should be able to see the process id, and then be able to compare what we see from the RTerm processes:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span> 
+</span></span><span style="display:flex;"><span>                    @<span style="color:#859900">language</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>,
+</span></span><span style="display:flex;"><span>                    @<span style="color:#268bd2">script</span>=<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    pid &lt;- Sys.getpid()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    data&lt;-InputDataSet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    data$pid &lt;- pid
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    OutputDataSet&lt;-data;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                    Sys.sleep(120);&#39;</span>,
+</span></span><span style="display:flex;"><span>                    @<span style="color:#268bd2">input_data_1</span> =<span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT 42&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> (([<span style="color:#268bd2">TheAnswer</span>] <span style="color:#cb4b16">int</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>, <span style="color:#268bd2">ProcessID</span> <span style="color:#cb4b16">int</span>));
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code  Snippet 2:</strong> <em>Get the Process Id</em></p>
+<p>Notice how we create and add a new column, <code>pid</code>, to the R data-frame, <code>data</code>, by: <code>data$pid</code> (the names <code>pid</code> and <code>data</code>could be anything). Now, the way we will do this is to, in the same session:</p>
+<ul>
+<li>Execute the code</li>
+<li>Capture the process id&rsquo;s of the created RTerm processes, before the code has finished executing.</li>
+<li>Look at the result from executing the code in <em>Code Snippet 2</em> and compare the process id which is part of the result with the process id&rsquo;s we captured from the RTerm processes.</li>
+</ul>
+<p>When we have done the steps above we repeat it a second time. If my assumption is correct that during a subsequent execution, a process will be used from the pool that was created at first execution; then the process id that comes back from the result of the second execution, should be found in the process id&rsquo;s that were captured during the first execution.</p>
+<blockquote>
+<p><strong>NOTE:</strong> It is important that the second run of the code is done immediately after the first. If not, some of the pooled processes may have been torn down.</p>
+</blockquote>
+<p>Let&rsquo;s do this:</p>
+<ul>
+<li>If you haven&rsquo;t deleted the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting from the config file, go ahead and do that.</li>
+<li>Restart the launchpad service.</li>
+<li>Navigate to the <code>Launchpad.exe</code> process in <em>Process Explorer</em>.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+<li>While the code is executing capture the process id&rsquo;s from the <code>RTerm.exe processes</code>.</li>
+</ul>
+<p>The capture of the first execution is shown in <em>Figure 6</em> below:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids_executing.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Process Id&rsquo;s from First Run</em></p>
+<p>The result from the code came back with a process id of 16956. If you were to look at the processes directly after the result came back, you would see 5 processes, as process 16956 (the executing process) has been torn down. Now execute the code a second time. The captured processes are now like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids_executing2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Process Id&rsquo;s from Second Run</em></p>
+<p>In <em>Figure 7</em> we indeed see that process 16956 is not there any more. When the result comes back the process id is 19028 as in <em>Figure 8</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids_result2.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Result from 2:nd Run</em></p>
+<p>So, looking back at <em>Figure 6</em>, we see how process id 19028 is part of the processes initially created, so it seems that the assumptions about how processes are used are correct.</p>
+<p>But wait a second when we look at <em>Figure 8</em>, we see a new process id - 19192, and if we were to look at the processes right after the code has finished running, it would look something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids_after_executing2.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>After 2:nd Run</em></p>
+<p>In <em>Figure 9</em> we see that the process that we executed under in the second run is gone as expected, but we have a new process running - 19192. So what happens is that, in parallel with R executing the code, the launchpad service is spinning up a new process.</p>
+<p>The theory that for executions by the same user and <code>SPID</code> - the launchpad service uses processes from the pool seems to be correct.</p>
+<h4 id="concurrent-executions-different-sessions">Concurrent Executions Different Sessions</h4>
+<p>To see what happens for concurrent executions, by the same user but from different <code>SPID</code>&rsquo;s, we&rsquo;ll do it in almost the same way as above. Start with restarting the launchpad service, so we don&rsquo;t have any &ldquo;hangers on-ers&rdquo; from previous runs. We copy the code in <em>Code Snippet 2</em> to a new query window in <em>SQL Server Management Studio</em>, (this ensures a new <code>SPID</code>), and then we:</p>
+<ol>
+<li>Execute the code in query window 1.</li>
+<li>Capture the RTerm process id&rsquo;s.</li>
+<li>Execute the code in query window 2, while the code in query window 1 still executes.</li>
+<li>Capture the RTerm process id&rsquo;s.</li>
+</ol>
+<p>After both queries have finished executing, you will see that executing concurrently from the same user but different sessions will behave the same was as executing multiple times from the same session:</p>
+<ol>
+<li>A process will be picked up from the pool and the code will execute under that session.</li>
+<li>The launchpad service creates a new process, and adds it to the pool.</li>
+<li>When the code has finished executing, the process which it executed under is being torn down,</li>
+</ol>
+<p>So the theory holds true here as well.</p>
+<h4 id="concurrent-executions-different-sessions-different-users">Concurrent Executions Different Sessions Different Users</h4>
+<p>So what happens then if there are multiple users executing code concurrently? In this scenario nothing is different from when a single user executes for the first time:</p>
+<ul>
+<li>The second user will be mapped to another user account,</li>
+<li>The launchpad service creates it&rsquo;s normal 5 processes, plus one.</li>
+<li>The code is executed.</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_rterm_processids_mult_users.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Two Users Executing Concurrently</em></p>
+<p><em>Figure 10</em> shows what it looks like in <em>Process Explorer</em> when two different users executes concurrently. I either of these users would then execute another statement, it would be exactly as above where we looked at the single user scenario.</p>
+<blockquote>
+<p><strong>NOTE:</strong> When looking in <em>Process Explorer</em> at the RTerm processes you can actually see what process is active. The active process has a value in the <em>CPU</em> column.</p>
+</blockquote>
+<h2 id="summary">Summary</h2>
+<p>In this blog-post I set out to prove/disprove two things:</p>
+<ol>
+<li>That the setting <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> can be used to control the number of processes being created by the launchpad service.</li>
+<li>Processes that are added to the pool is being picked up and used for subsequent executions for a user.</li>
+</ol>
+<p>What we saw was:</p>
+<ul>
+<li>When <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> is absent from the <code>rlauncher.config</code> file, the launchpad service creates 5 processes plus 1 by default, and after execution the executing process is torn down. The others are added to the pool.</li>
+<li>When a value has been set for <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>, the launchpad service creates that number of processes plus one, and after execution the executing process is torn down. The others are added to the pool.</li>
+<li>When a user executes subsequent requests, or concurrent requests from different sessions, processes are picked up and used from the pool.
+<ul>
+<li>The launchpad service simultaneously creates a new process.</li>
+</ul>
+</li>
+</ul>
+<p>So, thanks <a href="https://twitter.com/bob_albright">Bob</a> for sending me the mail with the link the the <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">post</a>. That made me look deeper into how this &ldquo;stuff&rdquo; works! In that email Bob also sent some code, which will be used as a topic for another internals blog-post. That post will be about parallelism and the RTerm processes.</p>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-04-20-sql-server-2017---python-executing-from-sql/" data-toggle="tooltip" data-placement="top" title="SQL Server 2017 - Python Executing Inside SQL Server">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-04-23-interesting-stuff---week-16/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 16">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

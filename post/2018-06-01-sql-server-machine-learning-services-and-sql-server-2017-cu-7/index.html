@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server Machine Learning Services and SQL Server 2017 CU7" />
+    <meta property="og:title" content="SQL Server Machine Learning Services and SQL Server 2017 CU7" />
+    <meta property="twitter:title" content="SQL Server Machine Learning Services and SQL Server 2017 CU7" />
+    
+
+    
+    <meta name="description" content="We look at how we can fix issues with the R engine after installing SQL Server 2017 CU7.">
+    <meta property="og:description" content="We look at how we can fix issues with the R engine after installing SQL Server 2017 CU7." />
+    <meta property="twitter:description" content="We look at how we can fix issues with the R engine after installing SQL Server 2017 CU7." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server Machine Learning Services and SQL Server 2017 CU7 | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-06-01-sql-server-machine-learning-services-and-sql-server-2017-cu-7/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-2017-cu7" title="SQL Server 2017 CU7">
+                            SQL Server 2017 CU7
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services-permission-issues" title="SQL Server Machine Learning Services permission issues">
+                            SQL Server Machine Learning Services permission issues
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server Machine Learning Services and SQL Server 2017 CU7</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, June 1, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post is as much for you as it is for me to come back to when I wonder what to do when SQL Serer Machine Learning Services all of a sudden stops working after a SQL Server upgrade.</p>
+<h2 id="background">Background</h2>
+<p>Last week I did a complete reformat of my development box at home and installed the latest version of Windows 10: the 1803 build, also called the April 2018 update.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I usually try to reformat my box at least twice a year, to ensure it is not too &ldquo;bogged&rdquo; down by old &ldquo;cruft&rdquo;, and that it has the latest and greatest.</p>
+</blockquote>
+<p>After the reformat I installed all my necessary applications, among them SQL Server 2017 with the in-database analytics components (R and Python). After installation I tested that it all worked and made sure I could execute my usual test scripts for <code>sp_execute_external_script</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>   @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>                                , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;d &lt;- 42&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Test Script for R</em></p>
+<p>The &ldquo;moral&rdquo; equivalent to <em>Code Snippet 1</em> in Python also worked without an issue:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#268bd2">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>   <span style="color:#268bd2">@language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Python&#39;</span>
+</span></span><span style="display:flex;"><span>                                , <span style="color:#268bd2">@script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;d = 42&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Test Script for Python</em></p>
+<p>Cool, all is &ldquo;A-OK&rdquo;! A couple of days go by, and I see that there is a Cumulative Update (CU) for SQL Server 2017 - CU7. I install it and does not think much about it. I mean: &ldquo;what can go wrong, how hard can it be?&rdquo;. A couple of days later and I am busy writing the follow-up post to <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> when I try to execute <code>sp_execute_external_script</code>, and it falls over!</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you do not know what CU&rsquo;s are, you can read more about them <a href="https://blogs.msdn.microsoft.com/sqlreleaseservices/announcing-the-modern-servicing-model-for-sql-server/">here</a>.</p>
+</blockquote>
+<h2 id="exception">Exception</h2>
+<p>The exception I received when I tried to execute <code>sp_execute_external_script</code> looked like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_error1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Exception when Executing</em></p>
+<p>As we see in <em>Figure 1</em> the exception has something to do with not being able to create a directory, which points to permission issues. This, kind of, resonated with me as I had in the back of my mind that something similar happened in the early days of SQL Server 2016 R Services when R stopped working after service packs were applied. Regardless I did some investigation around the issue (read I Googled) and found <a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/">this</a> post by Jon Culp and also a post by my old friend <a href="https://blog.greglow.com/2018/05/16/machine-learning-testing-your-installation-of-r-and-python-in-sql-server-2017/">Greg Low</a>. Both posts mention the 8.3 file naming convention as the primary culprit for the error. However, seeing that this worked fine before I applied CU7, I did not believe that the 8.3 file names were the case.  Having said that, I did (to be sure) enable the 8.3 notation as per <a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/">Jon Culp&rsquo;s</a> post: <code>fsutil.exe behaviour set disable8dot3 0</code>. Unfortunately, that did not change anything because when I executed the code in <em>Code Snippet 1</em> it still errored out with the error in <em>Figure 1</em>.</p>
+<p>All this pointed me back to the error being due to permission issues.</p>
+<h2 id="permissions">Permissions</h2>
+<p>Ok, so above we said permission issues, but permissions on what?</p>
+<p>If you read my series about <a href="/sql_server_2k16_r_services">SQL Server 2016 R Services</a> you may remember that in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> and <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we discussed how the Launchpad service and the RTerm processes create files and directories in the <code>ExtensibilityData</code> directory and its sub directories. This directory is where the permissions are supposed to be or, as in this case, are not.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In a default installation of SQL Server on a Windows box, the <code>ExtensibilityData</code> directory is located at <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code>.</p>
+</blockquote>
+<p>When you navigate the <code>ExtensibilityData</code> directory in <em>File Explorer</em> and look at the <em>Advanced Security Settings for ExtensibilityData</em> dialog you see something like so in an installation where everything works:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_permissions1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Permissions on ExtensibilityData</em></p>
+<p>In <em>Figure 2</em> we see the various users, groups and roles that have access to the <code>ExtensibilityData</code> directory and the highlighted part is the group that is of interest for this discussion. What is interesting is that when you look at this dialog before CU7 (when everything works) and after you deploy CU7, it looks the same. So, something is going on behind the scenes.</p>
+<p>To further confirm that what I saw was a permission issue I used <em>Process Monitor</em> to see what file operations happened when I tried to execute the code in <em>Code Snippet 1</em>. After gradually filtering out events I ended up with was is shown in the figure below.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you are interested in how you can use <em>Process Monitor</em> I covered that in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>.</p>
+</blockquote>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Process Monitor Output</em></p>
+<p>Remember how we in the <strong>Internals</strong> posts <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a> and [VII] <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">si7</a> in the <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series discussed how the Launchpad service creates RTerm processes. We also discussed how the RTerm processes create directories and files under the <code>ExtensibilityData</code> directory and its sub-directories. So what we see in <em>Figure 3</em> is how the RTerm processes cannot write to the root of the <code>ExtensibilityData</code> directory and this is what ultimately causes the error in <em>Figure 1</em>.</p>
+<p>What I saw when I filtered out events was that even though the RTerm processes could not write to the root of the <code>ExtensibilityData</code> directory, they could write to subdirectories:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_procmon2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Successful Writes</em></p>
+<p>So based on what we see in <em>Figure 3</em> and <em>Figure 4</em> it seems like something has gone awry with permissions for the root of the <code>ExtensibilityData</code> directory. How to fix this?</p>
+<h2 id="fix">Fix</h2>
+<p>I must confess that I initially added <em>Everyone</em> with <em>Full control</em> to the security settings for the <code>ExtensibilityData</code> directory and it all worked:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_permissions2.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Everyone Full Control</em></p>
+<p>However that did not seem like the correct way to do it, so I started playing around with the &ldquo;Advanced&rdquo; security properties on the <code>ExtensibilityData</code> directory:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_sec_properties.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Security Properties</em></p>
+<p>In <em>Figure 6</em> we see how I have right clicked on the <code>ExtensibilityData</code> directory in <em>File Explorer</em> and chosen properties and then clicked on the <em>Security</em> (highlighted in the figure). The group that we work with is the <code>MSSQLLaunchpad</code>, outlined in red.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you work on a SQL instance other than the default the group name is <code>MSSQLLaunchpad$instance_name</code>.</p>
+</blockquote>
+<p>When I click on the &ldquo;Advanced&rdquo; button (also outlined in red in <em>Figure 6</em>) I see something like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_enable_inh.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Advanced Security Settings</em></p>
+<p>In the &ldquo;Advanced Security Settings&rdquo; dialog in <em>Figure 7</em> I clicked on &ldquo;Enable inheritance&rdquo; (outlined in red) followed by &ldquo;Apply&rdquo;, which showed an error dialog:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_enable_inh_1.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Error Dialog</em></p>
+<p>I clicked on &ldquo;Continue&rdquo; and the error repeated for each subdirectory in the <code>ExtensibilityData</code> directory. After last error I was back in the &ldquo;Advanced Security Settings&rdquo; dialog where I saw something strange:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_enable_inh_2.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Additional Security Principals</em></p>
+<p>What I saw was quite a few new security principals added to the security settings for the directory, and we see them outlined in red in <em>Figure 9</em>. I clicked OK until I exited all dialogs. Now, when I tried to execute the R code, it succeeded. However, I was not happy with the added principals, so I went back into the &ldquo;Advanced Security Settings&rdquo; dialog:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_disable_inh_1.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Disable Inheritance</em></p>
+<p>In the dialog as we see in <em>Figure 10</em> I clicked on the &ldquo;Disable inheritance&rdquo; button. When I clicked &ldquo;Apply&rdquo; the &ldquo;Block Inheritance&rdquo; dialog &ldquo;popped up&rdquo;:</p>
+<p>
+  <img src="/images/posts/sql_ml_sql_cu7_convert_inh_1.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Block Inheritance</em></p>
+<p>In the &ldquo;Block Inheritance&rdquo; dialog I clicked on the outlined part in <em>Figure 10</em>: &ldquo;Convert inherited permissions &hellip;&rdquo;, and the same error dialog as we see in <em>Figure 8</em> came up. As I did above, I clicked through the errors through the &ldquo;Continue&rdquo; button, and when I was back in the &ldquo;Advanced Security Settings&rdquo; dialog I saw that the added security principals were no longer there. That is not true, one principal from the added ones was still there, and that was <code>MSSQLSERVER</code>. I removed it and clicked OK out of the remaining dialogs. When I executed the code, it all worked, Yay!</p>
+<h2 id="summary">Summary</h2>
+<p>Above we see how I managed to fix the issue how R did not work in SQL Server 2017 after I had applied CU7. The steps I took:</p>
+<ol>
+<li>Right-click on the <code>ExtensibilityData</code> directory and choose properties.</li>
+<li>In properties click on the &ldquo;Security&rdquo; tab and then the &ldquo;Advanced&rdquo; button.</li>
+<li>In the &ldquo;Advanced Security Settings&rdquo; dialog click &ldquo;Enable inheritance&rdquo; followed by &ldquo;Apply&rdquo;.</li>
+<li>In the error dialogs that appear click continue until you are back in the &ldquo;Advanced Security Settings&rdquo; dialog, and there you click OK out of all dialogs.</li>
+<li>At this stage, you can execute the R code without any exceptions.</li>
+<li>Go back into the &ldquo;Advanced Security Settings&rdquo; dialog and click &ldquo;Disable inheritance&rdquo; and &ldquo;Apply&rdquo;.</li>
+<li>In the &ldquo;Block Inheritance&rdquo; dialog chose &ldquo;Convert inherited permissions &hellip;&rdquo;.</li>
+<li>&ldquo;Continue&rdquo; through the error dialogs until you are back in the &ldquo;Advanced Security Settings&rdquo; dialog.</li>
+<li>In the &ldquo;Advanced Security Settings&rdquo; dialog &ldquo;Remove&rdquo; the <code>MSSQLSERVER</code> principal.</li>
+</ol>
+<p>Oh, and I can warmly recommend the blogs I mention above by <a href="http://jonculp.com/">Jon Culp</a> and <a href="https://blog.greglow.com/">Greg Low</a>.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-05-27-interesting-stuff---week-21/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 21">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-06-03-interesting-stuff---week-22/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 22">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

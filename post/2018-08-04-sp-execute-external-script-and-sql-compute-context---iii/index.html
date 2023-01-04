@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="sp_execute_external_script and SQL Compute Context - III" />
+    <meta property="og:title" content="sp_execute_external_script and SQL Compute Context - III" />
+    <meta property="twitter:title" content="sp_execute_external_script and SQL Compute Context - III" />
+    
+
+    
+    <meta name="description" content="We use WinDbg, Process Monitor and WireShark to look in detail what happens in SQL Server when we use RxSqlServerData to pull data.">
+    <meta property="og:description" content="We use WinDbg, Process Monitor and WireShark to look in detail what happens in SQL Server when we use RxSqlServerData to pull data." />
+    <meta property="twitter:description" content="We use WinDbg, Process Monitor and WireShark to look in detail what happens in SQL Server when we use RxSqlServerData to pull data." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>sp_execute_external_script and SQL Compute Context - III | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-08-04-sp-execute-external-script-and-sql-compute-context---iii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/parallel" title="parallel">
+                            parallel
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-compute-context" title="SQL Server Compute Context">
+                            SQL Server Compute Context
+                        </a>
+                        
+                        <a class="tag" href="/tags/sp_execute_external_script" title="sp_execute_external_script">
+                            sp_execute_external_script
+                        </a>
+                        
+                        <a class="tag" href="/tags/rxsqlserverdata" title="RxSqlServerData">
+                            RxSqlServerData
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/wireshark" title="WireShark">
+                            WireShark
+                        </a>
+                        
+                    </div>
+                    <h1>sp_execute_external_script and SQL Compute Context - III</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, August 4, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>In the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post I wrote about <code>sp_execute_external_script</code> (SPEES) and the <strong>SQL Server Compute Context</strong> (SQLCC). Afterwards I realised I had some things wrong, so I wrote a followup post: <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> where I tried to correct my mistakes from the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">initial post</a>. That post led to <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> and now we have a mini-series.</p>
+<p>To see other posts (including this) in the series, go to <a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
+<p>In the previous post in this series, we looked at how data is sent to the SqlSatellite from SQL Server when we are in the SQLCC. This post was meant to look at what goes on inside SQL Server when we execute in SQLCC, but I realised that it would make more sense if, before we look at the internal working when in SQLCC, I covered what happens when pulling data in the local context. So that is what this post is all about.</p>
+<p>Before we dive into todays topic let us recap.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> we discussed what the SQLCC is and we said that as part of RevoScaleR, you can define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in the context of somewhere else: Hadoop, Spark and also SQL Server. So, in essence, you can run some code on your development machine and have it execute in the environments mentioned above. To use the SQLCC in SQL Server we use <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up the connection string</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlServerConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        server=.; # localhost
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        database=testParallel;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        uid=some_uid;pwd=some_pwd&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up the context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlCtx</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlServerConnString</span>, 
+</span></span><span style="display:flex;"><span>                        <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set the compute context to be the sql context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCtx</span>)    
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Set up SQL Server Compute Context</em></p>
+<p>The connection string we see in <em>Code Snippet 1</em> indicates the where we execute, not necessarily where the data we work with lives. The <code>numTasks</code> argument defines the maximum number of tasks SQL Server can use. Something interesting when setting <code>numTasks</code> to be greater than 1 is that when we run the code, we run it hosted in a <code>mpiexec.exe</code> process. If we run in SQLCC under <code>numTasks = 1</code> we do not see <code>mpiexec.exe</code>, but we see another <code>bxlserver.exe</code> process. We also said that when we run in SQLCC. <code>sp_execute_external_script</code> executes multiple times.</p>
+<p>The most interesting thing that came out of <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> was the performance benefit of using SQLCC when loading large datasets. So in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a>, we tried to see where that performance benefit came from.</p>
+<p>In <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> we said we had three ways of getting data into an R script:</p>
+<ul>
+<li>Push using <code>@input_data_1</code>.</li>
+<li>Pull using <code>RxSqlServerData</code> in the local context.</li>
+<li>Pull using <code>RxSqlServerData</code> and the SQLCC.</li>
+</ul>
+<p>We saw that to use SQLCC we need to pull the data; we could not push it. We also saw that for large datasets there was a significant performance difference between pulling in the local context and pulling using SQLCC. The interesting point was that pushing data and pulling using SQLCC had the same performance characteristics.</p>
+<p>When pulling the data (<code>RxSqlServerData</code>), we use ODBC, and the protocol is TDS. However, when we use the SQLCC, the BXL protocol is also used and that gives us very efficient processing of data which is the reason we see good performance.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we go any further let us look at the code and the tools we use today. This section is here for those who want to follow along in what we are doing in the post.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we use:</p>
+<ul>
+<li><em>Process Monitor</em> - to filter out TCP traffic.</li>
+<li><em>WinDbg</em> - to see what happens inside SQL Server. If you need help with setting it up, we covered that in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>.</li>
+<li><em>WireShark</em> - to &ldquo;sniff&rdquo; network packets. We covered setting up <em>WireShark</em> in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>. Please remember that if you run SSMS and SQL Server on the same machine, then you need the <a href="https://nmap.org/npcap/"><strong>Npcap</strong></a> packet sniffer library instead of the default <strong>WinPcap</strong>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>This is the database objects we use in this post:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">PRIMARY</span> <span style="color:#859900">KEY</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">50000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Setup of Database, Table and Data</em></p>
+<p>We use more or less the same database and database object as in the <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> post:</p>
+<ul>
+<li>A database: <code>TestParallel</code>.</li>
+<li>A table: <code>dbo.tb_Rand_50M</code>. This table contains the data we want to analyse.</li>
+</ul>
+<p>In addition to creating the database and the table <em>Code Snippet 2</em> also loads 50 million records into the <code>dbo.tb_Rand_50M</code>. Be aware that when you run the code in <em>Code Snippet 2</em> it may take some time to finish due to the loading of the data. Yes, I know - the data is entirely useless, but it is a lot of it, and it helps to illustrate what we want to do.</p>
+<p>Not only is the database and database objects similar to what we used in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, the code we use is also almost the same:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">isCtx</span> <span style="color:#cb4b16">bit</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">numTasks</span> <span style="color:#cb4b16">int</span> = <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      # set up the connection string
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      sqlServerConnString &lt;- &#34;Driver=SQL Server;server=.;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              database=testParallel;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              uid=&lt;username&gt;;pwd=&lt;userpwd&gt;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      if(useContext == 1) {
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        sqlCtx &lt;- RxInSqlServer(connectionString = sqlServerConnString, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                numTasks = tasks)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        # set the compute context to be the sql context
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        rxSetComputeContext(sqlCtx)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      }
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      mydata &lt;- RxSqlServerData(sqlQuery = &#34;SELECT y, rand1, rand2, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                            rand3, rand4, rand5 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                            FROM dbo.tb_Rand_50M&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                connectionString = sqlServerConnString);
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      myModel &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      data=mydata)&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@tasks int, @useContext bit&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">tasks</span> = @<span style="color:#268bd2">numTasks</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">useContext</span> = @<span style="color:#268bd2">isCtx</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Test Code</em></p>
+<p>As we see in <em>Code Snippet 3</em> we parameterise the <code>sp_execute_external_script</code> call, and we have parameters for whether to use the SQLCC and also how many tasks to run when executing in the context. The default is to execute in the local context, and when we execute in SQLCC the default for the number of tasks is 1 (<code>numTasks = 1</code>).</p>
+<h2 id="local-context-pull-vs-push">Local Context Pull vs Push</h2>
+<p>Let us try and see what happens in SQL Server when we execute in the local context, and we pull data (<code>RxSqlServerData</code>) compared to when we push data (<code>@input_data_1</code>).</p>
+<p>First, let us try and understand when and how the <code>SELECT</code> statement in <code>Code Snippet 3</code> executes. To check this we use the same technique as we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>, we execute a <code>SELECT</code> statement which causes a division by zero exception. We capture that exception in <em>WinDbg</em> and we check the call stack.</p>
+<p>So, run <em>WinDbg</em> as admin and enable an event-filter, so the debugger breaks at a <code>C++ EH</code> exception. In the <em>Event Filters</em> dialog you can set how that particular exception should be handled. We want it to be enabled, but not handled:</p>
+<p>
+  <img src="/images/posts/sql_r_services_windbg_eventfilters_enable.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Enable C++ EH Exception</em></p>
+<p>When the <em>Event Filter</em> is enabled as in <em>Figure 1</em> we:</p>
+<ul>
+<li>Attach <em>WinDbg</em> to the <code>sqlservr.exe</code> process (please do not do this on a production machine - <em>#justsaying</em>).</li>
+<li>Set a breakpoint at <code>bp sqllang!SpExecuteExternalScript</code>.</li>
+<li>Change the <code>SELECT</code> statement in <em>Code Snippet 3</em> slightly, so it generates the division by zero exception mentioned above: <code>SELECT TOP(1) (1 / y - y), y, rand1, ...</code>.</li>
+</ul>
+<p>After changing the <code>SELECT</code> statement, we execute the code. Continue through the breakpoint at <code>SpExecuteExternalScript</code>, and when the execution breaks at the exception we check the call stack: <code>k</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">RaiseException</span>+<span style="color:#2aa198;font-weight:bold">0x68</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x5a2</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span>+<span style="color:#2aa198;font-weight:bold">0x2f2</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt;+<span style="color:#2aa198;font-weight:bold">0x4c5</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>+<span style="color:#2aa198;font-weight:bold">0xaae</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0xa2c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_request</span>+<span style="color:#2aa198;font-weight:bold">0xe52</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_commands_internal</span>+<span style="color:#2aa198;font-weight:bold">0x289</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_messages</span>+<span style="color:#2aa198;font-weight:bold">0x213</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x231</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Call Stack Local Context Pull</em></p>
+<p>The call stack we see in <em>Code Snippet 4</em> is somewhat edited in that it shows only the important parts. Let us compare it with the call-stack we see when we push the data, (<code>@input_data_1</code>), and receive a division by zero exception as we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">KERNELBASE</span>!<span style="color:#268bd2">RaiseException</span>+<span style="color:#2aa198;font-weight:bold">0x68</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x49f</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtSelect</span>::<span style="color:#268bd2">XretExecute</span>+<span style="color:#2aa198;font-weight:bold">0x2f2</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt;+<span style="color:#2aa198;font-weight:bold">0x4c5</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>+<span style="color:#2aa198;font-weight:bold">0xaae</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0xa2c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>+<span style="color:#2aa198;font-weight:bold">0x154b</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSpecProc</span>::<span style="color:#268bd2">ExecuteSpecial</span>+<span style="color:#2aa198;font-weight:bold">0x31e</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXProc</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x139</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0xb5b</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CStmtExecProc</span>::<span style="color:#268bd2">XretLocalExec</span>+<span style="color:#2aa198;font-weight:bold">0x2d3</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CStmtExecProc</span>::<span style="color:#268bd2">XretExecExecute</span>+<span style="color:#2aa198;font-weight:bold">0x4a1</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtExecProc</span>::<span style="color:#268bd2">XretExecute</span>+<span style="color:#2aa198;font-weight:bold">0x38</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">ExecuteStmts</span>&lt;<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>&gt;+<span style="color:#2aa198;font-weight:bold">0x4c5</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CMsqlExecContext</span>::<span style="color:#268bd2">FExecute</span>+<span style="color:#2aa198;font-weight:bold">0xaae</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSource</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0xa2c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_request</span>+<span style="color:#2aa198;font-weight:bold">0xe52</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_commands_internal</span>+<span style="color:#2aa198;font-weight:bold">0x289</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">process_messages</span>+<span style="color:#2aa198;font-weight:bold">0x213</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x231</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Call Stack Local Context Push</em></p>
+<p>The call-stack in <em>Code Snippet 5</em> is also edited and when we compare the two call-stacks, they look somewhat similar.  We see <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> in both code snippets, and we know from <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> that <code>ErsqExecuteQuery</code> handles execution of SQL statements and also sending data to the SQL Satellite. So that makes sense that we see it in <em>Code Snippet 4</em>. However, what does not make sense is that we do not see <code>SpExecuteExternalScript</code> in the <em>Code Snippet 4</em> call stack (and no, I did not edit it out). What goes on here?</p>
+<p>Ok, let us refer back to what we saw in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> and  <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a>, how SQL Server sends various data packages to the SqlSatellite and then finally calls <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code>. So, add a breakpoint, in addition to the <code>SpExecuteExternalScript</code> breakpoint, at <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code> and execute the code again. Oh, we see how we hit the <code>SpExecuteExternalScript</code> breakpoint first, followed by <code>SendChunkEndMessage</code>, and finally, we break at the division by zero exception. That is interesting, SQL Server sends the chunk end message and only after that, the query executes.</p>
+<p>So what with <code>ErsqExecuteQuery</code>, what does that do? Let us see if we can find out:</p>
+<ul>
+<li>Change the code not to cause a divide by zero exception: <code>SELECT TOP(1) y, rand1, ...</code>.</li>
+<li>Set a breakpoint at <code>ErsqExecuteQuery</code>.</li>
+</ul>
+<p>When you execute the code you see something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">099</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SpExecuteExternalScript</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">091</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">091</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">1</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendChunkEndMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">091</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">07</span><span style="color:#2aa198;font-weight:bold">8</span>&gt; <span style="color:#268bd2">g</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Breakpoints Hit</em></p>
+<p>In <em>Code Snippet 6</em> we see how we first hit the <code>SpExecuteExternalScript</code> breakpoint, followed by <code>ErsqExecuteQuery</code>, (which is expected), then we hit the <code>SendChunkEndMessage</code> followed by a second <code>ErsqExecuteQuery</code>. That is interesting; two <code>ErsqExecuteQuery</code>, and we know from above that the query executes after the second <code>ErsqExecuteQuery</code>. So the question is now how the data flows from SQL Server to the SqlSatellite. We know from [Internals - XIII<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">si13</a>, as we mentioned above, that when we push data, SQL Server makes these calls (among many others):</p>
+<ul>
+<li><code>sqlmin!CQScanUdx::PushNextChildRow</code>.</li>
+<li><code>sqllang!CUDXR_ExternalScript::PushRow</code>.</li>
+<li><code>sqllang!CSatelliteCargoContext::SendPackets</code>.</li>
+</ul>
+<p>Let us set a breakpoint at <code>sqllang!CSatelliteCargoContext::SendPackets</code> and see what happens when we execute.</p>
+<p>THAT was interesting! We never hit <code>SendPackets</code>. In the recap above we said that when we pull the data we use ODBC and the TDS protocol, and what we see here further ensures that is the case. So what does SQL Server call when it uses TDS to send data? To find out:</p>
+<ul>
+<li>Disable the breakpoints at <code>SendChunkEndMessage</code> and <code>SendPackets</code>.</li>
+<li>Execute the query.</li>
+</ul>
+<p>When you reach <code>ErsqExecuteQuery</code> the second time, do a <code>wt  -l4</code> (watch and trace 4 levels deep) and continue. Look at the output from the <code>wt</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span><span style="display:flex;"><span>  ...   
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">SetupQueryScanAndExpression</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQuery</span>::<span style="color:#268bd2">CreateExecPlan</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">CMemProc</span>::<span style="color:#268bd2">CpagesInUse</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">StartupQuery</span>
+</span></span><span style="display:flex;"><span>  ...      
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanTopNew</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanTableScanNew</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanRowsetNew</span>::<span style="color:#268bd2">GetRowWithPrefetch</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanTableScanNew</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CValOdsRow</span>::<span style="color:#268bd2">SetDataX</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CShilohTds</span>::<span style="color:#268bd2">SendRowImpl</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanTableScanNew</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQScanTopNew</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">GetRow</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Output from wt</em></p>
+<p>The output shows a lot of data, so in <em>Code Snippet 7</em> I have edited out all but the interesting parts. We see some routines that have to do with setting up and starting the query and retrieving result data:</p>
+<ul>
+<li><code>sqllang!CXStmtQuery::SetupQueryScanAndExpression</code>.</li>
+<li><code>sqlmin!CQueryScan::StartupQuery</code>.</li>
+<li><code>sqlmin!CQueryScan::GetRow</code>.</li>
+</ul>
+<p>That is interesting but what is more interesting is what we see after the <code>GetRow</code> calls: <code>sqllang!CShilohTds::SendRowImpl</code>. SQL Server calls <code>SendRowImpl</code> when it pushes data to the network packet which it then sends to the caller. We can confirm this is the case by using <em>WinDbg</em> and <em>Process Monitor</em>. So, run <em>Process Monitor</em> as admin and set an event filter which captures TCP Receive events for the <code>BxlServer.exe</code> process.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you are not sure how to set an event filter in <em>Process Monitor</em>, you can read about it in the <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> post.</p>
+</blockquote>
+<p>Now, disable all breakpoints in <em>WinDbg</em> and execute the code in <em>Code Snippet 3</em>, (with <code>SELECT TOP(1) ...</code>) and watch the output from <em>Process Monitor</em>:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_procmon_pull_1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Process Monitor Output</em></p>
+<p>What we see in <em>Figure 2</em> is similar to what we saw in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, when we looked at the TCP packets SQL Server sends to the <code>BxlServer.exe</code> process. The outlined row in <em>Figure 2</em> is the packet with the result of the <code>SELECT</code>. I know that because I tried with multiple <code>TOP</code> values and saw which row changed length between the <code>TOP</code> values. In <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> the corresponding row had a length of 1358 as we did a <code>TOP(50)</code>. You may wonder what the three highlighted parts if the figure is and we come back to that in a little bit.</p>
+<p>Now let us confirm that the outlined row is the row with the data:</p>
+<ul>
+<li>Re-enable (set) the breakpoint at <code>sqllang!SpExecuteExternalScript</code>.</li>
+<li>Set a breakpoint at <code>sqllang!CShilohTds::SendRowImpl</code>.</li>
+</ul>
+<p>Execute the code and continue through until you break at <code>SendRowImpl</code>. If you look at the <em>Process Monitor</em> output, the last row you see is a row with a length of 405. That is the fourth row from the end as we see in <em>Figure 2</em>. Now continue the execution, and you see how <em>Process Monitor</em> outputs the three last rows, with a row with a length of 133 as the first one. We have &ldquo;thus&rdquo; proven that <code>SendRowImpl</code> sends the data row to the data packet which then SQL Server sends to the caller. Oh, the reason I use <code>TOP(1)</code> is that there is one call to <code>SendRowImpl</code> for each row, and I do not want to have to press F5 millions of times, or even 50 times.</p>
+<h2 id="packets">Packets</h2>
+<p>Now, what about the highlighted areas in <em>Figure 2</em>, what are those? First of all, if you look at the length of the packets it seems like each area have packets of the same length: in the yellow area, we see packets with a length of 37, 1245, 67 and 405, which we also see in the green and blue area. In <em>Figure 2</em> we also see that the highlighted areas originate from the same <code>BxlServer.exe</code> process (process id 6572), but different ports: 6799, 6800 and 6801. OK, let us see if we can figure out what this is all about, and to try to get a clearer picture we also want to filter on what <code>BxlServer.exe</code> sends to SQL Server. To see that, we add two new conditions to the existing <em>Process Monitor</em> filter:</p>
+<ul>
+<li>First condition - <em>Operation</em> (first drop-down) <em>is</em> (second dropdown): &ldquo;TCP Send&rdquo;.</li>
+<li>Second condition - <em>Path</em> <em>contains</em>: the definition for the SQL Server port (1443). In my examples it is: <code>win10-dev:ms-sql-s</code>. We set this filter condition, so we only see the ODBC communication.</li>
+</ul>
+<p>Disable all breakpoints in <em>WinDbg</em> and execute the code and watch the <em>Process Monitor</em> output:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_procmon_pull_2.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Process Monitor Output - II</em></p>
+<p>The output we see in <em>Figure 3</em> is quite similar to what we see in <em>Figure 2</em>, apart from that we also see the packets the <code>BxlServer.exe</code> process sends. We see the same structure of three separate sections of packets, and we have packets of the same length in the three sections. Once again we see the data packet being in the last section, once again with a length of 133 (the outlined row). What are these packets and why do we have three sections? Let us see if we can figure out what the packets do with the help of <em>WireShark</em>:</p>
+<ul>
+<li>Start <em>WireShark</em> as admin.</li>
+<li>On the opening screen double click the adapter for <em>Npcap</em> (most likely named &ldquo;Npcap Loopback Adapter&rdquo;).</li>
+</ul>
+<p>This starts capturing events immediately and to stop the capture you click <strong>Ctrl + E</strong>. What we want to do now is to create a <em>WireShark</em> display filter, so we only see network packets we are interested in. What we are interested in are packets for port 1433, and we set the filter in the text box just underneath the toolbox: <code>tcp.port==1433</code>.  Finally, we click on the right arrow to the right the filter box to apply the filter (outlined in red below):</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_filter.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>WireShark Display Filter</em></p>
+<p>TThe assumption at this stage is that the <em>WireShark</em> capture is off. Start the capture (&ldquo;Ctrl+E&rdquo;) and then immediately execute the code. We stop the capture as soon as the code has finished executing:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_output_I.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>WireShark Output</em></p>
+<p>In <em>Figure 5</em> we see part of the output from <em>WireShark</em>, and we may wonder why we see more packets than when we looked at the output from <em>Process Monitor</em> and why the packet sixes are not the same. There are a couple of answers to that:</p>
+<ul>
+<li><em>Process Monitor</em> only show packets that has a body (data part), but more messages are going over the wire (<code>ACK</code> etc.), and <em>WireShark</em> shows all of them.</li>
+<li>The packet size question is related to the point above. <em>WireShark</em> shows the bytes going over the wire and that includes headers and so forth, whereas <em>Process Monitor</em> only shows the data size.</li>
+<li>The <em>WireShark</em> display filter is set on port 1433 (anything going in and out of SQL Server), whereas in <em>Process Monitor</em> we filtered on traffic to and from the <code>BxlServer.exe</code> process. The section in <em>Figure 5</em> highlighted in blue is an example of this; this is the communication between <em>SQL Server Management Studio</em> and SQL Server.</li>
+</ul>
+<h4 id="yellow-section">Yellow Section</h4>
+<p>Ok, so what does <em>WireShark</em> tell us? In <em>Figure 5</em> I have highlighted in yellow the part that corresponds to the highlighted yellow part in <em>Figure 3</em>. For this exercise, we can ignore the packets whose <em>Protocol</em> is TCP and concentrate on the ones which have TDS as a protocol. Just by looking at the info we see that the packets have to do with login and authentication: <code>TDS7 pre-login message</code> followed by <code>Response</code> followed by more pre-login messages, followed by <code>TLS Exchange</code> and a <code>Response</code>. I am not going into any details about these packets, but if you want all the &ldquo;gory&rdquo; details about TDS you find documentation here: <a href="https://msdn.microsoft.com/en-us/library/dd304523.aspx">[MS-TDS]: Tabular Data Stream Protocol</a>.</p>
+<p>We now realise that the packets in the first section in <em>Figure 3</em> has to do with authentication. Seeing that we see packets with the same length in the green and blue sections in <em>Figure 3</em> we can safely assume those packets are also authentication packets, and a quick look at the packets in <em>WireShark</em> confirms that. What about the packets that are different?</p>
+<h4 id="green-section">Green Section</h4>
+<p>In the green section there are packets with lengths of 386, 138, 23 and 22, and in the blue section, we see packet lengths of 330 and 133. Well, we do know what the 133 packet is - that is the packet with the data SQL Server sends to the <code>BxlServer.exe</code> process. So, let us go back to the <em>WireShark</em> output and see what we can find out:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_output_II.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>WireShark Output II</em></p>
+<p>We see in <em>Figure 6</em> the last packets of the green section packets in <em>Figure 3</em>. In <em>Figure 6</em> the first packet corresponds to the 405 packet in the green section in <em>Figure 3</em> which we know is a response package. To see what type of response packet it is, we click on the row in the &ldquo;Packet List&rdquo; pane in <em>WireShark</em> and the &ldquo;Packet Details&rdquo; pane shows the details about the packet:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_env_change.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>WireShark Packet Details</em></p>
+<p>Aha, in <em>Figure 7</em> we see that this packet is an <code>EnvChange</code> packet (yellow highlight) which SQL Server use to notify the caller of an environment change (for example, database, language, and so on). In this case, it is a database context change from <code>master</code> (grey highlight) to <code>testParallel</code> (blue highlight). So this packet appears in all three section sin <em>Figure 3</em>. Now let us look at the 386, 138, 23, and 22 packets, which in <em>WireShark</em> have lengths of 856, 360, 130 and 128 and are highlighted in <em>Figure 6</em> with yellow, green, blue and purple respectively.</p>
+<p><strong>WireShark Packet 856</strong>:</p>
+<p>When we click on the packet in the &ldquo;Packet List&rdquo; pane, the &ldquo;Packet Details&rdquo; looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_prepare.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>WireShark Packet Details II</em></p>
+<p>The packet details we see in <em>Figure 8</em> tells us that this is a &ldquo;Remote Procedure Call&rdquo; (which we also can see in <em>Figure 6</em>), and the call is to <code>sp_prepare</code> (highlighted in blue). The procedure <code>sp_prepare</code> is generally used for performance reasons and prepares a parameterized Transact-SQL statement and returns a statement handle for execution. The &ldquo;Packet Bytes&rdquo; pane shows us a hex dump the statement:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_packet_bytes.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>WireShark Packet Bytes</em></p>
+<p><strong>WireShark Packet 360</strong>:</p>
+<p>The 360 packet (green) is a response packet, and when we look at the packet we see:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_col_metadata.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>WireShark Packet Details and Bytes</em></p>
+<p>We see in <em>Figure 10</em> that the response to <code>sp_prepare</code> is column metadata for the query.</p>
+<p><strong>WireShark Packet 130 and 128</strong>:</p>
+<p>Finally, the last two packets in the green section is a call to <code>sp_unprepare</code> (packet 130) and an &ldquo;End of message&rdquo; response (packet 128) to that.</p>
+<h4 id="blue-section">Blue Section</h4>
+<p>On to the blue section in <em>Figure 3</em>. We already said that there are only two packets that are different to the ones in the yellow and green sections:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_output_III.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>WireShark Output III</em></p>
+<p>The packet highlighted in yellow in <em>Figure 11</em> is the packet with a length of 330 in <em>Figure 3</em>, and the 350 packet (highlighted in green) is the <em>Figure 3</em> 133 packet.</p>
+<p><strong>WireShark Packet 744</strong>:</p>
+<p>The 744 packet looks like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_sql_batch.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>WireShark Output III</em></p>
+<p>In <em>Figure 12</em> we see how the packet is a SQL batch (yellow highlight), and it contains the actual query (green and blue highlights). So this is the query that SQL Server executes.</p>
+<p><strong>WireShark Packet 350</strong>:</p>
+<p>As we have mentioned a few times, the 350 packet contains the result of the query executed from the 744 packet, and the packet details and bytes look like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_III_wireshark_query_result.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>WireShark Output Query Result</em></p>
+<p>With a cursory glance at <em>Figure 13</em> we may think there is no difference between what we see in <em>Figure 10</em> - which shows the response to the <code>sp_prepare</code> call - and what is in <em>Figure 13</em>. However, looking a bit closer we see that this packet contains the result of the query where we see highlighted in green and blue the two first column values, 2 and 6 respectively. The column values are not present in <em>Figure 10</em>.</p>
+<h2 id="sections">Sections</h2>
+<p>By now we sort of understand what goes on when we pull the data in the local context. However, why do we have these different sections, and why do we see multiple authentications? I have no answer why we see multiple authentications; maybe I can get an answer from someone &ldquo;in the know&rdquo;. As for the multiple sections; I am not 100% clear about that - but it seems to have something to do with what RevoScaleR function that accesses the data, remember from <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> how loading of the data happens not in the <code>RxSqlServerData</code> call, but in the call which uses the data. So why I say that the sections are related to this is that if we, instead of doing a <code>rxLinMod</code> call, did something like <code>ds &lt;- </code>rxImport(mydata)` then we only see the green and blue sections. Hopefully, I can get some more information about the sections as well which I can update this post with.</p>
+<h2 id="summary">Summary</h2>
+<p>So this post discusses the internal workings in SQL Server when we pull data in the local context. We talked about how SQL Server first sends the script data to the SQL Satellite through the usual <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> and <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code>. After <code>SendChunkEndMessage</code> <code>ErsqExecuteQuery</code> is called again and at that stage the statement query executes.</p>
+<p>The data transfer between the SqlSatellite (hosted by <code>BxlServer.exe</code>) and SQL Server happens through TDS packets, and we saw how authentication packages are sent multiple times, followed by <code>sp_prepare</code>. Finally, SQL Server executes the query and returns the result to the SqlSatellite.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-07-29-interesting-stuff---week-30/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 30">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-08-05-interesting-stuff---week-31/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 31">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

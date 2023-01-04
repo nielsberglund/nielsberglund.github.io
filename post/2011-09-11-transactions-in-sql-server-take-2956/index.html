@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Transactions in SQL Server (take 2956)" />
+    <meta property="og:title" content="Transactions in SQL Server (take 2956)" />
+    <meta property="twitter:title" content="Transactions in SQL Server (take 2956)" />
+    
+
+    
+    <meta name="description" content="Blog by Niels Berglund">
+    <meta property="og:description" content="Blog by Niels Berglund" />
+    <meta property="twitter:description" content="Blog by Niels Berglund" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Transactions in SQL Server (take 2956) | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2011-09-11-transactions-in-sql-server-take-2956/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/denali" title="denali">
+                            denali
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server" title="SQL Server">
+                            SQL Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/t-sql" title="t-sql">
+                            t-sql
+                        </a>
+                        
+                    </div>
+                    <h1>Transactions in SQL Server (take 2956)</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, September 11, 2011
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Transactions in SQL Server seems to be a difficult topic to grasp. This weekend I came across a blog-post where the poster showed a &ldquo;solution&rdquo; to the &ldquo;The ROLLBACK TRANSACTION request has no corresponding BEGIN TRANSACTION&rdquo; error we sometimes see when various stored procedures call each other. The solution (even though it masked out the error in question) did not get it quite right. So I thought I would make a post about the subject.</p>
+<h3 id="nested-transactions-in-sql-server-and-the-evil-trancount">Nested Transactions in SQL Server and the Evil @@TRANCOUNT</h3>
+<p>In SQL Server we have the @@TRANCOUNT variable which gives us the number of transactions active in the session - or that&rsquo;s at least what we might believe. Take this  extremely simple code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> #<span style="color:#268bd2">t</span> (<span style="color:#268bd2">col1</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">15</span>))
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> #<span style="color:#268bd2">t</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198">&#39;HELLO&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> #<span style="color:#268bd2">t</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198">&#39;WORLD&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>You should see something like this:</p>
+<pre tabindex="0"><code>0
+1
+2
+1
+0
+</code></pre><p>I.e. it seems like the transaction count is increasing for each BEGIN TRAN, and decrease with COMMIT. And if you were to <code>SELECT * FROM #t</code> you would see two rows returned. So far so good, so what is wrong with @@TRANCOUNT then? Well, let us change the code slightly (don&rsquo;t forget to drop #t if you copy and paste this code):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> #<span style="color:#268bd2">t</span> (<span style="color:#268bd2">col1</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">15</span>))
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> #<span style="color:#268bd2">t</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198">&#39;HELLO&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> #<span style="color:#268bd2">t</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198">&#39;WORLD&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ROLLBACK</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> @@<span style="color:#268bd2">TRANCOUNT</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>If you now were to (don&rsquo;t do it immediately) <code>SELECT * FROM #t</code>, how many rows would you get back - 0, 1, or 2? Seeing how the @@TRANCOUNT is increasing with every BEGIN TRAN and decreasing with COMMIT / ROLLBACK, it is understandable if your answer is 1:</p>
+<ul>
+<li>we start a transaction and insert a row</li>
+<li>we then start another transaction and insert a second row</li>
+<li>we call commit after the second insert (the inner transaction)</li>
+<li>finally we do a rollback, on the “outer” transaction</li>
+</ul>
+<p>As we after the second BEGIN TRAN can see @@TRANCOUNT being 2, we could assume that the commit would commit the second insert. However, we all know what happens when we assume  (now would be a good time to do the SELECT)  ….</p>
+<p>Right, the SELECT did not return any rows at all, so it is probably fair to say that we did not have multiple transactions, even though @@TRANCOUNT showed us more than one. So, then we might assume (keep in mind what I’ve said about assume) that the reason we rolled back was because ROLLBACK was the last statement. Let us switch the COMMIT on line 10 with the ROLLBACK on line 12 (we now have ROLLBACK on line 10 and COMMIT on line 12) and execute. WHOA – we got a big fat exception, what happened here? To answer that, let us look a bit closer at the main parts of transaction control in your code.</p>
+<h3 id="begin-tran-commit-and-rollback">BEGIN TRAN, COMMIT and ROLLBACK</h3>
+<p>When you execute BEGIN TRAN in T-SQL, SQL will look around in the execution context of your session and see if there already exists a transactional context. If not, SQL will start a new transaction. If there is a transaction already, SQL will enlist in this transaction. However in both cases SQL will increase the @@TRANCOUNT variable.</p>
+<p>Then, when you execute a COMMIT, SQL will not immediately commit the transaction but will decrease the transaction count with 1. If the transaction count has reached 0 due to the commit, a commit will take place. OK, so far so good, but this does not explain the error we received when switching the COMMIT and ROLLBACK statements, if it works as described, then we should have committed?</p>
+<p>Ah, yes – however, a ROLLBACK not only decrements the transaction count – it sets it to 0 immediately, and as the transaction count is now 0, a rollback will happen. So in our second example we are seeing something similar to when we – in stored procs – are getting the ”The ROLLBACK TRANSACTION request has no corresponding BEGIN TRANSACTION” error.</p>
+<h3 id="stored-procedures-and-transactions">Stored Procedures and Transactions</h3>
+<p>It is quite common to write procs something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">sp2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- then if all is OK we commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">COMMIT</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errMSg</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">errMSg</span> = <span style="color:#268bd2">ERROR_MESSAGE</span>()
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">999</span>; <span style="color:#93a1a1;font-style:italic">--things have gone very wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then we are having a similar proc, looking almost the same, but it, in addition, calls into sp2:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">sp1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- do some more stuff by calling into sp2
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp2</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- then if all is OK we commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">COMMIT</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errMSg</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">errMSg</span> = <span style="color:#268bd2">ERROR_MESSAGE</span>()
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">999</span>; <span style="color:#93a1a1;font-style:italic">--things have gone very wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is now when we will potentially see the error mentioned before. We call sp1, when sp1 is called there is no transactional context around, so SQL creates a new transaction. Then we go on to call sp2 from sp1. In the BEGIN TRAN call in sp2, there exists a transactional context, so SQL enlists us in that context.</p>
+<p>If all now goes well and we call COMMIT in sp2, the commit causes the transaction count to be decreased to 1 – but no “real” commit happens. So when we subsequently calls COMMIT in sp1, we decrement the transaction count to 0, and we are committed.</p>
+<p>In the case when things go wrong is sp2 and we call rollback, the transaction count is immediately set to 0, and a rollback happens. When we come back to sp1, SQL sees that we had a transaction in sp1, but there are no transactions around, and we will get the error discussed. If we then go on and do a rollback (as in our code) – we will get additional errors.</p>
+<h3 id="solution">Solution</h3>
+<p>A solution to the problem is to use the “evil” @@TRANCOUNT, to see if there are any transactions around. If there aren’t any, we start a transaction. If there are a transaction already, we don’t do anything, and we let the existing transaction handle everything:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">sp2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">tranCount</span> <span style="color:#cb4b16">int</span> = @@<span style="color:#268bd2">TRANCOUNT</span>; <span style="color:#93a1a1;font-style:italic">--I&#39;m using SQL2008 here
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#93a1a1;font-style:italic">--no tx&#39;s around, we can start a new
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- then if all is OK we commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">--if the variable @tranCount is 0,
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- we have started the tx ourselves, and can commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#859900">AND</span> <span style="color:#268bd2">XACT_STATE</span>() = <span style="color:#2aa198;font-weight:bold">1</span>) <span style="color:#93a1a1;font-style:italic">--XACT_STATE - just to be on the safe side
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">COMMIT</span> <span style="color:#268bd2">TRAN</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errMSg</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">errMSg</span> = <span style="color:#268bd2">ERROR_MESSAGE</span>()
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--if the variable @tranCount is 0,
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- we have started the tx ourselves, and can rollback
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#859900">AND</span> <span style="color:#268bd2">XACT_STATE</span>() &amp;<span style="color:#268bd2">lt</span>;&amp;<span style="color:#268bd2">gt</span>; <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#93a1a1;font-style:italic">--XACT_STATE - just to be on the safe side
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--tell an eventual calling proc that things have gone wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">--and the calling proc should rollback
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">999</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Obviously the calling proc would have similar code to decide if to start a tran or not.</p>
+<p>In the above scenario we let the “outer” proc handle all the transactional control. Sometimes you are in a situation where – if things go wrong in the “inner” proc (sp2 in our case) – you do not want to roll back everything done, but only what was done in the inner proc. For such a scenarion, you can use named savepoints:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#268bd2">PROC</span> <span style="color:#268bd2">sp2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">tranCount</span> <span style="color:#cb4b16">int</span> = @@<span style="color:#268bd2">TRANCOUNT</span>; <span style="color:#93a1a1;font-style:italic">--I&#39;m using SQL2008 here
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#93a1a1;font-style:italic">--no tx&#39;s around, we can start a new
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ELSE</span> <span style="color:#93a1a1;font-style:italic">--we are already in a tx, take a savepoint here
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#268bd2">SAVE</span> <span style="color:#859900">TRANSACTION</span> <span style="color:#268bd2">sp2</span> <span style="color:#93a1a1;font-style:italic">--this is just a name
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">-- do some stuff
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- then if all is OK we commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">--if the variable @tranCount is 0,
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- we have started the tx ourselves, and can commit
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#859900">AND</span> <span style="color:#268bd2">XACT_STATE</span>() = <span style="color:#2aa198;font-weight:bold">1</span>) <span style="color:#93a1a1;font-style:italic">--XACT_STATE - just to be on the safe side
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">COMMIT</span> <span style="color:#268bd2">TRAN</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">errMSg</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> @<span style="color:#268bd2">errMSg</span> = <span style="color:#268bd2">ERROR_MESSAGE</span>()
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--if the variable @tranCount is 0,
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">-- we have started the tx ourselves, and can rollback
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">IF</span>(@<span style="color:#268bd2">tranCount</span> = <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#859900">AND</span> <span style="color:#268bd2">XACT_STATE</span>() != <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#93a1a1;font-style:italic">--XACT_STATE - just to be on the safe side
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>    <span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ELSE</span> <span style="color:#859900">IF</span> (@<span style="color:#268bd2">tranCount</span> &amp;<span style="color:#268bd2">gt</span>; <span style="color:#2aa198;font-weight:bold">0</span> <span style="color:#859900">AND</span> <span style="color:#268bd2">XACT_STATE</span> != -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">ROLLBACK</span> <span style="color:#859900">TRANSACTION</span> <span style="color:#268bd2">sp2</span> <span style="color:#93a1a1;font-style:italic">--we are rolling back to the save-point
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">--tell an eventual calling proc that things have gone wrong
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#93a1a1;font-style:italic">--and let the calling proc decide what to do with its parts
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>  <span style="color:#859900">RETURN</span> <span style="color:#2aa198;font-weight:bold">999</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Personally, I do not use named save-points that much as they cannot be used together with linked servers, and we – unfortunately – are using linked servers a lot.</p>
+<p>A final note about named save-points; they are not the same thing as beginning / committing / rolling back a transaction with a name:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> #<span style="color:#268bd2">t</span> (<span style="color:#268bd2">col1</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">15</span>))
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRAN</span> <span style="color:#268bd2">t1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> #<span style="color:#268bd2">t</span> <span style="color:#859900">VALUES</span>(<span style="color:#2aa198">&#39;HELLO&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span> <span style="color:#268bd2">t1</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Beginning a transaction with a name, is for most parts just a convenience. It has no effect on nesting (unless you use named save points), and SQL Server Books OnLine says this about naming of transactions:<br>
+“Naming multiple transactions in a series of nested transactions with a transaction name has little effect on the transaction. Only the first (outermost) transaction name is registered with the system. A rollback to any other name (other than a valid savepoint name) generates an error. None of the statements executed before the rollback is, in fact, rolled back at the time this error occurs. The statements are rolled back only when the outer transaction is rolled back”.</p>
+<p>If you have questions, observations etc., please feel free to leave me a comment, or drop me an email.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2010-11-20-fsharp-mono-and-mac-2/" data-toggle="tooltip" data-placement="top" title="F#, Mono and Mac - Take II">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2011-09-13-first-impressions-microsoft-build-win-8/" data-toggle="tooltip" data-placement="top" title="First Impressions Microsoft BUILD - Win 8">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

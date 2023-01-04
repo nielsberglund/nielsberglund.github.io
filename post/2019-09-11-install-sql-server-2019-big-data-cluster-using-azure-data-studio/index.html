@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Install SQL Server 2019 Big Data Cluster using Azure Data Studio" />
+    <meta property="og:title" content="Install SQL Server 2019 Big Data Cluster using Azure Data Studio" />
+    <meta property="twitter:title" content="Install SQL Server 2019 Big Data Cluster using Azure Data Studio" />
+    
+
+    
+    <meta name="description" content="Installation of SQL Server 2019 Big Data Cluster on Azure Kubernetes Service using Azure Data Studio.">
+    <meta property="og:description" content="Installation of SQL Server 2019 Big Data Cluster on Azure Kubernetes Service using Azure Data Studio." />
+    <meta property="twitter:description" content="Installation of SQL Server 2019 Big Data Cluster on Azure Kubernetes Service using Azure Data Studio." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Install SQL Server 2019 Big Data Cluster using Azure Data Studio | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-09-11-install-sql-server-2019-big-data-cluster-using-azure-data-studio/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019-big-data-cluster" title="SQL Server 2019 Big Data Cluster">
+                            SQL Server 2019 Big Data Cluster
+                        </a>
+                        
+                        <a class="tag" href="/tags/kubernetes" title="Kubernetes">
+                            Kubernetes
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-kubernetes-service" title="Azure Kubernetes Service">
+                            Azure Kubernetes Service
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-data-studio" title="Azure Data Studio">
+                            Azure Data Studio
+                        </a>
+                        
+                        <a class="tag" href="/tags/spark" title="Spark">
+                            Spark
+                        </a>
+                        
+                        <a class="tag" href="/tags/hadoop" title="Hadoop">
+                            Hadoop
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                    </div>
+                    <h1>Install SQL Server 2019 Big Data Cluster using Azure Data Studio</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Wednesday, September 11, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>I wrote a <a href="/post/2018-11-10-sql-server-2019-big-data-cluster-on-azure-kubernetes-service/">blog post</a> back in November 2018, about how to install and deploy <strong>SQL Server 2019 Big Data Cluster</strong> on Azure Kubernetes Service. Back then <strong>SQL Server 2019 Big Data Cluster</strong> was in private preview, (CTP 2.1 I believe), and you had to sign up, to get access to the &ldquo;bits&rdquo;. Well, you did not really get any &ldquo;bits&rdquo;; what you did get was access to Python deployment scripts.</p>
+<p>Now, September 2019, the BDC is in public preview (you do not have to sign up), and it has reached Release Candidate (RC) status, RC 1. The install method has changed, or rather, in addition to installing via deployment scripts, you can now also install using <strong>Azure Data Studio</strong> deployment notebooks, and that is what this blog post is about.</p>
+<p>I install it on Azure, and since I am in South Africa, I use one of the South African hosting locations.</p>
+<h2 id="pre-reqs">Pre-Reqs</h2>
+<p>To deploy using <strong>Azure Data Studio</strong>, (ADS), you need ADS (duh - see below), but you also need some other things.</p>
+<h4 id="azure-subscription">Azure Subscription</h4>
+<p>If you want to install on <strong>Azure Kubernetes Service</strong>, (AKS), you need an Azure subscription. If you do not have one you can sign up for a free trial subscription <a href="https://azure.microsoft.com/en-us/free/">here</a>.</p>
+<p>Of course you do not need to install it on AKS, you can install it on basically any Kubernetes cluster</p>
+<h4 id="python">Python</h4>
+<p>Well, Python is not a tool as such, but you need Python installed on the machine you install from, as the ADS deployment runs some Python scrips. You need Python3, and on my machine, I have Python 3.7.3. Ensure that Python is on the <code>PATH</code>.</p>
+<h4 id="azdata">azdata</h4>
+<p><code>azdata</code> is a Python command-line tool replacing <code>mssqlctl</code>. It enables cluster administrators to bootstrap and manages the big data cluster via REST APIs.</p>
+<p>There are a couple of steps to install it:</p>
+<ul>
+<li>If you have <code>mssqlctl</code> installed you need to uninstall it:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ pip3 uninstall -r https://private-repo.microsoft.com/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                           python/ctp3.1/mssqlctl/requirements.txt
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Uninstall <code>mssqlctl</code></em></p>
+<p>In <em>Code Snippet 1</em> above I have inserted a line continuation (<code>\</code>) to make the code fit the page.</p>
+<ul>
+<li>If you have deployed CTP 3.2 of the BDC, then you need to uninstall that version of <code>azdata</code>:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pip3 uninstall -r https://azdatacli.blob.core.windows.net/ <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                  python/azdata/2019-ctp3.2/requirements.txt
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Uninstall <code>azdata</code></em></p>
+<p>In <em>Code Snippet 2</em> you see how the uninstall command takes the version of <code>azdata</code> to uninstall: <em><code>2019-ctp3.2</code></em>. If you have the 3.2 version installed you need to confirm when you run the code in <em>Code Snippet 2</em> that you want to remove some installed components:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-uninst-azdata.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Confirm Uninstall <code>azdata</code></em></p>
+<p>Just click <code>y</code> when asked to proceed.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The biggest issue causing errors in a BDC deployment, by far, is using an older version of <code>azdata</code>. So please, do not be &ldquo;that guy&rdquo; (or girl) - make sure you uninstall <code>azdata</code> if you have an earlier version. In fact, before a deployment, always uninstall <code>azdata</code> followed by an install, (see below).</p>
+</blockquote>
+<ul>
+<li>You need the latest version of the Python <code>requests</code> package installed:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ pip3 install -U requests
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Install/Upgrade <code>requests</code></em></p>
+<ul>
+<li>When you have executed the code in <em>Code Snippet 3</em> you can install <code>azdata</code>:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ pip3 install -r https://aka.ms/azdata
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Installing <code>azdata</code></em></p>
+<p>After executing the code in <em>Code Snippet 4</em> you can go ahead and install the other tools needed.</p>
+<h4 id="kubectl">kubectl</h4>
+<p>The <code>kubectl</code> tool is a Kubernetes command-line tool, and it allows you to run commands against Kubernetes clusters. You can use <code>kubectl</code> to deploy applications, inspect and manage cluster resources, and view logs.</p>
+<p>You can install <code>kubectl</code> in different ways, and I installed it from <a href="https://chocolatey.org/packages/kubernetes-cli">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
+<h4 id="azure-cli">Azure CLI</h4>
+<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. You find install links for Azure CLI <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest">here</a>.</p>
+<h2 id="azure-data-studio">Azure Data Studio</h2>
+<p>Since this post is about installing and deploying a BDC using <strong>Azure Data Studio</strong>, you also need ADS. You may already have ADS installed, but to be able to install and deploy to the release candidate of BDC you need a specific install. If you have already installed ADS, this ADS version installs side-by-side with existing ADS installations.</p>
+<p>The install link to the ADS RC version is <a href="https://aka.ms/azuredatastudio-rc">here</a>.</p>
+<h4 id="sql-server-2019-preview">SQL Server 2019 (Preview)</h4>
+<p>In addition to ADS, you also need the <strong>SQL Server 2019 (Preview)</strong> extension, which you install after installing ADS.</p>
+<p>As opposed to other ADS extensions, you need to download the extension to your machine before you can install it. You download it from <a href="https://docs.microsoft.com/en-us/sql/azure-data-studio/sql-server-2019-extension">here</a>. After download, you install it from the <strong>File</strong> menu, and the <strong>Install Extension from VSIX Package</strong> item:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-inst-extension.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Install Extension</em></p>
+<p>In <em>Figure 2</em> you see the <strong>File</strong> menu (outlined in blue), and the <strong>Install Extension from VSIX Package</strong> item outlined in red.</p>
+<h4 id="azure-data-studio-notebooks">Azure Data Studio Notebooks</h4>
+<p>I mentioned above that you deploy the BDC using ADS deployment <em>Notebooks</em>. You may ask yourself what an <strong>Azure Data Studio Notebook</strong> is? Well, Notebooks come from the Data Science world where a Notebook can contain live code, equations, visualizations and narrative text. It is a tool for teaching or sharing information between people. A notebook makes it easy to link lots of docs and code together.</p>
+<p>When Microsoft developed ADS, the embedded the <a href="https://jupyter.org/">Jupyter</a> service in ADS, which enables ADS to run Notebooks. When you talk about Notebooks, you also talk about <em>Kernels</em>. A <em>Kernel</em> is the programming language you can write and execute code in, in the <em>Notebook</em>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-notebook-kernels.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Notebook Kernels</em></p>
+<p>The drop-down you see in <em>Figure 3</em> shows the <em>Kernels</em> ADS supports. When you deploy, you use the <em>Python 3</em> kernel.</p>
+<p>If you have not used Python Notebooks before in ADS, you need to configure Python for use with Notebooks. You enter <strong>Ctrl+Shift+P</strong> to open the command palette, and you search for <em>Configure Python</em>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-configure-notebooks.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Configure Notebooks</em></p>
+<p>In <em>Figure 4</em> you see the command palette, and you choose <em>Configure Python for Notebooks</em>, and follow the instructions.</p>
+<p>When you have configured Python for the notebooks, you are ready to deploy the BDC.</p>
+<h2 id="deployment-settings">Deployment Settings</h2>
+<p>The first step in the deployment is to configure settings which the notebook use.</p>
+<p>After you launch ADS, you click on the <strong>Connections</strong> icon in the top of the <em>Activity</em> bar (leftmost panel in ADS). That opens the sidebar where you can see your connections. Click on the ellipsis, (the three dots &ldquo;&hellip;&rdquo;), to the right in the top panel of the sidebar:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-deploy.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Connections</em></p>
+<p>You see in <em>Figure 5</em>:</p>
+<ul>
+<li>Connections icon outlined in yellow.</li>
+<li>The three dots in the connections panel outlined in blue.</li>
+<li>The pop-up menu items when clicking on the three dots.</li>
+</ul>
+<p>You also see in <em>Figure 5</em> that the pop-up menu gives you choices for SQL Server deployments. To deploy a BDC, you click on the item outlined in red:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-deploy-options1.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Connections</em></p>
+<p>When you click on the *Deploy SQL Server big data cluster you see something like in <em>Figure 6</em>: the <em>Select the deployment options</em> dialog. You see in the dialog what you can deploy, and what options you have.</p>
+<p>You choose <em>SQL Server big data cluster</em>, (outlined in blue), the version <em>SQL Server 2019 RC big data cluster</em>, (outlined in yellow), and the target to deploy to: <em>New Azure Kubernetes Service cluster</em>. When you click <strong>Select</strong> in the dialog, you see a new dialog:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-new-cluster.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>New AKS Cluster</em></p>
+<p>You see in Figure 7* a settings dialog for the creation and deployment of your new cluster. All of the settings are relatively self-explanatory. However, there are two where you may not know how to retrieve them:</p>
+<ul>
+<li>Subscription id - you can have multiple subscriptions in Azure. This defines under which subscription to create the cluster. If you only have one subscription you leave this as is. If you have more subscriptions see below.</li>
+<li>Region - in what Azure region your cluster should be created.</li>
+</ul>
+<h4 id="subscription-id">Subscription id</h4>
+<p>You retrieve subscription information either by using the Azure portal or logging in via the Azure CLI. I prefer to log-in using Azure CLI:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ az login
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Login to Azure</em></p>
+<p>When I execute the code in <em>Code Snippet 4</em> a tab opens in my browser, and I see a dialog that asks me to pick an account to log in to Azure with:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Azure Login</em></p>
+<p>I choose the account from what I see in <em>Figure 8</em>, and after a little while, I see in the browser a success message:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login_success.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Azure Login Success</em></p>
+<p>At the same time as the success message in <em>Figure 9</em>, the code in <em>Code Snippet 4</em> returns with information what subscriptions I have access to in Azure:</p>
+<p>
+  <img src="/images/posts/sql_2k19_bdc_az_login_return.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Azure Login Return</em></p>
+<p>As we see in <em>Figure 10</em>, I have access to multiple subscriptions, and I enter the id for the subscription I want to use in the <em>Subscription id</em> field.</p>
+<h4 id="regions">Regions</h4>
+<p>To see a list of Azure regions you execute <code>az account list-locations</code>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-azure-regions.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Azure Regions</em></p>
+<p>When you execute the code above you get back a list of all regions you have access to and what you enter in the <em>Region</em> is the <code>name</code> property of your chosen region. In my case, I choose <code>southafricnorth</code>. When you have the necessary information, you set the various settings. For me the settings dialog looks like so:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-cluster-settings.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Azure Regions</em></p>
+<p>It is worth noting that I have changed the <em>VM size</em>, and <em>VM count</em> from its default of <code>Standard_E4s_v3</code>, and <code>5</code> to <code>Standard_B8ms</code> and <code>3</code>. Reason for this is that having fewer nodes cuts down on install time. The thing to bear in mind here is that a BDC deployment requires at a minimum around 24 hard disks altogether in your cluster, and each VM has a set number of disks. In my case, each <code>Standard_B8ms</code> VM has 16 disks so I should be good (3 * 16).</p>
+<h2 id="deployment-notebook">Deployment Notebook</h2>
+<p>With the settings set you now click <strong>Open Notebook</strong>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-deploy-notbook1.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Deploy Notebook</em></p>
+<p>In <em>Figure 13</em> you see the opened deployment notebook. When you scroll through the notebook, you see the various stages of the deployment, and what it does in each stage:</p>
+<ul>
+<li>Check dependencies.</li>
+<li>Required information.</li>
+<li>Azure settings.</li>
+<li>Default settings.</li>
+<li>Login to Azure.</li>
+<li>Set active Azure subscription.</li>
+<li>Create Azure resource group.</li>
+<li>Create AKS cluster.</li>
+<li>Set the new AKS cluster as current context.</li>
+<li>Create a deployment configuration file.</li>
+<li>Create SQL Server 2019 big data cluster.</li>
+<li>Login to SQL Server 2019 big data cluster.</li>
+<li>Show SQL Server 2019 big data cluster endpoints.</li>
+<li>Connect to master SQL Server instance in Azure Data Studio.</li>
+</ul>
+<p>To do the deployment, you can now either run each cell independently by clicking on the cell and hit F5 or click on the <strong>Run Cells</strong> command at the top of the notebook. In either case, you see what command the cell executes as well as the result:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-cell-output.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>Cell Output</em></p>
+<p>What you see in <em>Figure 14</em> is the output from creating the Azure resource group.</p>
+<p>Be aware that the deployment takes a while, and especially the stage <em>Create SQL Server 2019 big data cluster</em>. Eventually, the deployment finishes, and you get an output from the cell <em>Show SQL Server 2019 big data cluster endpoints</em>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-endpoints.png" alt="">
+
+</p>
+<p><strong>Figure 15:</strong> <em>Cell Output</em></p>
+<p>The BDC exposes external endpoints for various services, and those are the ones you see in <em>Figure 15</em>. It is beyond the scope of this post to discuss what all those endpoints are, but the one outlined in red is the endpoint for the SQL Server master instance.</p>
+<p>To connect to the master instance, you create a new connection:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-connect.png" alt="">
+
+</p>
+<p><strong>Figure 16:</strong> <em>New Connection</em></p>
+<p>When you click the <em>New Connection</em> icon in the <em>Servers</em> panel in the sidebar that you see in <em>Figure 16</em>, a <em>Connection</em> dialog &ldquo;pops up&rdquo;:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-new-connection.png" alt="">
+
+</p>
+<p><strong>Figure 17:</strong> <em>Connection Dialog</em></p>
+<p>In the <em>Connection</em> dialog you enter the details for your connection, including the IP address for the SQL Server master instance, and then you click <strong>Connect</strong>:</p>
+<p>
+  <img src="/images/posts/inst-bdcrc1-ads-connection.png" alt="">
+
+</p>
+<p><strong>Figure 18:</strong> <em>Connected</em></p>
+<p>As you see in <em>Figure 18</em>, you are now connected.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post you saw how you can deploy a *<em>SQL Server 2019 Big Data Cluster</em> using <strong>Azure Data Studio</strong> and notebooks.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-09-08-interesting-stuff---week-36-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 36, 2019">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2019-09-15-interesting-stuff---week-37-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 37, 2019">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

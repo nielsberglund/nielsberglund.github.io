@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Doomed, We are All Doomed I Say!" />
+    <meta property="og:title" content="Doomed, We are All Doomed I Say!" />
+    <meta property="twitter:title" content="Doomed, We are All Doomed I Say!" />
+    
+
+    
+    <meta name="description" content="SQL Server and XACT_STATE(). A blog-post about doomed transactions in SQL Server and XACT_STATE()">
+    <meta property="og:description" content="SQL Server and XACT_STATE(). A blog-post about doomed transactions in SQL Server and XACT_STATE()" />
+    <meta property="twitter:description" content="SQL Server and XACT_STATE(). A blog-post about doomed transactions in SQL Server and XACT_STATE()" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Doomed, We are All Doomed I Say! | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-01-27-doomed-we-are-all-doomed/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/transactions" title="transactions">
+                            transactions
+                        </a>
+                        
+                        <a class="tag" href="/tags/error-handling" title="error handling">
+                            error handling
+                        </a>
+                        
+                        <a class="tag" href="/tags/xact_state" title="XACT_STATE()">
+                            XACT_STATE()
+                        </a>
+                        
+                        <a class="tag" href="/tags/xact-abort" title="XACT-ABORT()">
+                            XACT-ABORT()
+                        </a>
+                        
+                    </div>
+                    <h1>Doomed, We are All Doomed I Say!</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, January 27, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Just to set things straight, the title of this post has nothing to do with US politics, but the infinitely more important (and exciting) subject of transactions in <strong>SQL Server</strong> and the concept of <strong>doomed</strong> transactions. Why I came across the idea for this post was due to a discussion I had with a colleague of mine - Sameer Chunilall - who didn&rsquo;t agree with my <a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">post</a> a while ago about <code>XACT_ABORT</code>, he believes it is a good thing (mostly), where I believe it is a bad thing (mostly).</p>
+<p>We <del>argued</del> discussed at length, and then decided that we both were right. Or rather I decided I was right, and he decided he was right :). Jokes aside, during the discussions the concept of <strong>doomed</strong> transactions were brought up, and that led me to writing this blog post.</p>
+<p>Before we go any further, I have written a couple (three actually) posts that deal with transactions and/or error-handling in SQL Server, so if you want to refresh your memory they can be found here (in chronological order):</p>
+<ul>
+<li><a href="/post/2011-09-11-transactions-in-sql-server-take-2956/">Transactions in SQL Server (take 2956)</a></li>
+<li><a href="/post/2016-12-31-sql-server-error-handling-gotchas/">SQL Server Error Handling Gotchas</a></li>
+<li><a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">Abort, Abort, We Are XACT_ABORT:ing, Or Are We?!</a></li>
+</ul>
+<p>Before we start talking about doomed transactions, let&rsquo;s look at something that has a definitive impact if a transaction will be doomed or not.</p>
+<blockquote>
+<p><strong>NOTE</strong>: There is no special demo code for this blog post, if you want you can <a href="/downloads/code/xact_abort.zip">download the code from the <code>XACT_ABORT</code> blog post</a>, and edit according to the code snippets here.</p>
+</blockquote>
+<h2 id="statement-scope-and-batch-termination">Statement, Scope and Batch Termination</h2>
+<p>In SQL Server you execute statements and batches. A statement is what it says it is, a single T-SQL statement, like:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#39;Details for Order 1&#39;</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>T-SQL Statement</em></p>
+<p>A batch is what is executed at a point in time from an application (SSMS, ADO.NET, etc.):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#39;Details for Order 1&#39;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">5</span>, <span style="color:#2aa198">&#39;Details for Invalid OrderID&#39;</span>); 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">3</span>, <span style="color:#2aa198">&#39;Details for OrderID 3&#39;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>T-SQL Batch</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> The <code>GO</code> statement in <em>Code Snippet 2</em>, is an SSMS &ldquo;thing&rdquo;. When executing code from a script, the<code>GO</code> statement denotes batches.</p>
+</blockquote>
+<p>When executing a stored procedure, that is also a batch. If a procedure calls other procedures, they are all executing inside the same batch. The code below shows 4 procedures we will use going forward:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">59
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">60
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">61
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">62
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">63
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">64
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">65
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">66
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- the DROP ... IF EXISTS only works on SQL SERVER 2016+
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DROP</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">3</span>, <span style="color:#2aa198">&#39;Details for OrderID 3&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before Insert&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--this should just work
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#2aa198">&#39;Details for OrderID 2&#39;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- this should cause a fk exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--VALUES(5, &#39;Details for Invalid OrderID&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- invalid object name 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--SELECT * FROM dbo.tb_MyTable;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- Conversion failure
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- DECLARE @n int;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- SELECT @n = CONVERT(int,&#39;ABC&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before EXEC dbo.pr_3&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: Before Insert&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#39;Details for Order 1&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_1: Before EXEC dbo.pr_2&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before Begin TX&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#859900">TRANSACTION</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before EXEC dbo.pr_1&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before Commit TX&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">COMMIT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Call Chain of Procedures</em></p>
+<p>As we can see, <code>dbo.pr_Caller</code> starts a transaction, calls <code>dbo.pr_1</code>, which in turn calls <code>dbo.pr_2</code>, which finally calls <code>dbo.pr_3</code>. When all is &ldquo;said and done&rdquo;, <code>dbo.pr_Caller</code> commits the transaction. The procedure <code>dbo.pr_2</code> is the &ldquo;dodgy&rdquo; procedure in this call chain, and we will use it to simulate some error conditions that will result in various termination types. As you can see in <em>Code Snippet 3</em>, <code>dbo.pr_2</code> has some commented out code, and it is this code that will cause terminations. Initially we&rsquo;ll execute the code as is, and this should not cause any errors:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">TRUNCATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4</strong>: <em>Batch Executions</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> The code above starts with <code>TRUNCATE TABLE</code> we do that just to make sure everything is cleaned up before execution. Oh, and BTW - how many batches are executed above? Answer in comments or <a href="mailto:niels.it.berglund@gmail.com">email</a>.</p>
+</blockquote>
+<p>When executing the above you should see three rows coming back from the <code>SELECT</code> statement, all is good:</p>
+<p>
+  <img src="/images/posts/batch_no_errors.png" alt="">
+
+
+<strong>Figure 1:</strong> <em>Procedure Execution No Errors</em></p>
+<p>So what happens now if we were to <code>ALTER</code> proc 2 a bit, comment out the insert for <code>OrderID</code> 2, and uncomment the insert for <code>OrderID</code> 5. There is no order with that id, so it should result in a foreign key constraint error. The proc should look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before Insert&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">----this should just work
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--VALUES(2, &#39;Details for OrderID 2&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- this should cause a fk exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_OrderDetail</span>(<span style="color:#268bd2">OrderID</span>, <span style="color:#268bd2">SomeDetail</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>(<span style="color:#2aa198;font-weight:bold">5</span>, <span style="color:#2aa198">&#39;Details for Invalid OrderID&#39;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- invalid object name 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--SELECT * FROM dbo.tb_MyTable;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- Conversion failure
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- DECLARE @n int;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- SELECT @n = CONVERT(int,&#39;ABC&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before EXEC dbo.pr_3&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Proc Which Will Cause FK Violation</em></p>
+<p>After <code>ALTER</code>:ing the proc and executing as in <em>Code Snippet 4</em>, we get something like:</p>
+<p>
+  <img src="/images/posts/fk_error.png" alt="">
+
+
+<strong>Figure 2:</strong> <em>FK Error After Procedure Execution</em></p>
+<p>So we got a FK violation error, but we can also see that we continued the execution in <code>dbo.pr_2</code>, and called <code>dbo.pr_3</code>. Furthermore, the result gives us two rows back, from <code>dbo.pr_1</code> and <code>dbo_pr_3</code>:</p>
+<p>
+  <img src="/images/posts/result_after_fk.png" alt="">
+
+
+<strong>Figure 3:</strong> <em>Result After FK Error</em></p>
+<h3 id="statement-termination">Statement Termination</h3>
+<p>What we just have seen is <strong>statement termination</strong>. The statement causing an error stopped executing, but we continued executing - even within the same proc - straight after that statement. Furthermore, the error had no <em>negative</em> impact on the transaction. This may or may not be what you expect and want.</p>
+<p>I guess that most of you who read this have heard about statement termination before, so what we just have done should not come as any surprise.</p>
+<p>Some of the errors that can cause statement termination are:</p>
+<ul>
+<li>Most of <code>CONSTRAINT</code> errors:
+<ul>
+<li><code>NOT NULL</code></li>
+<li><code>PRIMARY KEY</code> and <code>FOREIGN KEY</code> errors</li>
+<li><code>CHECK CONSTRAINT</code></li>
+</ul>
+</li>
+<li>Errors raised by the user</li>
+<li>Quite a few more :)</li>
+</ul>
+<h3 id="scope-termination">Scope Termination</h3>
+<p><strong>Scope Termination</strong> is probably not as well known as statement termination. A scope termination is when SQL Server terminates the statement that caused the exception and subsequent execution within the same <em>scope</em>. In the examples we are using, <em>scope</em> would be an individual procedure. So, let us have a look at an scope termination example, let us <code>ALTER</code> our &ldquo;naughty&rdquo; procedure <code>dbo.pr_2</code> and comment out the statement which caused the FK violation, and un-comment where the procedure does a <code>SELECT</code> from the non-existent table <code>dbo.tb_MyTable</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before Insert&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">----this should just work
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--VALUES(2, &#39;Details for OrderID 2&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- this should cause a fk exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--VALUES(5, &#39;Details for Invalid OrderID&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- invalid object name 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> * <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_MyTable</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- Conversion failure
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- DECLARE @n int;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- SELECT @n = CONVERT(int,&#39;ABC&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before EXEC dbo.pr_3&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6</strong>: <em>SELECT from Non-Existent Table</em></p>
+<p>When you execute as in <em>Code Snippet 4</em>, the outcome is:</p>
+<p>
+  <img src="/images/posts/scope_abort.png" alt="">
+
+
+<strong>Figure 4:</strong> <em>Scope Abort Error</em></p>
+<p>As expected an error happened, but compared to the statement termination example, <code>dbo.pr_2</code> did not continue executing (we did not see <code>dbo.pr_2: Before EXEC dbo.pr_3</code>). The statement that caused the error was terminated <strong>AND</strong> all subsequent statements within that scope (procedure). However, the batch continues and <code>dbo.pr_Caller</code> committed the transaction. When you look at the <em>Results</em> tab in SSMS you will see one row returning from the <code>SELECT</code> statement; the insert done by <code>dbo.pr_1</code>.</p>
+<p>So, what causes scope termination? I have tried to look into that, but so far the only error type I have found termination the scope is when you try to access a missing object. If you know more types, please <a href="mailto:niels.it.berglund@gmail.com">email</a> me, and I can update this post.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Neither statement termination, nor scope termination have any effect on a transaction.</p>
+</blockquote>
+<h4 id="error-handling-and-scope-termination">Error Handling and Scope Termination</h4>
+<p>An interesting aspect of scope termination is how it is being handled (or not) by error handling. From my previous posts about errors, (<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">gotchas</a>, and <a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">XACT_ABORT</a>), we see how either <code>IF(@@ERROR &lt;&gt; 0 )</code>, or <code>TRY ... CATCH</code> catch exceptions. How about scope termination errors? You would expect them to be handled the same way as statement termination errors, as they do have the same severity (16), as can be seen from <em>Figure 3</em>, and <em>Figure 4</em>. In fact that is not the case! It turns out that an <code>IF(@@ERROR &lt;&gt; 0)</code> will not catch the error, whereas a <code>TRY ... CATCH</code> block will!</p>
+<h3 id="batch-termination">Batch Termination</h3>
+<p>After having covered statement termination and scope termination above, I do think that it is pretty clear what <strong>batch</strong> termination is. Some code to show this; once again in <code>dbo.pr_2</code>, comment out the <code>SELECT</code> statement against the no existing table and un-comment the part where we try to do a <code>CAST</code> conversion:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before Insert&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">----this should just work
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--VALUES(2, &#39;Details for OrderID 2&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- this should cause a fk exception
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- INSERT INTO dbo.tb_OrderDetail(OrderID, SomeDetail)
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- VALUES(5, &#39;Details for Invalid OrderID&#39;);
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">---- invalid object name 
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- SELECT * FROM dbo.tb_MyTable;
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">--- Conversion failure
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">n</span> <span style="color:#cb4b16">int</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> @<span style="color:#268bd2">n</span> = <span style="color:#859900">CONVERT</span>(<span style="color:#cb4b16">int</span>,<span style="color:#2aa198">&#39;ABC&#39;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_2: Before EXEC dbo.pr_3&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_3</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Proc Which Will Cause CAST Conversion Error</em></p>
+<p>When executing this (once again a in <em>Code Snippet 4</em>), this is what we get:</p>
+<p>
+  <img src="/images/posts/batch_termination.png" alt="">
+
+
+<strong>Figure 5:</strong> <em>Batch Termination Error</em></p>
+<p>When looking at the output as per in <em>Figure 5</em>, we can see that no more execution happened in <code>dbo.pr_2</code>, as was also the case in scope-termination and <em>Figure 4</em>, <strong>BUT</strong> we do not see any further execution in <code>dbo.pr_Caller</code> either! The batch completely terminated. But wait a second; what about the transaction that was originally started in <code>dbo.pr_Caller</code>? That transaction has been rolled back automatically, when we exited the batch (more about that later).</p>
+<p>Errors that can cause batch termination are:</p>
+<ul>
+<li>Conversion errors</li>
+<li>Deadlocks</li>
+</ul>
+<h4 id="error-handling-and-batch-termination">Error Handling and Batch Termination</h4>
+<p>As with scope termination, <code>IF(@@ERROR &lt;&gt; 0)</code> will not catch the error that caused the batch termination, but <code>TRY ... CATCH</code> will. So, let&rsquo;s see what happens when we introduce <code>TRY ... CATCH</code> in <code>dbo.pr_Caller</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before Begin TX&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">BEGIN</span> <span style="color:#859900">TRANSACTION</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before EXEC dbo.pr_1&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">EXEC</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_1</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;dbo.pr_Caller: Before Commit TX&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">COMMIT</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">TRY</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;In catch block&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>TRY &hellip; CATCH and Batch Termination</em></p>
+<p>We <code>ALTER</code> <code>dbo.pr_Caller</code> to have a <code>TRY ... CATCH</code>, but we do not do anything other than a <code>PRINT</code> statement. Remember, when we didn&rsquo;t have any <code>TRY ... CATCH</code>, the transaction was automatically rolled back. It is a little bit different now when we execute it as in <em>Code Snippet 4</em>:</p>
+<p>
+  <img src="/images/posts/uncommitable_tx.png" alt="">
+
+
+<strong>Figure 5:</strong> <em>Uncommittable Transaction</em></p>
+<p>What happened here? All of a sudden we get quite a few error messages, and what is this about <em>Uncommittable transaction</em> at the very end? The short story is that as soon as you introduce <code>TRY ... CATCH</code> and you have active transactions - you need to decide what to do with that transaction.</p>
+<p>OK makes sense. In this case, I don&rsquo;t really care what went wrong, and I want to commit the transaction anyway. I conveniently don&rsquo;t pay any attention to the part of <em>uncommittable</em> in the error message. After all - this is what I can do if I get a statement termination or scope termination, so why not do it here too! I <code>ALTER</code> the procedure to do <code>COMMIT TRAN</code> in the <code>CATCH</code> block straight after the <code>PRINT</code> statement, and then I execute:</p>
+<p>
+  <img src="/images/posts/current_tx_cannot_be_committed.png" alt="">
+
+
+<strong>Figure 6:</strong> <em>Current Transaction Cannot be Committed</em></p>
+<p>I am in trouble now. This time I am <strong>really</strong> told that I am doing something wrong: &ldquo;<em>The current transaction cannot be committed and cannot support operations
+that write to the log file. Roll back the transaction</em>&rdquo;. What is this?</p>
+<h2 id="doomed-aka-oh-oh-i-am-so-up-the-cr33k">Doomed (a.k.a. &ldquo;Oh, Oh, I am so up the cr33k&rdquo;)</h2>
+<p>The errors we see in both <em>Figure 5</em> as well as in <em>Figure 6</em> are due to that SQL Server decides - for one reason or another - that it cannot commit the transaction. The transaction is <strong>doomed</strong>, and the only thing that can be done is to roll it back. It is not straight forward when an error causes a doomed transaction as the way SQL Server handles errors are case by case. Rule of thumb though is that in most cases a doomed transaction is due to some error that has caused a batch termination.</p>
+<blockquote>
+<p><strong>NOTE:</strong> To further drive home that SQL handles errors on a case by case basis, all errors we have seen so far (caused by statement, scope and batch terminations), have had a <em>severity</em> of 16.</p>
+</blockquote>
+<p>Just to prove that we can recover from a batch termination without errors, we <code>ALTER</code> the <code>dbo.pr_Caller</code> procedure, replace the <code>COMMIT TRAN</code> with <code>ROLLBACK TRAN</code>, and execute. The outcome will be completely different:</p>
+<p>
+  <img src="/images/posts/rollback_tran.png" alt="">
+
+
+<strong>Figure 6:</strong> <em>Rollback Doomed Transaction</em></p>
+<p>As <em>Figure 6</em> shows, no &ldquo;nasty&rdquo; errors - all is OK! So what do we do if we sometimes want to commit the transaction if it is not doomed even if there has been an error, or rather - how can we figure out whether a transaction can be committed or not?</p>
+<h3 id="xact_state">XACT_STATE()</h3>
+<p>The way to determine if a transaction can be committed or not is to use <code>XACT_STATE()</code>. The <code>XACT_STATE()</code> is a scalar function and it reports on the state of the current transaction. There are 3 possible return values:</p>
+<ul>
+<li>-1: a user transaction is active, but it is <em>doomed</em>, and it can only be rolled back</li>
+<li>0: no user transaction is active</li>
+<li>1: a user transaction is active, it can be committed or rolled back.</li>
+</ul>
+<p>To see an example of this <code>ALTER</code> the <code>dbo.pr_Caller</code> proc&rsquo;s <code>CATCH</code> block to look something like <em>Code Snippet 9</em> below and then execute.</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">CATCH</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">DECLARE</span> @<span style="color:#859900">state</span> <span style="color:#cb4b16">smallint</span> = (<span style="color:#859900">SELECT</span> <span style="color:#268bd2">XACT_STATE</span>());
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;In catch block and XACT_STATE = &#39;</span> + <span style="color:#859900">CAST</span>(@<span style="color:#859900">state</span> <span style="color:#859900">as</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">2</span>));
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">IF</span>(@<span style="color:#859900">state</span> = -<span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;We are rolling back&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">ROLLBACK</span> <span style="color:#268bd2">TRAN</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ELSE</span> <span style="color:#859900">IF</span> (@<span style="color:#859900">state</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;We are committing&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">COMMIT</span> <span style="color:#268bd2">TRAN</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">END</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">ELSE</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">PRINT</span> <span style="color:#2aa198">&#39;No transaction available&#39;</span>
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span><span style="color:#859900">END</span> <span style="color:#268bd2">CATCH</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Using XACT_STATE()</em></p>
+<p>After execution the output would be like so:</p>
+<p>
+  <img src="/images/posts/xact_state.png" alt="">
+
+
+<strong>Figure 7:</strong> <em>Rollback Doomed Transaction</em></p>
+<p>As we see from <em>Figure 7</em>, we ended up in the <code>CATCH</code> block, <code>XACT_STATE</code> was -1, and the transaction was rolled back. You can if you want <code>ALTER</code> the &ldquo;naughty&rdquo; proc <code>dbo.pr_2</code>, and comment out the statement causing the batch termination and un-comment the statement which creates the statement termination. When executing, you should now get an output like so:</p>
+<p>
+  <img src="/images/posts/xact_state_1.png" alt="">
+
+
+<strong>Figure 8:</strong> <em>Rollback Doomed Transaction</em></p>
+<p>Here we had decided that even if an exception was raised, we wanted to commit the transaction, unless it was doomed.</p>
+<blockquote>
+<p><strong>NOTE:</strong> <code>XACT_STATE</code> can be used outside <code>TRY ... CATCH</code>, so you can use it even with &ldquo;old style&rdquo; error handling.</p>
+</blockquote>
+<h2 id="xact_abort">XACT_ABORT</h2>
+<p>I started this blog-post by talking about <code>XACT_ABORT</code>, and how I discussed with Sameer if it was good or bad. We have now come full circle and we are back to <code>XACT_ABORT</code>. You are probably asking yourself how that fits into here?</p>
+<p>The answer to that is that if you switch on <code>XACT_ABORT</code>, even statement termination errors will cause the transaction to be doomed! To test this, <code>ALTER</code> the calling proc <code>dbo.pr_Caller</code> and insert a <code>SET XACT ABORT ON</code> at the beginning of the proc, underneath the <code>SET NOCOUNT ON</code>. The first few lines of the proc should look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">ALTER</span> <span style="color:#859900">PROCEDURE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">pr_Caller</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">AS</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">XACT_ABORT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">BEGIN</span> <span style="color:#268bd2">TRY</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Setting XACT_ABORT ON</em></p>
+<p>If you haven&rsquo;t already <code>ALTER</code>:ed <code>dbo.pr_2</code> to cause a foreign key exception (statement termination and not a &ldquo;doomable&rdquo; error), do so - as discussed between <em>Figure 7</em> and <em>Figure 8</em>. When you now execute you will get the same output as in <em>Figure 7</em>.</p>
+<p>Finally, it is quite common to hear that triggers can be an issue, as they are rolling back transactions if an error happens in the trigger. The reason for this is that when a trigger executes, it automatically sets <code>XACT_ABORT ON</code>.</p>
+<p>I am not completely certain of the reason for this, but I guess it is a good &ldquo;defensive&rdquo; measure. So, if you don&rsquo;t want this behavior, you can do a <code>SET XACT_ABORT OFF</code> in your triggers.</p>
+<h2 id="summary">Summary</h2>
+<p>Transactions are doomed:</p>
+<ul>
+<li>When an exception happens which causes a batch termination</li>
+<li>For any exception when <code>XACT_ABORT</code> is <code>ON</code>.</li>
+<li>When SQL Server feels like it. :)</li>
+</ul>
+<p>Exception handling in SQL Server is <strong>NOT</strong> straight forward, especially when mixed with transactions!</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-01-21-interesting-stuff---week-3/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 3">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-01-28-interesting-stuff---week-4/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 4">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="A Lap Around SQL Server 2019 Big Data Cluster: Architecture" />
+    <meta property="og:title" content="A Lap Around SQL Server 2019 Big Data Cluster: Architecture" />
+    <meta property="twitter:title" content="A Lap Around SQL Server 2019 Big Data Cluster: Architecture" />
+    
+
+    
+    <meta name="description" content="Here we look at the architecture of a SQL Server 2019 Big Data Cluster, and the various components.">
+    <meta property="og:description" content="Here we look at the architecture of a SQL Server 2019 Big Data Cluster, and the various components." />
+    <meta property="twitter:description" content="Here we look at the architecture of a SQL Server 2019 Big Data Cluster, and the various components." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>A Lap Around SQL Server 2019 Big Data Cluster: Architecture | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2020-12-21-a-lap-around-sql-server-2019-big-data-cluster-architecture/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019-big-data-cluster" title="SQL Server 2019 Big Data Cluster">
+                            SQL Server 2019 Big Data Cluster
+                        </a>
+                        
+                        <a class="tag" href="/tags/kubernetes" title="Kubernetes">
+                            Kubernetes
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-kubernetes-service" title="Azure Kubernetes Service">
+                            Azure Kubernetes Service
+                        </a>
+                        
+                        <a class="tag" href="/tags/spark" title="Spark">
+                            Spark
+                        </a>
+                        
+                        <a class="tag" href="/tags/hadoop" title="Hadoop">
+                            Hadoop
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                    </div>
+                    <h1>A Lap Around SQL Server 2019 Big Data Cluster: Architecture</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, December 21, 2020
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This post is the second in series about <strong>SQL Server 2019 Big Data Cluster</strong> based on a presentation I do: <strong>A Lap Around SQL Server 2019 Big Data Cluster</strong>.</p>
+<p>In the first post <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> we looked at - as the title implies - the background of SQL Server 2019 Big Data Cluster, (BDC), and the technology behind it.</p>
+<p>In this post, we look at the architecture and components of a BDC.</p>
+<p>Before we dive into the architecture, let&rsquo;s refresh our memories around what we covered in the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous</a> post.</p>
+<h2 id="recap">Recap</h2>
+<p>We are getting more and more data, and the data comes in all types and sizes. We need a system to be able to manage, integrate, and analyze all this data. That&rsquo;s where SQL Server comes into the picture.</p>
+<p>SQL Server has continuously evolved from its very humble beginnings based on Ashton Tate/Sybase code-base to where it is now:</p>
+<ul>
+<li>SQL Server in Linux.</li>
+<li>SQL Server in Containers.</li>
+<li>SQL Server on Kubernetes.</li>
+</ul>
+<p>With all the capabilities now in SQL Server, it is the ideal platform to handle big data.</p>
+<p>The SQL Server itself is not enough to achieve what we want, so in addition to SQL Server a BDC includes quite a few open-source technologies:</p>
+<ul>
+<li>Apache Spark</li>
+<li>Hadoop File System (HDFS)</li>
+<li>Influx DB</li>
+<li>Graphana</li>
+<li>Kibana</li>
+<li>Elasticsearch</li>
+<li>more &hellip;</li>
+</ul>
+<p>Oh, and a BDC is not only one SQL server, but quite a few instances. The SQL Server instances are SQL on Linux containers, and the whole BDC are deployed to and runs on Kubernetes (k8s).</p>
+<p>We spoke a bit about k8s, and what constitutes a k8s cluster, (nodes, pods, etc.). In the post we tried to illustrate a k8s cluster like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-bdc-kubernetes-1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Kubernetes</em></p>
+<p>In <em>Figure 1</em> we see some of the parts of a two-node Kubernetes cluster, with a Master node. Later in this post, we talk some more about the Master node, and the role it plays.</p>
+<p>In the post, we briefly mentioned how we deploy a BDC, and we said we have essentially two options:</p>
+<ul>
+<li>Deploy via Python scripts.</li>
+<li>Deploy using <strong>Azure Data Studio</strong>.</li>
+</ul>
+<p>We looked at how to manage and monitor a BDC, and we spoke about the tools for managing and monitoring:</p>
+<ul>
+<li><code>kubectl</code> - used to manage the Kubernetes cluster the BDC is deployed to.</li>
+<li><code>azdata</code> - manage the BDC.</li>
+</ul>
+<p>In this post, looking at the architecture, we use the tools above, so ensure you have them installed if you want to follow along.</p>
+<h2 id="architecture">Architecture</h2>
+<p>How can we figure out what the architecture looks like? Well, in the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> post, we discussed k8s pods and how we could get information about the pod by executing some <code>kubectl</code> commands.</p>
+<p>So let us go back to the pod we looked at briefly in the last post: <code>master-0</code>, which is the pod containing the SQL Server master instance. We look at that pod to see if we can get some information from it, which will help us in gaining insight into the architecture of a BDC. The code we use looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods master-0 -n sqlbdc-cluster -o JSON
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Get Pod Information</em></p>
+<p>In <em>Code Snippet 1</em> above we see how we use <code>kubectl get pods</code> and we:</p>
+<ul>
+<li>Send in the name of the pod we are interested in,</li>
+<li>Indicate the k8s namespace the pod is in.</li>
+<li>Want the output, <code>-o</code> flag, formatted as JSON.</li>
+</ul>
+<p>When we execute the code in <em>Code Snippet 1</em> we see something like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-pods1.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Get Pods</em></p>
+<p>The <code>kubectl get pods master-0</code> command returns all information about that particular pod, and in <em>Figure 2</em> we see the first 20 lines or so of the JSON output.</p>
+<p>Notice the section outlined in red, the <code>metadata</code> section. This section contains general information about the pod, and if we look closer, we can see three labels outlined in, purple, yellow and green respectively:</p>
+<ul>
+<li><code>app</code> with a value of <code>master</code>.</li>
+<li><code>plane</code> with a value of <code>data</code>.</li>
+<li><code>role</code> with a value of <code>master-pool</code>.</li>
+</ul>
+<p>Maybe these labels would give us some insight if we were to look at all pods? Ok, so let&rsquo;s do that, and we will use some <code>kubectl -o</code> &ldquo;magic&rdquo; to get the information we want:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods -n sqlbdc-cluster <span style="color:#2aa198">\ </span>
+</span></span><span style="display:flex;"><span>                 -o custom-columns=NAME:.metadata.name, <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                    APP:.metadata.labels.app, <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                    ROLE:.metadata.labels.role,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                    PLANE:.metadata.labels.plane
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Custom Columns</em></p>
+<p>To retrieve the information we want, we use the <code>custom-columns</code> output option. We see in <em>Code Snippet 2</em> how we say we want four columns back: <code>NAME</code>, <code>APP</code>, <code>ROLE, and </code>PLANE`, and what labels those are, (we talk more about labels below). We then execute:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-roles-planes.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Pods with Custom Output</em></p>
+<p>In <em>Figure 3</em> we see the result from executing the code in <em>Code Snippet 2</em> and we see all pods in the <code>sqlbdc-cluster</code> namespace, i.e. all pods in the BDC. From the <code>PLANE</code> column we see how the BDC has two planes, the control plane and the data plane.</p>
+<h4 id="control--data-plane">Control &amp; Data Plane</h4>
+<p>Let us make a short diversion here and talk a bit about control and data planes.</p>
+<p>In distributed systems/services, we need a way to manage and monitor our services, and that is the role of the control plane. In the previous <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> we spoke about the master node in a k8s cluster and how we interact with the master node for management of the cluster.</p>
+<p>However, k8s has no idea about a SQL Server 2019 Big Data Cluster; in which order pods should be deployed etc. This is where the BDC control plane comes in. It knows about the BDC, so whenever there needs to be an interaction between the Kubernetes cluster and the BDC the k8s master node interacts with the BDC&rsquo;s control plane. Take a deployment as an example; when deploying to the BDC, the control plane acts as the coordinator and ensures services, etc., are &ldquo;spun up&rdquo; in the correct order.</p>
+<p>That is, however, not the only thing the control plane does. Remember from my previous <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> how we briefly discussed monitoring of a BDC and how we said we use Grafana, and Kibana together with the underlying InfluxDB and EleasticSearch as persistent stores. Well, the control plane is also responsible for monitoring, and in <em>Figure 3</em> you see some examples of this, where there are <code>APP</code>&rsquo;s related to logs and metrics.</p>
+<p>The data plane is what we communicate with when working with the BDC, doing queries etc. - the application traffic. In addition to that, the data plane is also responsible for:</p>
+<ul>
+<li>Routing.</li>
+<li>Load balancing.</li>
+<li>Observability.</li>
+</ul>
+<p>Now, knowing a bit about the planes, let us have a look at roles.</p>
+<h4 id="role">role</h4>
+<p>In Kubernetes, you have the notion of a <code>Role</code>, and that has to do with security: a <code>Role</code> sets permissions within a namespace. The <code>role</code> I refer to here has nothing to do with that. No, a <code>role</code> in this context is a label attributed to a pod in a k8s cluster.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/">k8s documentation Labels</a> are described as follows: &ldquo;Labels are key/value pairs that are attached to objects, such as pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.&rdquo;</p>
+</blockquote>
+<p>Seeing the description about Labels above, we can deduce that a <code>role</code> describes the &ldquo;role&rdquo; of a Kubernetes component, i.e. what it does or belongs to. With that in mind, we can get some information/insight around the architecture of the BDC from it.</p>
+<p>So let us once again look at the pods in the cluster and see what the <code>role</code> labels tell us:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods -n sqlbdc-cluster2 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 -o custom-columns=PODNAME:.metadata.name,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                 ROLE:.metadata.labels.role
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Pods &amp; Roles</em></p>
+<p>The code in <em>Code Snippet 3</em> above is almost the same as in <em>Code Snippet 2</em>, but without the <code>APP</code> and <code>PLANE</code> columns. When we execute, we see:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-roles2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Pods with Custom Output</em></p>
+<p>In <em>Figure 4</em> we see how the various pods belong to quite few <code>ROLE</code>&rsquo;s. Some of the <code>ROLE</code>&rsquo;s we see are familiar, like: <code>controller</code> and <code>monitoring</code>, and we will not talk about them that much more. However, in <em>Figure 4</em> we also see some <code>ROLE</code>s named <code>xxx-pool</code>. Above we said that the <code>master-0</code> belonged to a role named <code>master-pool</code>, and we see that in <em>Figure 4</em> as well.</p>
+<p>It turns out that the functionality, (SQL Server Master, Hadoop, etc.), of a BDC, is split into pools.</p>
+<h2 id="pools">Pools</h2>
+<p>When looking at <em>Figure 4</em> we see that we have different type of pools, and some of them have more than one pod. The pools are:</p>
+<ul>
+<li><code>compute-pool</code></li>
+<li><code>data-pool</code></li>
+<li><code>master-pool</code></li>
+<li><code>storage-pool</code></li>
+</ul>
+<p>Let us look somewhat more in-depth into the pools above.</p>
+<h4 id="master-pool">Master Pool</h4>
+<p>From above we see how <code>master-0</code> belongs to the <code>master-pool</code>. In the last post as well as in this, we have mentioned how the <code>master-0</code> pod represents the SQL Server master instance, i.e. the &ldquo;normal&rdquo; SQL Server where your OLTP databases sit. So, let us see if we can prove that, by looking at what containers the pod has:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span> kubectl get pods master-0 -n sqlbdc-cluster2 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                  -o custom-columns=PODNAME:.metadata.name,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                     ROLE:.metadata.labels.role,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                     CONTAINERS:.spec.containers[*].name
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Master Pod Containers</em></p>
+<p>The code in <em>Code Snippet 4</em> is almost the same as in <em>Code Snippet 3</em>. The difference is that we also want to see the containers in the pod. When executing, we get:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-master-0-containers.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Containers in Master Pod</em></p>
+<p>We see in <em>Figure 5</em> that the <code>master-0</code> pod is part of the <code>master-pool</code>, and it consists of three containers. From the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous post</a> we already know about <code>collectd</code> and <code>fluentbit</code>. It is the third container, (first in the list), that is interesting - <code>mssql-server</code>, (highlighted in yellow).</p>
+<p>To find out some more about the container we change the code in <em>Code Snippet 4</em> to the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span> kubectl get pods master-0 -n sqlbdc-cluster2 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                  -o custom-columns=PODNAME:.metadata.name,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                     CONTAINERS:.spec.containers[0].name,<span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>                     IMAGE:.spec.containers[0].image
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Container Image</em></p>
+<p>In the code in <em>Code Snippet 5</em> we see how we retrieve the first container and the first image in the pod. We assume that as the SQL Server container is listed first, (see <em>Figure 5</em>), the container image will also be first. When we execute the code, the result looks like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-master-0-image.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Containers in Master Pod</em></p>
+<p>What we see in <em>Figure 6</em> is that the SQL Server instance in the master pool is SQL Server 2019 CU8, and it is SQL Server on Linux.</p>
+<p>We will see later how there are more SQL Server instances in a BDC, but the master instance is what the user is interacting with. The master instance is also where read-write OLTP or dimensional data is stored, something like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-master-pool.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>BDC and Master Pool</em></p>
+<p>What <em>Figure 7</em> shows us is a partial BDC cluster. The left is the control plane as discussed above and then beside it is the master pool with the one SQL Server instance.</p>
+<p>At the bottom - outlined in red - we see a screen which illustrates a user and the interaction with the master instance. We also see a picture showing data stores (outlined in blue). What this means is that in SQL Server 2019, (not only BDC), you can query other data stores outside of SQL Server. This is thanks to Data Virtualization and PolyBase.</p>
+<blockquote>
+<p><strong>NOTE:</strong> A future post will cover Data Virtualization in SQL Server 2019 BDC.</p>
+</blockquote>
+<p>So, that is the master pool and the SQL Server master instance, what is next?</p>
+<h4 id="compute-pool">Compute Pool</h4>
+<p>In <em>Figure 4</em> we see how we have one pod belonging to the compute pool, the <code>compute-0-0</code>. Let us find out what containers are in the pod. We use code similar to <em>Code Snippet 4</em>, and when we execute we see:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-compute-containers.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Compute Pool Containers</em></p>
+<p>Hmm, the compute pool pod looks the same as the master pool pod - a SQL Server instance. If we were to look at the container images, we&rsquo;d see the same as the master instance. So what is this?</p>
+<p>As the name implies, the compute pool provides scale-out computational resources for a SQL Server BDC. They are used to offload computational work, or intermediate result sets, from the SQL Server master instance. For you who have worked with PolyBase before it is a fully configured Polybase Scale-Out Group.</p>
+<p>The SQL Server instance in the compute pool is - as mentioned before - for computational purposes, not for storing data. The only time there may be data persistence is if it is needed for data shuffling, and in that case, <code>tempdb</code> is used.</p>
+<p>If we add the compute pool to what we have in <em>Figure 7</em> we get something like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-compute-pool.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Compute Pool</em></p>
+<p>By looking at <em>Figure 9</em> we understand that the compute pool is mostly used when accessing external data, and we see more of this as we go along.</p>
+<h4 id="data-pool">Data Pool</h4>
+<p>When we look at <em>Figure 4</em> we see we have two pods belonging to the data pool. Let us run the same code as in <em>Figure 8</em> but replace <code>compute-0-0</code> with <code>data-0-0</code> and see what we get:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-data-0-containers.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Data Pool &amp; Containers</em></p>
+<p>In <em>Figure 10</em> we see the same as for the pods in the master and data pools, and if we looked at the second pod it would be the same; one SQL Server instance, together with <code>collectd</code> and <code>fluentbit</code>. So the only difference between the data pool and the other pools is that we have two SQL Server pods in the data pool. Building on the architectural diagram, it looks like so:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-data-pool.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Data Pool</em></p>
+<p>We see the data pool in <em>Figure 11</em>, and how it has the two SQL Server instances mentioned above. The reason it has two is that the data pool acts as a persisting and caching layer of external data. The data pool allows for performance querying of cached data against external data sources and offloading of work.</p>
+<p>You ingest data into the data pool using either T-SQL queries or from Spark jobs. When you ingest data into the pool, the data is distributed into shards and stored across all SQL Server instances in the pool.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The data pool is append only, you cannot edit data in the pool.</p>
+</blockquote>
+<p>At the beginning of the post, we mentioned Apache Spark and Hadoop, but so far we have only seen SQL Server &ldquo;stuff&rdquo;. Where is Hadoop?</p>
+<h4 id="storage-pool">Storage Pool</h4>
+<p>In the previous paragraph, we asked where Hadoop comes into the picture, and the answer to that is the storage pool. Let us have a look at one of the pods in the storage pool and see what information we get. We use the same code as for the other pods, and when we execute, we see:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-storage-0-containers.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Storage Pool &amp; Containers</em></p>
+<p>That is interesting! In <em>Figure 12</em> we see the &ldquo;usual suspects&rdquo;; <code>mssql-server</code>, <code>collectd</code>, and <code>fluentbit</code> - but we also see a container we haven&rsquo;t seen before: <code>hadoop</code>.</p>
+<p>We have two pods in the storage pool, and the <code>hadoop</code> container in each pod forms part of a Hadoop cluster. The Hadoop container provides persistent storage for unstructured and semi-structured data. Data files, such as Parquet or delimited text, can be stored in the storage pool. Not only is the Hadoop File System, (HDFS), within the container but also Apache Spark:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-storage-pool.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Storage Pool</em></p>
+<p>We have added to our architectural diagram the storage pool cluster as in <em>Figure 13</em>, and at the bottom of the picture, outlined in red, something that looks like files. That represents the ability to mount external HDFS data sources into the storage pool cluster. You access the data via the SQL Server master instance, and PolyBase external tables or you can use the Apache Knox Gateway which sits in the Hadoop name-node: <code>nmnode-0-0</code>, which you see in <em>Figure 4</em>.</p>
+<p>You may ask why we have SQL Server instances in the storage pool pods? The Big Data Cluster uses the SQL Servers to optimize the access of the data stored in the HDFS Data Nodes.</p>
+<p>We have now looked at the various pools we listed at the beginning of this post, and we should have a relatively good grasp of the architecture of a SQL Server 2019 Big Data Cluster.</p>
+<h2 id="applications">Applications</h2>
+<p>However, there is one thing more to look at. If we look at <em>Figure 4</em> we see at the very top a pod named <code>appproxy-nsp2m</code>, and its role is <code>proxy</code>. What is this? Well, let us run the same code we have done so many times before and see that containers this pod has:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-appproxy-containers.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>Application Proxy</em></p>
+<p>In <em>Figure 14</em> we see that the <code>appproxy-nsp2m</code> has a container named <code>app-service-proxy</code>. This container is used, amongst other things, to enable applications to be deployed to a BDC.</p>
+<h4 id="application-pool">Application Pool</h4>
+<p>The reason for deploying applications to the BDC is so the applications can benefit from the computational power of the cluster and can access the data that is available on the cluster. Supported runtimes are:</p>
+<ul>
+<li>R</li>
+<li>Python</li>
+<li>SSIS</li>
+<li>MLeap</li>
+</ul>
+<p>When we deploy an application to a BDC, it is deployed into the Application Pool:</p>
+<p>
+  <img src="/images/posts/bdc-lap-around-arch-application-pool.png" alt="">
+
+</p>
+<p><strong>Figure 15:</strong> <em>Application Proxy</em></p>
+<p>What we see in <em>Figure 15</em> is an example of the application pool where we have a user, outlined in red, interacting with the applications in the pool.</p>
+<h2 id="summary">Summary</h2>
+<p>This is the second post in a series about SQL Server 2019 Big Data Cluster. In the first post: <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</a> we looked at the reason why SQL Server 2019 Big Data Cluster came about and the tech behind it.</p>
+<p>In this post, we looked at the architecture of the BDC. We discussed in this post about:</p>
+<ul>
+<li>Master Pool: the master instance of SQL Server, which also acts as an entry point into the BDC.</li>
+<li>Compute Pool: provides scale-out computational resources for a SQL Server big data cluster.</li>
+<li>Data Pool: persistence and caching layer for external data.</li>
+<li>Storage Pool: provides persistent storage for unstructured and semi-structured data.</li>
+<li>Application Pool: hosts applications running inside the BDC.</li>
+</ul>
+<p>In future posts, we will look at data virtualization, and how the various pools work.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2020-12-13-interesting-stuff---week-50-2020/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 50, 2020">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2020-12-29-bring-your-own-r--python-runtimes-to-sql-server-extensibility-framework/" data-toggle="tooltip" data-placement="top" title="UPDATED: Bring Your Own R &amp; Python Runtimes to SQL Server Extensibility Framework">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

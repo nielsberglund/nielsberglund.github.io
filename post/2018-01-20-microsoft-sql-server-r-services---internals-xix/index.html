@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XIX" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XIX" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XIX" />
+    
+
+    
+    <meta name="description" content="A drill down, using WinDbg, into how print statements in the external engine together with ack messages comes back to SQL Server.">
+    <meta property="og:description" content="A drill down, using WinDbg, into how print statements in the external engine together with ack messages comes back to SQL Server." />
+    <meta property="twitter:description" content="A drill down, using WinDbg, into how print statements in the external engine together with ack messages comes back to SQL Server." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XIX | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxl" title="BXL">
+                            BXL
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XIX</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, January 20, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 20:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 19:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>We are nearing the end of the <strong>Internals</strong> series, and if we look at what we have covered, we have almost come full circle.</p>
+<h2 id="recap">Recap</h2>
+<p>In this <em>Recap</em>, let&rsquo;s look back at some of the posts that has &ldquo;bearing&rdquo; on this particular post.</p>
+<p>The <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> post discussed how SQL Server opened a named pipe connection into, and called the, launchpad service when the proc <code>sp_execute_external_script</code> is executed. In <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> we looked at what different components are involved when the procedure executes:</p>
+<ul>
+<li>SQL Server calls into the launchpad service.</li>
+<li>The launchpad service calls into the <code>Rlauncher.dll</code>.</li>
+<li>The <code>Rlauncher.dll</code> creates Rterm processes.</li>
+<li>Through Rterm, the <code>R.dll</code> is loaded together with <code>RxLink.dll</code>.</li>
+<li>The <code>RxLink.dll</code> creates the <code>BxlServer.exe</code> process.</li>
+<li>To coordinate with SQL Server, <code>BxlServer.exe</code> loads <code>BxServerLink.dll</code>.</li>
+</ul>
+<p>The above can be illustrated as in <em>Figure 1</em> below</p>
+<p>
+  <img src="/images/posts/sql_r_services_8_arch_overview.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Components In Play</em></p>
+<p>Based on the above, the question we then tried to answer in <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> was how the components are communicating and what sort of communication mechanisms there are. We determined that there were different communication mechanisms, and used a figure to illustrate those various mechanisms:</p>
+<p>
+  <img src="/images/posts/sql_r_services_9_comms2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>How Communication Happens</em></p>
+<p>The numbers indicate:</p>
+<ul>
+<li>1 - named pipe.</li>
+<li>2 - IOCP.</li>
+<li>3 - named pipe.</li>
+<li>4 - TCP/IP</li>
+</ul>
+<p>In Internals - <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">XVI</a> and <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">XVII</a> we looked at how result sets were returned from the SqlSatellite to SQL Server, and we realized the data were delivered via data packets over the TCP connection between the SqlSatellite and SQL Server. In <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a>, we also tried to understand what happened, code wise, in SQL Server when data packets were returned, and the following figure were used to illustrate the flow:</p>
+<p>
+  <img src="/images/posts/sql_r_services_17_flow.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Code Flow Receiving Data from SqlSatellite</em></p>
+<p>Finally, in <a href="/post/2018-01-10-microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a> we talked about how output parameters are handled between the SqlSatellite and SQL Server and we saw how the output parameters come back in a data packet over the TCP connection between the SqlSatellite and SQL Server. They are handled in SQL Server as per this figure:</p>
+<p>
+  <img src="/images/posts/sql_r_services_18_flow.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Code Flow Receiving Output Arguments from SqlSatellite</em></p>
+<p>The numbered arrows in both <em>Figure 3</em> and <em>Figure 4</em> show the communication out to and in from SQL Server, and in what order it happens:</p>
+<ol>
+<li>SQL Server opens named pipe connection to the launchpad service.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>SQL Server sends the first packet to the SQL Satellite for authentication purposes.</li>
+<li>A second authentication packet is sent to SqlSatellite.</li>
+<li>The script is sent from inside <code>sqllang!CSatelliteProxy::PostSetupMessage</code></li>
+<li>The data for <code>@input_data_1</code> is sent together with two end packets.</li>
+<li>Packet are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled.</li>
+<li>Execution continues to process meta-data as well as result rows.</li>
+<li>After processing result rows, output arguments are processed.</li>
+</ol>
+<p>So, we have seen in various posts how meta-data, result-sets and output parameters, etc. are send to SQL server from the SqlSatellite using the TCP connection. In this post we&rsquo;ll look at other types of data going back to SQL server.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we &ldquo;dive&rdquo; into todays topics let&rsquo;s look at the code and the tools we&rsquo;ll use. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WinDbg</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>In this post we won&rsquo;t need a specific database, we&rsquo;ll just execute variants of some very, very basic code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Base Code to Execute</em></p>
+<p>The <code>Sys.sleep</code> is in the script to make it easier for us to see what happens, and in what order.</p>
+<h2 id="messages">Messages</h2>
+<p>What is this <em>Messages</em> in the header of this section? I am using that name for data that is not result-set data or output parameter values. E.g &ldquo;stuff&rdquo; that appears in the <em>Messages</em> tab in <em>SSMS</em>. Execute the code in <em>Code Snippet 2</em> and you see something like so (you can comment out the <code>Sys.sleep</code> if you wish):</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_msgs1.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Message in SSMS</em></p>
+<p>The question is that, were does the message in <em>Figure 5</em> originate from? What you see in <em>Figure 5</em> may not be the best example, so let&rsquo;s look at the following code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             cat(&#34;Hello World&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             d &lt;- 42&#39;</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Code with Print</em></p>
+<p>When the code in <em>Code Snippet 2</em> is executed (once again, you can comment out the <code>Sys.sleep</code>), the output looks like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_msgs2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Message From cat Statement</em></p>
+<p>In <em>Figure 6</em> it is clear that the &ldquo;message&rdquo; comes from the R engine, and the question is how does it get to SQL Server? As mentioned above, we have seen in previous posts how the data has been sent in data packets over the TCP connection. Is that perhaps the same thing here, and how do we find out? We&rsquo;ll start with what we saw in <em>Figure 5</em> - the output from <em>Code Snippet 1</em>.</p>
+<h4 id="acknowledgments">Acknowledgments</h4>
+<p>When writing this post I realized that what we see in <em>Figure 5</em> is the result of an acknowledgment from the R &ldquo;environment&rdquo;, that the &ldquo;job&rdquo; is finished, and below we&rsquo;ll see how I came to that conclusion.</p>
+<p>We&rsquo;ll use <em>Process Monitor</em> to begin with:</p>
+<ul>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 1</em> (without the <code>Sys.sleep</code> if you want) and look at the output from <em>Process Monitor</em>:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_19_procmon1.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Return Packets</em></p>
+<p>As you see in <em>Figure 7</em> three packets are returned to SQL Server after execution (outlined in red), and we have discussed in previous posts what they are. Potentially the &ldquo;Commands completed successfully.&rdquo; message could have been part of one of those three packets, but from what we know it is unlikely. We should be able to determine if a message is part of any of those three packets by executing the code in <em>Code Snippet 2</em>, but with a <code>cat</code> statement like this: <code>cat(&quot;A very, very, very long string to see if the packet sizes differ&quot;)</code>.</p>
+<p>The idea is that having a long message string, we should see an impact on either of the data packets being sent back to SQL Server. However after we execute, the packets sent back to SQL Server look no different, so it seems that the message is sent back by other means, or generated in some other way.</p>
+<p>Ok, so if the data is not sent back on the TCP connection between the SqlSatellite and SQL Server, then the data has to go back over the launchpad connection. Can we somehow see if that is what&rsquo;s happening? If we believe that some data is passed from the R engine to SQL Server via the launchpad service, then the data has to be passed over the IOCP as well as the named pipes. So if we can &ldquo;trap&rdquo; the message when it arrives in the launchpad service, also see if/when it is sent back to SQL Server, and then finally &ldquo;catch&rdquo; it in SQL Server. That should &ldquo;prove&rdquo; out theory.</p>
+<blockquote>
+<p><strong>NOTE:</strong> As we only have symbol files for SQL Server and the launchpad service, we need to do it the way it is outlined above.</p>
+</blockquote>
+<p>Right:</p>
+<ul>
+<li>Start up two instances of <em>WinDbg</em> as admin.</li>
+<li>Attach <em>WinDbg</em> to the SQL Server process (<code>sqlservr.exe</code>), and the launchpad process (<code>launchpad.exe</code>) - <strong>DO NOT DO THIS ON A PRODUCTION SERVER</strong>.</li>
+</ul>
+<p>Let&rsquo;s start with the launchpad service and search for routines that might be involved in reading data coming into the launchpad service as well as sending data out to SQL Server. So let&rsquo;s start with looking for routines in the <code>launchpad</code> module: <code>x launchpad!*Read*</code>. When you execute that, you see there are quite a few. However when browsing through the output, there are some that looks interesting in the <code>CSQLSatelliteConnection</code> class:</p>
+<ul>
+<li><code>launchpad!CSQLSatelliteConnection::ReadCallBack</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::ReadCallBackInternal</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::ReadOneFullMessage</code></li>
+</ul>
+<p>Let&rsquo;s set a breakpoint at <code>launchpad!CSQLSatelliteConnection::ReadOneFullMessage</code> and execute the code in <em>Code Snippet 1</em>, this time ensure that the <code>Sys.sleep</code> statement is in the code, so that if the breakpoint is hit, we&rsquo;ll know that it is after execution. Sure enough the breakpoint is hit almost immediately, and after letting the code continue, there is a pause and the breakpoint is hit a second time. At the second &ldquo;hit&rdquo; have a look at the call-stack: <code>k</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadOneFullMessage</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadCallBackInternal</span>+<span style="color:#2aa198;font-weight:bold">0x37</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadCallBack</span>+<span style="color:#2aa198;font-weight:bold">0x39</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SNIReadDone</span>+<span style="color:#2aa198;font-weight:bold">0x151</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Node</span>::<span style="color:#268bd2">ListenOnIOCompletionPort</span>+<span style="color:#2aa198;font-weight:bold">0x384</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x231</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">RunTask</span>+<span style="color:#2aa198;font-weight:bold">0xaa</span>
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Call Stack at ReadOneFullMessage</em></p>
+<p>The call-stack we see in <em>Code Snippet 3</em> clearly shows that our &ldquo;hunch&rdquo; about IOCP seems correct (<code>sqldk!SOS_Node::ListenOnIOCompletionPort</code>), and we see that the call flow includes all three <code>Read...</code> routines that we found above. If we wanted to see what happens inside the routines, we can disable the break-point at <code>ReadOneFullMessage</code> and set a break-point at <code>ReadCallBackInternal</code>instead, and then execute the code in <em>Code Snippet 1</em> again. When the <code>ReadCallBackInternal</code> break-point is hit the second time (after the pause), do a &ldquo;trace and watch&rdquo; <code>wt</code> and let the code run to completion.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The reason why you set the break-point on <code>ReadCallBackInternal</code>, and not <code>ReadOneFullMessage</code> is that a <code>wt</code> on <code>ReadOneFullMessage</code> won&rsquo;t give you much information at all, whereas <code>ReadCallBackInternal</code> shows you quite a lot of interesting &ldquo;stuff&rdquo;.</p>
+</blockquote>
+<p>When the code has run to completion, copy the trace to a separate file, to make it easier to investigate:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadCallBackInternal</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadOneFullMessage</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">DeliverMessage</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">SignalAll</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">PrepareWorkerForResume</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">RunnableQueueInsert</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">GroupWorkerQueue</span>::<span style="color:#268bd2">Enqueue</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>      ...  
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">WakeUpScheduler</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">Np</span>::<span style="color:#268bd2">ReadAsync</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>    ...  
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_RWLock</span>::<span style="color:#268bd2">ReleaseLock</span>
+</span></span><span style="display:flex;"><span>  ...    
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Routines During ReadCallBackInternal</em></p>
+<p>When I looked at the trace, I found some interesting routines, which are shown in <em>Code Snippet 4</em>. When I see the code above, I can&rsquo;t help but to think about what we saw in <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a>, where <code>sqllang!CUDXR_ExternalScript::PullRow</code> was signaled by <code>sqllang!EventInternal&lt;SuspendQueueSLock&gt;::SignalAll</code>. Here the signal happens through <code>launchpad!EventInternal&lt;SuspendQueueSLock&gt;::SignalAll</code>, and after the signal, &ldquo;stuff&rdquo; is enqueued and locks are released. If this is the case, what is being signaled then?</p>
+<p>Hmm, let us think back one of the posts in the beginning of the <strong>Internals</strong> &ldquo;journey&rdquo;, and specifically <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a>. In that post we looked at the code-flow, when SQL Server called into the launchpad service, and we saw a figure like so:</p>
+<p>
+  <img src="/images/posts/sql-launchpad-r-post.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Launchpad Service Call Flow</em></p>
+<p>From <em>Figure 8</em> we see how the routine <code>launchpad!CLaunchContext::LaunchServTask</code> seems to be the &ldquo;main&rdquo; method. Maybe that&rsquo;s what&rsquo;s being signaled, let&rsquo;s see if we can figure it out:</p>
+<ul>
+<li>Disable the existing break-points in the launchpad process.</li>
+<li>Set a break-point at <code>launchpad!CLaunchContext::LaunchServTask</code>.</li>
+<li>Change the <code>Sys.sleep</code> in <em>Code Snippet 1</em> to <code>Sys.sleep(120)</code>.</li>
+</ul>
+<p>Execute the code and when you hit the <code>LaunchServTask</code> break-point, do a <code>wt -l4</code> (trace four levels deep). The execution will continue, until the control has been passed over to the R engine, and its various components. At this stage <code>LaunchServTask</code> has not finished execution, and you&rsquo;ll see something like so at the end of the trace:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">GetNextMessage</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Suspend</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">SuspendNonPreemptive</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Wait for Continuation</em></p>
+<p>So, in <em>Code Snippet 5</em>, we see where <code>LaunchServTask</code> &ldquo;waits&rdquo; for something to complete. When the script code has finished executing (after the <code>Sys.sleep</code>), you&rsquo;ll see the trace continue - and it will continue with:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>        <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">SwitchContext</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">Switch</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">SuspendNonPreemptive</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">PostWait</span>
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Code Continues</em></p>
+<p>What we see in <em>Code Snippet 6</em> is the continuation of the code, based on the &ldquo;signal&rdquo; in <em>Code Snippet 4</em>. If we then investigate the latter part of the trace further we&rsquo;ll see:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">ConnectionStore</span>::<span style="color:#268bd2">RemoveConnection</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">TListElem</span>&lt;<span style="color:#268bd2">TList</span>&lt;<span style="color:#268bd2">SatelliteSessionList</span>,<span style="color:#268bd2">SatelliteSession</span>,<span style="color:#2aa198;font-weight:bold">0</span>,<span style="color:#268bd2">TListSLock</span>&gt; &gt;::<span style="color:#268bd2">RemoveAndDestroy</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Tear Down Connection and Send Ack</em></p>
+<p>In <em>Code Snippet 7</em> we see how after continuing the execution and being signaled in <em>Code Snippet 6</em>, we:</p>
+<ul>
+<li>Retrieve the message</li>
+<li>Tear down the connection</li>
+<li>Removes the session</li>
+<li>Sending an ack message, through <code>WriteMessage</code></li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> Seeing the <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code> was what made me realize that we were looking at acknowledgments.</p>
+</blockquote>
+<p>Seeing that the connection to the SqlSatellite is torn down, we can with some certainty say that the ack will be sent to SQL Server. So now, let&rsquo;s include SQL Server in our debug session as well:</p>
+<ul>
+<li>Disable the <code>LaunchServTask</code> break-point in the launchpad process.</li>
+<li>Set a break-point in the launchpad process at <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code>.</li>
+<li>In the SQL Server process set a break-point at <code>sqllang!NP::ReadAsync</code>.</li>
+</ul>
+<p>The theory with the above is that after we break at the <code>SendAckMessage</code>; when we continue we should immediately break at the SQL Server <code>ReadAsync</code> break-point. Change the <code>Sys.sleep</code> back to <code>Sys.sleep(10)</code> and execute the code in <em>Code Snippet 1</em>. You&rsquo;ll now break in the SQL Server process at <code>ReadAsync</code>, this is when the connections etc., are set up between SQL Server and the launchpad. Just continue on from there, and there will be a couple of more breaks before <code>SendAckMessage</code> - three more on my box, so four in total. Now wait until the break-point is hit at <code>SendAckMessage</code>, continue on from there and watch how you immediately break in the SQL Server process at <code>ReadAsync</code>. The call-stack at this stage:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Np</span>::<span style="color:#268bd2">ReadAsync</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIReadAsync</span>+<span style="color:#2aa198;font-weight:bold">0xc7</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadCallBackInternal</span>+<span style="color:#2aa198;font-weight:bold">0xc8</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">ReadCallBack</span>+<span style="color:#2aa198;font-weight:bold">0x39</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIReadDone</span>+<span style="color:#2aa198;font-weight:bold">0x13c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Node</span>::<span style="color:#268bd2">ListenOnIOCompletionPort</span>+<span style="color:#2aa198;font-weight:bold">0x384</span>
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Call Stack at ReadAsync</em></p>
+<p>Hmm, there are some routines we recognize in the call-stack in <em>Code Snippet 8</em>, we see the <code>ReadCallback...</code> which we also saw in the launchpad process and if you remember <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a>, we realized that <code>ReadCallbackInternal</code> was used to signal to <code>PullRow</code>, that data had arrived. The question is if something is signaled here as well? I doubt it is <code>PullRow</code>, seeing that this has nothing to do with processing result-sets. How can we find out about this?</p>
+<p>In <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> we saw how after <code>PullRow</code> was signaled, <code>ProcessResultRows</code> were called and in there as one of the first calls were a call to <code>sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage</code>. Maybe something similar is happening here. The way we can find is to set a break-point in the SQL Server process at <code>sqllang!CSQLSatelliteCommunication::GetSQLSatelliteMessage</code>, but disable it initially.</p>
+<p>Execute the code in <em>Code Snippet 1</em> again, and continue until you hit the <code>ReadAsync</code> break-point in the SQL server process, after the <code>SendAckMessage</code> (as we did above). While you are in the <code>ReadAsync</code> break-point, enable the <code>GetSQLSatelliteMessage</code> in the SQL Server process, and continue the code execution. You&rsquo;ll see how the <code>GetSQLSatelliteMessage</code> break-point is hit immediately after you have enabled it and continued from <code>ReadAsync</code>. When you look at the call-stack (<code>k</code>), it looks something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">GetSQLSatelliteMessage</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">BindReadSNIPacket</span>+<span style="color:#2aa198;font-weight:bold">0x6f</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">WaitForAckMessage</span>+<span style="color:#2aa198;font-weight:bold">0x7a</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ShutdownService</span>+<span style="color:#2aa198;font-weight:bold">0x250</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CUDXR_ExternalScriptCleanup</span>::<span style="color:#268bd2">Close</span>+<span style="color:#2aa198;font-weight:bold">0xe</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryExecContext</span>::<span style="color:#268bd2">FinalCleanup</span>+<span style="color:#2aa198;font-weight:bold">0x51</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryScan</span>::<span style="color:#268bd2">DestroyQuery</span>+<span style="color:#2aa198;font-weight:bold">0x224</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ShutdownNormal</span>+<span style="color:#2aa198;font-weight:bold">0x151</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CXStmtQuery</span>::<span style="color:#268bd2">ErsqExecuteQuery</span>+<span style="color:#2aa198;font-weight:bold">0x1014</span>
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Call Stack at GetSQLSatelliteMessage</em></p>
+<p>It looks like we are onto something here, e.g there is the <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> routine, which seems to be called during shutdown of the session. From what we can see from the call-stack it also looks like the &ldquo;main&rdquo; routine <code>is sqllang!CXStmtQuery::ErsqExecuteQuery</code>, and my guess it is that routine which is being signaled. That&rsquo;s what it looks like for code like in <em>Code Snippet 1</em>:</p>
+<p>In the launchpad service:</p>
+<ul>
+<li>It gets an IOCP notification.</li>
+<li>It reads the notification through the <code>Read...</code> routines, and signals it.</li>
+<li>The <code>LaunchServTask</code> wakes up and calls <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code>.</li>
+</ul>
+<p>In SQL Server:</p>
+<ul>
+<li>It reads the message sent from the launchpad service.</li>
+<li>Signals into <code>ErsqExecuteQuery</code></li>
+<li>Handles the message.</li>
+</ul>
+<p>What about code like in <em>Code Snippet 2</em> where there is the equivalent of a &ldquo;print&rdquo; statement - what happens there?</p>
+<h4 id="messages-generated-in-the-external-script">Messages Generated in the External Script</h4>
+<p>What I noticed when I was <del>playing</del> researching this post, was that when I executed the code in <em>Code Snippet 1</em> - I saw one <code>sqllang!Np::ReadAsync</code> in the SQL Server process after the sleep in the code, and we now know it is because of the the <code>SendAckMessage</code>. However, when executing the code in <em>Code Snippet 2</em> (with the <code>cat</code> statement), all of a sudden I saw two <code>ReadAsync</code> but only one <code>SendAckMessage</code>. So something else seems to send a packet to SQL Server, but what?</p>
+<p>I started trying to trace through <code>launchpad!CLaunchContext::LaunchServTask</code> with <code>wt</code>, but couldn&rsquo;t do it completely as I received errors. So instead I looked at sending of packets in the launchpad service, and I set a break-point at <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>. When executing the code in <em>Code Snippet 1</em>, the break-point was hit initially once immediately and the once after the sleep. The call-stack at this point looked like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">SendAckMessage</span>+<span style="color:#2aa198;font-weight:bold">0x191</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>+<span style="color:#2aa198;font-weight:bold">0x958</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>+<span style="color:#2aa198;font-weight:bold">0x722</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x231</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Call Stack in Launchpad SendAckMessage</em></p>
+<p>The call-stack we see in <em>Code Snippet 10</em>, is more or less what we see in <em>Code Snippet 7</em>. However, when we execute the code in <em>Code Snippet 2</em>, and we break at the first <code>WriteMessage</code> after the sleep, the call-stack looks as follows:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SendLogMessage</span>+<span style="color:#2aa198;font-weight:bold">0x2b0</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">SQLSatellite_LogWString</span>+<span style="color:#2aa198;font-weight:bold">0x99</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x3eb28</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x3e7d1</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x3e9be</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x3d15b</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x1751d</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">GetInstance</span>+<span style="color:#2aa198;font-weight:bold">0x1c30c</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">RLauncher</span>!<span style="color:#268bd2">SQLSatellite_GetLauncherAPI</span>+<span style="color:#2aa198;font-weight:bold">0xe50</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">Cleanup</span>+<span style="color:#2aa198;font-weight:bold">0x11a</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>+<span style="color:#2aa198;font-weight:bold">0x8fa</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">launchpad</span>!<span style="color:#268bd2">CLaunchContext</span>::<span style="color:#268bd2">LaunchServTask</span>+<span style="color:#2aa198;font-weight:bold">0x722</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>+<span style="color:#2aa198;font-weight:bold">0x231</span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>+<span style="color:#2aa198;font-weight:bold">0x21</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Call Stack in Launchpad with Print Message</em></p>
+<p>So the call-stack in <em>Code Snippet 11</em> is completely different than in <em>Code Snippet 10</em>. Well, we are still inside <code>LaunchServTask</code>, but <code>LaunchServTask</code> calls a cleanup routine, and within that routine calls to log routines are called: <code>launchpad!SQLSatellite_LogWString</code>, and <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>. The <code>SendLogMessage</code> routine is the routine which ultimately sends the message to SQL Server. When the code continues, the <code>WriteMessage</code> breakpoint is hit the second time, and at this stage the breakpoint looks exactly the same as in <em>Code Snippet 10</em>. This then means that the ack message is sent after the message from which to log.</p>
+<p>What is worth noticing is that even though the launchpad service sends two messages to SQL Server - there is only one message coming in from the external engine, e.g. the actual &ldquo;print&rdquo; message comes together with the ack message, as in <em>Code Snippet 3</em>.</p>
+<p>Now, let&rsquo;s see what it looks like at the SQL Server side, when we execute code like in <em>Code Snippet 2</em>:</p>
+<ul>
+<li>Disable all breakpoints in the launchpad service, except for <code>SendAckMessage</code>.</li>
+<li>Set a break-point at <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>.</li>
+<li>Keep the  break-point in the SQL Server process for <code>ReadAsync</code>.</li>
+<li>Disable all other breakpoints in the SQL server process, including the <code>GetSQLSatelliteMessage</code> break-point.</li>
+</ul>
+<p>Execute the code in <em>Code Snippet 2</em>, and let the code continue until you hit the <code>SendLogMessage</code> break-point in the launchpad process. Continue the execution, and when you hit <code>ReadAsync</code> in SQL server, enable the <code>GetSQLSatelliteMessage</code> break-point. Continue the execution and when the <code>GetSQLSatelliteMessage</code> breakpoint is hit, check the call-stack. Continue execution until the <code>SendAckMessage</code> break-point is hit in the launchpad process, and then continue until <code>GetSQLSatelliteMessage</code> in SQL Server is hit again. Check the call-stack, and compare them.</p>
+<p>You&rsquo;ll see how they are identical, and exactly like what we see in <em>Code Snippet 9</em>. So if the call-stacks look exactly the same (from what we can see), what then causes the &ldquo;print&rdquo; statement to be output? It turns out that it is somewhat similar to what happens in the launchpad process where the <code>Cleanup</code> routine leads into the <code>SendLogMessage</code> call. So in the SQL Server process, the <code>sqlmin!CQueryExecContext::FinalCleanup</code> routine calls into <code>sqllang!CUDXR_ExternalScript::ShutdownService</code>, which - dependent on if a message comes back from the R engine - will read it in and then call a routine which handles the message: <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CQueryExecContext</span>::<span style="color:#268bd2">FinalCleanup</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqlmin</span>!<span style="color:#268bd2">CUDXR_ExternalScriptCleanup</span>::<span style="color:#268bd2">Close</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ShutdownService</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">WaitForAckMessage</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">GetNextMessage</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">BindReadSNIPacket</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteMessageLog</span>::<span style="color:#268bd2">ReadPayload</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">HandleLogMessage</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteCommunication</span>::<span style="color:#268bd2">WaitForAckMessage</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">GetNextMessage</span>
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Call Flow in SQL Server Log Message</em></p>
+<p>When a &ldquo;log&rdquo; message is passed into SQL Server the code path is as in <em>Code Snippet 12</em>, when no log message is passed in after the <code>BindReadSNIPacket</code> in <em>Code Snippet 12</em>, the code will drop out until the <code>GetNextMessage</code> at the end of <em>Code Snippet 12</em></p>
+<p>We started this blog-post by asking where the message we see in <em>Figure 5</em> comes from, and what causes it. By now is should be clear that what causes it; is the <code>SendAckMessage</code> routine in the launchpad service. The message indicates that all work has been done. For the actual message we see, I believe it is generated by <em>SSMS</em> directly, it does not come from the launchpad service.</p>
+<p>When a message is explicitly generated in the R script, that message goes back to the launchpad service which calls <code>SendLogMessage</code>. After the <code>SendLogMesage</code> the <code>SendAckMessage</code> will be called as well.</p>
+<h2 id="error-messages">Error Messages</h2>
+<p>So far we&rsquo;ve seen how &ldquo;print&rdquo; messages generated from R are handled. What about error messages?</p>
+<p>That has to be covered in next post. When I started this post I thought I knew how error messages was handled - but when I looked at it closer, I realized there was more to it than I thought, so I need to do some more investigations. Sorry!</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we have seen how &ldquo;print&rdquo; messages originating form the external script as well as acknowledgment messages from the external environment are handled by the launchpad service as well as SQL Server.</p>
+<h4 id="launchpad">Launchpad</h4>
+<p>The launchpad service:</p>
+<ul>
+<li>Listens on callbacks from the external engine</li>
+<li>The callback signals <code>launchpad!CLaunchContext::LaunchServTask</code>.</li>
+<li><code>LaunchServTask</code> continues after signal into <code>launchpad!CLaunchContext::Cleanup</code></li>
+<li>If a &ldquo;print&rdquo; message comes from the external engine, <code>launchpad!CSatelliteCargoContext::SendLogMessage</code> is called.</li>
+<li>Regardless if there is a &ldquo;print&rdquo; message or not, launchpad will tell SQL Server that the external engine is &ldquo;done&rdquo; via <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code>.</li>
+</ul>
+<p>The figure below tries to illustrate the launchpad part:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_launchpad_flow.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Launchpad Flow</em></p>
+<p>In <em>Figure 9</em> we see the main calls of leading up to and including when messages come back from the external engine. The numbered arrows show some of the calls and the communication in the launchpad service:</p>
+<ol>
+<li>During startup an IOCP &ldquo;listener&rdquo; is set up.</li>
+<li>Creates supporting directories and process, and initiates the connection to the external engine.</li>
+<li>After work is done, a call comes back from the external engine.</li>
+<li>This causes the &ldquo;listener&rdquo; to call <code>Read...</code> routines.</li>
+<li><code>LaunchServTask</code> is signaled.</li>
+<li>Execution in <code>LaunchServTask</code> continues into launchpad!CLaunchContext::Cleanup.</li>
+<li>If a &ldquo;print&rdquo; message has been passed back from the external engine, eventually <code>launchpad!CSatelliteCargoContext::SendLogMessage</code> is called.</li>
+<li><code>launchpad!CSatelliteCargoContext::SendLogMessage</code> sends the message to SQL Server.</li>
+<li><code>LaunchServTask</code> continues into <code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code>, which sends an ack that the &ldquo;job is done&rdquo; to SQL Server.</li>
+</ol>
+<h4 id="sql-server">SQL Server</h4>
+<p>In SQL Server the flow is something like so:</p>
+<ul>
+<li>As in the launchpad service, SQL Server listens for callbacks, on the named pipe connection to the launchpad service.</li>
+<li>A callback comes in, is being read and signals <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code>.</li>
+<li>Execution continues and <code>sqlmin!CQueryExecContext::FinalCleanup</code> is called.</li>
+<li><code>FinalCleanup</code> calls into <code>sqllang!CUDXR_ExternalScript::ShutdownService</code>.</li>
+<li>If a &ldquo;print&rdquo; message has been sent, <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> is called.</li>
+<li>Independent of whether a &ldquo;print&rdquo; message is sent or not, <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> will handle the final ack message.</li>
+</ul>
+<p>As with the launchpad service I have tried to create a figure illustrating the flow in SQL Server:</p>
+<p>
+  <img src="/images/posts/sql_r_services_19_sql_flow.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>SQL Server Flow</em></p>
+<p>The numbered arrows in <em>Figure 10</em> illustrates:</p>
+<ol>
+<li>During launch of the launchpad service, an IOCP &ldquo;listener&rdquo; is set up.</li>
+<li>Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>Authentication packets and script packet is sent to  the SqlSatellite.</li>
+<li>If there is data for <code>@input_data_1</code>, it is sent, together with two end packets.</li>
+<li>Packets are coming back to SQL Server containing meta-data and the actual data.</li>
+<li><code>PullRow</code> is being signaled, and processing of meta-data as well as result rows continues.</li>
+<li>The launchpad service sends &ldquo;print&rdquo;/ack messages to SQL Server. In the figure it is illustrated as one packet, but there is one message for &ldquo;print&rdquo; and one for ack.</li>
+<li>A signal is sent to <code>ErsqExecuteQuery</code>.</li>
+<li>Execution continues by calling into <code>sqllang!CXStmtQuery::ShutdownNormal</code>, which calls into <code>FinalCleanup, </code>ShutdownService, and a call to <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> is made followed by <code>sqllang!CSQLSatelliteConnection::GetNextMessage</code>.</li>
+<li>If a &ldquo;print&rdquo; message has been sent to SQL Server <code>ReadPayload</code> is called and then <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>. If no &ldquo;print&rdquo; message has been sent in, the code loops on <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code>.</li>
+<li>SQL Server loops on <code>sqllang!CSQLSatelliteCommunication::WaitForAckMessage</code> and waits for the ack message,</li>
+<li>When the ack message has been received, the eventual messages are sent to the calling code.</li>
+</ol>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-01-14-interesting-stuff---week-2/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 2">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-01-21-interesting-stuff---week-3/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 3">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XVI" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XVI" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XVI" />
+    
+
+    
+    <meta name="description" content="Binary eXchange Language format,data coming back to SQL Server from SqlSatellite">
+    <meta property="og:description" content="Binary eXchange Language format,data coming back to SQL Server from SqlSatellite" />
+    <meta property="twitter:description" content="Binary eXchange Language format,data coming back to SQL Server from SqlSatellite" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XVI | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/binary-exchange-language" title="Binary eXchange Language">
+                            Binary eXchange Language
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxl" title="BXL">
+                            BXL
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XVI</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, December 24, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 17:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 16:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the last few posts in this <em>Internals</em> series we have looked at how data is being transported from SQL Server to the SqlSatellite. In this post we&rsquo;ll look at how data is going the other way, from the SqlSatellite to SQL Server.</p>
+<p>Before drilling down into the topic of today, let&rsquo;s do a recap of some of the posts that have led up to where we are right now.</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we saw how both the external script as well as data from <code>@input_data_1</code> was sent over a TCP/IP connection to the SqlSatellite from SQL Server, and <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> looked at some of the authentication packets sent from SQL Server to the SqlSatellite.</p>
+<p><a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> looked at from where the script and data packets are sent (what routines), and we determined that the script packet was sent while the <code>sqllang!CSatelliteProxy::PostSetupMessage</code> routine was called, and the data packet(s) was sent during the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a> we also explained the two packets with a length of 28 we see in <em>Figure 1</em> (being sent after the two data packets), as end packets. These packets tell SqlSatellite that no more data is coming. We illustrated the internal SQL Server flow like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_calls.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Flow in SQL Server</em></p>
+<p>I was unclear of when the statement in <code>@input_data_1</code> was being executed, and [Internals - XIII] had a look at that and the conclusion we came to was:</p>
+<ul>
+<li>Before the SqlSatellite is initialized the statement is compiled.</li>
+<li>After the satellite has been initialized the statement is executed.</li>
+<li>If an error happens after the satellite has been initialized, SQL Server sends an abort message to the satellite in the <code>sqllang!CSQLSatelliteCommunication::SendAbort</code> routine.</li>
+</ul>
+<p>Then, after &ldquo;many a false starts&rdquo;, I started talking about the <strong>Binary eXchange Language</strong> (<strong>BXL</strong>) protocol in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>. BXL is a protocol optimized for fast data transfers between SQL Server and external script engines and it moves data in column oriented fashion, and utilizes schema information to optimize how to send the data.</p>
+<p>When looking at the data sent, the size of the packages and &ldquo;drilling&rdquo; into the TCP packets we could deduct that: :</p>
+<ul>
+<li>Each column has an over-head of 32 bytes (at least for non nullable data)</li>
+<li>The size of the column in one row is the size of the data type for numeric types.</li>
+<li>For <code>decimal</code> and <code>numeric</code> an extra byte is added to each column, where this byte indicates the precision.</li>
+<li>Columns of alpha numeric type all had 2 bytes pre-pended to the bytes, except <code>max</code> types.</li>
+<li>For <code>char</code> and <code>nchar</code> the storage size was 2 bytes plus the size the column was defined as.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes plus the size of the data stored.</li>
+<li>For the <code>varmax</code> data types the number of bytes that were pre-pended varied dependent on the data size.</li>
+</ul>
+<p>What happens with nullable columns is a mystery, as we saw column overheads ranging from 7312 bytes (<code>tinyint</code>) to 32 bytes (<code>decimal</code>), and I can&rsquo;t help but think that there is a &ldquo;bug&rdquo; in there somewhere that causes this.</p>
+<blockquote>
+<p><strong>NOTE:</strong> This nullable &ldquo;issue&rdquo; will raise it&rsquo;s head in this post as well.</p>
+</blockquote>
+<p>So, in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw the packet sizes (over-heads etc.) for various data types, and in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a> we looked at the packet sizes going over the wire. We compared it with TDS and saw how TDS sends multiple smaller packages where max size is by default the network package size (4536 bytes). BXL, on the other hand, tries to send as big packages as possible, where big in this instance is up to 65536 bytes. BXL creates a new package when the size of rows and columns has reached 65536.</p>
+<p>We also looked at the code in SQL Server that is being executed when sending the data, and we realized that the <code>sqlmin!CQScanUdx::PushNextChildRow</code> routine was where everything happened (or in sub routines). We were aware of that routine from <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, where we looked at what sent the TCP packets to the SqlSatallite. We saw how <code>PushNextChildRow</code> calls <code>PushRow</code>, which in turns call <code>PostOneRow</code>. Dependent on if it is the first row, <code>PostOneRow</code> calls <code>WritePayloadHeader</code>followed by <code>WriteData</code>. If it is not the first row <code>PostOneRow</code> calls <code>WriteData</code> only. If the packet has reached the size of 65536 and there are more packets, <code>WriteMessageBlockDone</code> is called. If it is the last packet, <code>PushEOS</code> is called and <code>PushEOS</code> calls <code>WriteMessageBlockDone</code>. The figure below illustrates the flow:</p>
+<p>
+  <img src="/images/posts/sql_r_services_15_bxl_code.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>BXL Code Flow</em></p>
+<p>What we have recapped above should help us in this post.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WireShark</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>I&rsquo;ll use <em>WireShark</em> for network packet sniffing. In previous posts I have used <em>Microsoft Message Analyzer</em> for this, but I am now back to <em>WireShark</em> as I find it gives me more readable output. If you want a refresher about <em>WireShark</em>, we covered the setup etc., in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>The code below sets up the database and creates some tables with some data. it is more or less the same as we used in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, 
+</span></span><span style="display:flex;"><span>                          <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test1</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">colint1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">colint2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colint3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">colvchar1</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>) <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colvchar2</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>) <span style="color:#859900">NULL</span> 
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span> (<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#2aa198;font-weight:bold">5</span>, <span style="color:#2aa198">&#39;A&#39;</span>, <span style="color:#2aa198">&#39;B&#39;</span>),
+</span></span><span style="display:flex;"><span>       (<span style="color:#2aa198;font-weight:bold">3</span>, <span style="color:#2aa198;font-weight:bold">4</span>, <span style="color:#2aa198;font-weight:bold">6</span>, <span style="color:#2aa198">&#39;C&#39;</span>, <span style="color:#2aa198">&#39;D&#39;</span>);
+</span></span><span style="display:flex;"><span>   
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+<p>When you look at the database and the objects in <em>Code Snippet 1</em>, you&rsquo;ll see it is more or less the same as we used in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>. The code you will execute is also very similar to what we did in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, and the &ldquo;base&rdquo; code looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet&lt;-InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1 FROM dbo.rand_1M&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
+<p>The major difference between the Code in <em>Code Snippet 2</em> and the code in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, is that in the R script, we are &ldquo;echoing&rdquo; the incoming data from <code>@input_date_1</code>, to be the output as well: <code>OutputDataSet&lt;-InputDataSet</code>. Let&rsquo;s see this in action.</p>
+<h2 id="output-data-from-r">Output Data from R</h2>
+<p>We&rsquo;ll start with testing that everything works, as well as seeing the port SQL Server listens on for communication with the SqlSatellite. To get the port we&rsquo;ll use <em>Process Monitor</em>, and look at the <code>Path</code> column for the port.</p>
+<blockquote>
+<p><strong>NOTE:</strong> We need the path later on to set display filters in <em>WireShark</em>.</p>
+</blockquote>
+<p>So this is what we&rsquo;ll do:</p>
+<ul>
+<li>Run <em>Process Monitor</em> as admin.</li>
+<li>Set a filer to capture <code>TCP Receive</code> in the process <code>BxlServer.exe</code>.</li>
+<li>Execute the code in <em>Code Snippet 2</em>.</li>
+</ul>
+<p>After you executed the statement you should see in <em>Process Monitor</em> the - by now - familiar data packets being sent. Amongst them there is a packet with a length of 36 bytes, and - as we know - this is the packet with the actual data.</p>
+<blockquote>
+<p><strong>NOTE:</strong> When you see the output from <em>Process Monitor</em>, don&rsquo;t forget to see (and remember) what the port number on the SQL Server side is, you get it from the <code>Path</code> column.</p>
+</blockquote>
+<p>As the script now says <code>OutputDataSet&lt;-InputDataSet</code>, whatever we send to the SqlSatllite is &ldquo;echoed&rdquo; back and sure enough, in <em>SSMS</em> we should see something like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_16_echo1.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Output Dataset</em></p>
+<p>The reason why we in <em>Figure 3</em>, don&rsquo;t see a column name is because we have not told SQL Server what it is supposed to be (we&rsquo;ll cover that in a future post).</p>
+<p>As everything seems to be in order, let&rsquo;s look at what is being sent back to SQL Server. To do this we first of all need a new filter in <em>Process Monitor</em>, where we can see packets sent from <code>BxlServer.exe</code> in addition to the packets that are sent to it. The easiest way to accomplish this is just to add a new operation: <code>TCP Send</code> to the existing filter:</p>
+<p>
+  <img src="/images/posts/sql_r_services_16_send_receive_filter.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Send and Receive Filter</em></p>
+<p>In <em>Figure 4</em> you see what the filer should look like, and it may be a good idea to save this filter for future use. As we are interested in what is being sent back to SQL Server after SQL has sent the data, let&rsquo;s change the code in <em>Code Snippet 2</em> slightly, and introduce a <code>Sys.sleep</code>. That will allow us to more easily see when (and what) data comes back:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(20)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                             OutputDataSet&lt;-InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1 FROM dbo.rand_1M&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Code with Sleep</em></p>
+<p>When you execute the code in <em>Code Snippet 3</em>, <em>Process Monitor</em> will output something like so (followed by a pause):</p>
+<p>
+  <img src="/images/posts/sql_r_services_16_send_receive1.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Sending and Receiving - I</em></p>
+<p><em>Figure 5</em> shows the data being sent from SQL Server and received by SQL Server, and we see how:</p>
+<ul>
+<li>SqlSatellite receives the script is (length 252), followed by</li>
+<li>the actual data (length 36 - as was discussed in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>), followed by</li>
+<li>the two &ldquo;end&rdquo; packages (length 28).</li>
+</ul>
+<p>Then, the highlighted data in <em>Figure 5</em>, SqlSatellite sends a packet with a length of 28. This packet is an ack packet, and is for this discussion not interesting. At this stage, the code is now pausing. After ~20 seconds <em>Process Monitor</em> outputs the &ldquo;rest&rdquo; (outlined in blue):</p>
+<p>
+  <img src="/images/posts/sql_r_services_16_send_receive2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Sending and Receiving - II</em></p>
+<p>The really interesting part of <em>Figure 6</em> is what is outlined in red; two packets with a length of 51, and 2051 respectively. Why do I say they are interesting? Well, change the <code>@input_data_1</code> parameter to be <code>SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M</code> and execute. This results in two packets with lengths of 69 and 4074, which indicates that these packets have something to do with the data being returned from the SqlSatellite.</p>
+<p>So, let&rsquo;s see if we can prove that these two are related to the data being sent back from the SqlSatellite. Oh, and there are also some questions related to these packets:</p>
+<ul>
+<li>Why two packets, when we are sending only one data packet?</li>
+<li>Which packet contains the data?</li>
+<li>Why is one of the packets so big?</li>
+</ul>
+<p>What we will do in order to try to figure out this is to execute the code in <em>Code Snippet 3</em> with different  <code>@input_data_1</code> statements. The statements will return different number of columns and rows, and from seeing the sizes coming out of that we may be able to deduct how things work. The statements we&rsquo;ll execute are these:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- one row, one column
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1</span>) <span style="color:#268bd2">rand1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- two rows, one column
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">2</span>) <span style="color:#268bd2">rand1</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- one row, two columns
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1</span>) <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- two rows, two columns
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">2</span>) <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- one row, three columns
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1</span>) <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span> <span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Different @input_data_1 Statements</em></p>
+<p>After executing the code with the statements in <em>Code Snippet 4</em> we see following sizes (R stands for row, C for column):</p>
+<table>
+<thead>
+<tr>
+<th>Packet</th>
+<th style="text-align:center">1R, 1C</th>
+<th style="text-align:center">2R, 1C</th>
+<th style="text-align:center">1R, 2C</th>
+<th style="text-align:center">2R, 2C</th>
+<th style="text-align:center">1R, 3C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>small pkt.</td>
+<td style="text-align:center">51</td>
+<td style="text-align:center">51</td>
+<td style="text-align:center">69</td>
+<td style="text-align:center">69</td>
+<td style="text-align:center">87</td>
+</tr>
+<tr>
+<td>large pkt.</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td style="text-align:center">4074</td>
+<td style="text-align:center">4082</td>
+<td style="text-align:center">6097</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 1:</strong> <em>Packet Sizes</em></p>
+<p>From what we see in <em>Table 1</em> we can say that the &ldquo;small&rdquo; packet probably does not contain any data, seeing that when comparing the size for one column, one row with two rows one column, it has the same size (51 bytes). However, it definitely looks like the number of columns has an impact: 1 column 51 bytes, 2 columns 69 bytes, and finally three columns 87 bytes, which also tells us that each column adds 18 bytes to the size. So, it look like the &ldquo;small&rdquo; packet has something to do with the columns coming back. We&rsquo;ll leave this packet for now and come back to it in next post.</p>
+<p>The &ldquo;big packet&rdquo; definitely looks like it has something to do with the data coming back: one row, one column has a size of 2051, and two rows one column 2055. That&rsquo;s 4 bytes more, the same size as an <code>int</code>. But, once again why such a big packet, this is like what we saw  in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals XIV</a> when data is sent to the SqlSatellite originating from nullable columns?</p>
+<p>That is the answer, when returning numeric data from the SqlSatellite, the data is treated as it would originate from nullable columns. Character based data has the same behavior as when sending data to the SqlSatelllite - so not the big overhead when coming from nullable columns. There are though some differences between character data sent to SqlSatellite and character data coming back, and I&rsquo;ll point out some of it below.</p>
+<p>So, numeric data sent back from the SqlSatellite looks almost like nullable numeric data sent to the SqlSatellite. One difference though is the size for the first column; if you look in <em>Table 1</em> you see the size for one row, one column be 2051. When we look in <em>Table 2</em> in [Internals - XIV], the size for an <code>int</code> is 2023, so it seems there is a 28 bytes extra somewhere. Incidentally, 2023 is the difference between returning one row, one column and one row two columns. So it looks like that the 28 bytes overhead only occurs once.</p>
+<p>Perhaps we can figure out what happens by doing some <em>WireShark</em> &ldquo;sniffing&rdquo;. If you look at the table <code>dbo.test1</code> you see it has two nullable <code>int</code> columns: <code>colint2</code> and <code>colint3</code>, and it is these two columns we&rsquo;ll use when trying to figure out what happens. Before we involve <em>WireShark</em>, we&rsquo;ll:</p>
+<ul>
+<li>Change the <code>@input_data_1</code> parameter to be: <code>SELECT TOP(1) colint2 FROM dbo.test1</code>.</li>
+<li>Execute and check the packet sizes in <em>Process Monitor</em>.</li>
+<li>Check the port number in the <code>Path</code> column in <em>Process Monitor</em>.</li>
+</ul>
+<p>In the output from <em>Process Monitor</em> we should now see one packet being sent to the SqlSatellite with a length of 2023, and a packet being sent to the SQL Server with a length of 2051. The assumption we&rsquo;re making is that those packets are identical, except for the 28 bytes overhead. Now it&rsquo;s time for <em>WireShark</em>:</p>
+<ul>
+<li>Run <em>WireShark</em> as admin.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Set a display filter on the port SQL Server listens on. In this case we want to sniff outgoing as well as incoming packets, so the filter should be: <code>tcp.port==xyz</code>.</li>
+<li>Apply the filter.</li>
+</ul>
+<p>After you execute the code what you&rsquo;ll see in <em>WireShark</em> is quite a few packets being sent from and to the SQL Server port:</p>
+<p>
+  <img src="/images/posts/sql_r_services_16_wireshark_packets1.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>WireShark Packets</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> When packets are sent over the network they are sent in chunks. <em>WireShark</em> captures each chunk individually, whereas <em>Process Monitor</em> shows the full package. That&rsquo;s why you see multiple packages in <em>WireShark</em>, but only one in <em>Process Monitor</em>.</p>
+</blockquote>
+<p>In <em>Figure 7</em> we see - outlined in blue - two packets with a size of 1460 and 563. That&rsquo;s the data packet sent to SQL Server, reported in <em>Process Monitor</em> as one packet with a length of 2023. Outlined in red we see the two packets containing the actual data going back to SQL Server from the SqlSatellite, with lengths of 1460 and 591 (2051 total). Let&rsquo;s now compare the packet sent to the SqlSatallite with what is coming back, and we&rsquo;ll start with the first 64 bytes of the two packets:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//packet sent to SqlSatellite
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#268bd2">e7</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#268bd2">c1</span> <span style="color:#2aa198;font-weight:bold">82</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">63</span> <span style="color:#268bd2">a7</span> <span style="color:#2aa198;font-weight:bold">48</span>   ........ ....<span style="color:#268bd2">yc</span>.<span style="color:#268bd2">H</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a0</span> <span style="color:#268bd2">c8</span> <span style="color:#268bd2">c0</span> <span style="color:#268bd2">ab</span> <span style="color:#268bd2">d8</span> <span style="color:#268bd2">cb</span> <span style="color:#2aa198;font-weight:bold">27</span> <span style="color:#2aa198;font-weight:bold">61</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">e</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ......&#39;<span style="color:#268bd2">a</span> ...&gt;....
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//packet received from SqlSatellite
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#268bd2">e7</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#268bd2">c1</span> <span style="color:#2aa198;font-weight:bold">82</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">79</span> <span style="color:#2aa198;font-weight:bold">63</span> <span style="color:#268bd2">a7</span> <span style="color:#2aa198;font-weight:bold">48</span>   ........ ....<span style="color:#268bd2">yc</span>.<span style="color:#268bd2">H</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">a0</span> <span style="color:#268bd2">c8</span> <span style="color:#268bd2">c0</span> <span style="color:#268bd2">ab</span> <span style="color:#268bd2">d8</span> <span style="color:#268bd2">cb</span> <span style="color:#2aa198;font-weight:bold">27</span> <span style="color:#2aa198;font-weight:bold">61</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">e</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ......&#39;<span style="color:#268bd2">a</span> ...&gt;....
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Packets Sent to and Received from SqlSatellite</em></p>
+<p>Remember how we in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> said that the BXL protocol has a column overhead of 32 bytes, but that we don&rsquo;t really know what it contains. In <em>Code Snippet 5</em>, we see the first 32 bytes of the two packets are exactly the same, e.g. a column header - so it is probably safe to say that the BXL protocol is used also when returning data from the SqlSatellite. The remainder of the two packets looks also identical - up until the end:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//packet sent to SqlSatellite
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">02</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//packet received from SqlSatellite
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">02</span>   ........ ........
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#2aa198;font-weight:bold">80</span> <span style="color:#2aa198;font-weight:bold">1</span><span style="color:#268bd2">c</span>  <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#268bd2">c1</span> <span style="color:#2aa198;font-weight:bold">82</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">79</span>   ........ .......<span style="color:#268bd2">y</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">63</span> <span style="color:#268bd2">a7</span> <span style="color:#2aa198;font-weight:bold">48</span> <span style="color:#268bd2">a0</span> <span style="color:#268bd2">c8</span> <span style="color:#268bd2">c0</span> <span style="color:#268bd2">ab</span> <span style="color:#268bd2">d8</span>  <span style="color:#268bd2">cb</span> <span style="color:#2aa198;font-weight:bold">27</span> <span style="color:#2aa198;font-weight:bold">61</span> <span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#2aa198;font-weight:bold">00</span>      <span style="color:#268bd2">c</span>.<span style="color:#268bd2">H</span>..... .&#39;<span style="color:#268bd2">a</span>....
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>End Part of Packets</em></p>
+<p>When looking at <em>Code Snippet 6</em> we see that the last 4 bytes of the first packet represents the value of the column: 2 which in hex is <code>02 00 00 00</code>. But looking at the packet coming back from the SqlSatellite we see that there are more data after the value. In fact - when we look at it, it turns out to be 28 bytes. Those 28 bytes look very much the same as the starting bytes, but not totally identical. If we change the statement for <code>@input_data_1</code> to be: <code>SELECT TOP(1) colint2, colint3 FROM dbo.test1</code> and execute, we&rsquo;ll see how the 28 bytes extra appears at the end of the packet, almost like a separate row. Thinking back to the TDS discussion in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, this feels like an end sequence, and we&rsquo;ll revisit this in next post.</p>
+<p>So out of the three question was asked above (why two packets, etc.) we have answered two - or rather we assume that the first packet is there for something column related, and we have seen how the second packet contains the actual data. The third question then, why is the packet containing the data so big? The answer to that (as far as I can tell) is that the data originating in the R engine, is always considered being nullable. Then the &ldquo;bug&rdquo;/feature that we spoke about in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> raises its head, whereby &ldquo;nullable&rdquo; data gets a quite big overhead.</p>
+<h4 id="numeric-types">Numeric Types</h4>
+<p>Let&rsquo;s look at numeric types and see what it gives us in terms of overhead. In the case of an int, coming back from SqlSatelite - the actual overhead is 1987 bytes excluding any data, end sequence, column overhead, etc. (1987, plus 4 bytes for the value, plus 32 bytes for the column, plus 28 bytes for the &ldquo;end-sequence&rdquo; gives us 2051). So do we then have the same behavior for all nullable numeric data types that we saw in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th style="text-align:center">1 Row</th>
+<th style="text-align:center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td style="text-align:center">7313</td>
+<td style="text-align:center">7314</td>
+<td>-</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td style="text-align:center">3889</td>
+<td style="text-align:center">3891</td>
+<td>-</td>
+</tr>
+<tr>
+<td>int</td>
+<td style="text-align:center">2023</td>
+<td style="text-align:center">2027</td>
+<td>-</td>
+</tr>
+<tr>
+<td>real</td>
+<td style="text-align:center">2023</td>
+<td style="text-align:center">2027</td>
+<td>-</td>
+</tr>
+<tr>
+<td>float</td>
+<td style="text-align:center">2023 | 1050</td>
+<td style="text-align:center">2027 | 1058</td>
+<td>Based on storage size 4 or 8 bytes</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td style="text-align:center">1050</td>
+<td style="text-align:center">1058</td>
+<td></td>
+</tr>
+<tr>
+<td>money</td>
+<td style="text-align:center">1050</td>
+<td style="text-align:center">1058</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 2:</strong> <em>Nullable Packet Sizes to SqlSatellite</em></p>
+<p>In <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw the table above, and it listed the data sizes of packets sent to the SqlSatellite from SQL Server, where the data originates from nullable columns (the sizes above include the data size, and the 32 bytes column header). When looking at data coming back from the SqlSatellite you&rsquo;d think that you&rsquo;d see the sames sizes (plus the 28 bytes end-sequence), but that is not the case:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th style="text-align:center">1 Row</th>
+<th style="text-align:center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>int</td>
+<td style="text-align:center">2051</td>
+<td style="text-align:center">2055</td>
+<td>-</td>
+</tr>
+<tr>
+<td>real</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>-</td>
+</tr>
+<tr>
+<td>float</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td></td>
+</tr>
+<tr>
+<td>money</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td></td>
+</tr>
+<tr>
+<td>decimal</td>
+<td style="text-align:center">1078</td>
+<td style="text-align:center">1086</td>
+<td>No difference related to storage size</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 3:</strong> <em>Packet Sizes from SqlSatellite</em></p>
+<p>Notice in <em>Table 3</em>, how - when data comes back from SqlSatellite - there are only two packet sizes (2051, 1078) regardless of data type. In addition we see <code>decimal</code> in the table, whereas when sending to SqlSatellite, there were no overhead for nullable <code>decimal</code>. The reason for only two sizes coming back is that whereas
+SQL Server supports quite a few data types, R has a limited number of scalar data types. So, whenever you use data from SQL Server in R scripts, the data might be implicitly converted to a compatible data type.</p>
+<p>What is interesting in the paragraph above, or rather what the paragraph above implies; is that when data goes to the SqlSatellite - somewhere in the packet it contains type information, and that is most likely in the 32 bytes column &ldquo;header&rdquo;. Also interesting is that if you send the value 1 as an int, and the value 1 as a <code>bigint</code> you get different packet sizes returning - event though they are treated as nullable.</p>
+<h4 id="alpha-numeric">Alpha Numeric</h4>
+<p>What about alpha-numeric data types? Alpha numeric data has actually the same behavior when coming back from SqlSatellite as it does when sending data to SqlSatellite. With that I mean that nullable column data has no impact - no extra overhead is added to the data coming back. There are however some differences; remember what we said in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and also in the <em>Recap</em> above, about sending alpha numeric to SqlSatellite:</p>
+<ul>
+<li>There is the &ldquo;usual&rdquo; 32 bytes column overhead.</li>
+<li>Columns of alpha numeric type all have 2 bytes pre-pended to the bytes, except <code>max</code> types.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes (the 2 bytes mentioned above) plus the size of the data stored (single byte <code>varchar</code>, double byte <code>nvarchar</code>).</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> I am not covering <code>max</code> types here, as I do not think there will be that many instances of <code>max</code> types being returned to SQL Server from SqlSatellite.</p>
+</blockquote>
+<p>When alpha numeric data comes back from the SqlSatellite however</p>
+<ul>
+<li>There is the &ldquo;usual&rdquo; 32 bytes column overhead as before, plus the 28 bytes end-sequence.</li>
+<li>Instead of 2 bytes pre-pended, each column has 4 bytes pre-pended.</li>
+<li>The data coming back is always in double-byte format, so one character comes back as 2 bytes.</li>
+</ul>
+<p>An example of this is, in the table <code>dbo.Test1</code> there is a column <code>colvchar1</code>, and the first row has the value of <code>A</code>, the second a value of <code>B</code>. When executing the code in <em>Code Snippet 2</em> with the <code>@input_data_1</code> statement being: <code>SELECT TOP(1) colvchar1 FROM dbo.Test1</code>, the sizes are:</p>
+<ul>
+<li>Going to SqlSatellite: 35 bytes (32 bytes column header + 2 bytes per column + 1 byte for the value).</li>
+<li>Back from SqlSatellite: 66 bytes (32 bytes column header + 28 bytes end sequence + 4 bytes per column + 2 bytes for the value).</li>
+</ul>
+<p>When selecting <code>TOP(2)</code> the sizes are:</p>
+<ul>
+<li>Going to SqlSatellite: 38 bytes (35 from 1 row + 2 bytes per column + 1 byte for the value).</li>
+<li>Back from SqlSatellite: 72 bytes (66 bytes from one row + 4 bytes per column + 2 bytes for the value).</li>
+</ul>
+<h2 id="summary">Summary</h2>
+<p>In this post we looked at data being returned from the SqlSatellite to SQL Server. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
+<ul>
+<li>The smaller packet had something to do with column meta-data.</li>
+<li>The bigger packet held the actual data.</li>
+</ul>
+<p>For numeric data types coming back:</p>
+<ul>
+<li>The data was treated as originating from nullable columns (with a large overhead).</li>
+<li>The data packet contained a 28 bytes end sequence.</li>
+</ul>
+<p>Due to R not supporting all data types that SQL Server supports, the data was casted to compatible R types.</p>
+<p>In next post we&rsquo;ll look at the code involved in SQL Server as well as the launchpad service, when data comes back. Doing that we&rsquo;ll also hope to be able to understand more about the smaller packet coming back, as well as the end sequence.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-12-17-interesting-stuff---week-50-year-end/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 50&amp;#58; Year End!">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/" data-toggle="tooltip" data-placement="top" title="Microsoft SQL Server R Services - Internals XVII">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

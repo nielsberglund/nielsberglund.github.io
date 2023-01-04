@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server 2019 &amp; Java Null Handling: Take Two" />
+    <meta property="og:title" content="SQL Server 2019 &amp; Java Null Handling: Take Two" />
+    <meta property="twitter:title" content="SQL Server 2019 &amp; Java Null Handling: Take Two" />
+    
+
+    
+    <meta name="description" content="We take a second look at how to handle null values in datasets being passed to and from Java code.">
+    <meta property="og:description" content="We take a second look at how to handle null values in datasets being passed to and from Java code." />
+    <meta property="twitter:description" content="We take a second look at how to handle null values in datasets being passed to and from Java code." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server 2019 &amp; Java Null Handling: Take Two | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-10-26-sql-server-2019--java-null-handling-take-two/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-2019" title="SQL Server 2019">
+                            SQL Server 2019
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/java" title="Java">
+                            Java
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-extensibility-framework" title="SQL Server Extensibility Framework">
+                            SQL Server Extensibility Framework
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server 2019 &amp; Java Null Handling: Take Two</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, October 26, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>You who read my blog know that during the last year, (or so), I have been writing about SQL Server 2019 and the ability to call into Java code from SQL Server:</p>
+<ul>
+<li><a href="/s2k19_ext_framework_java"><strong>SQL Server 2019 Extensibility Framework &amp; Java</strong></a>.</li>
+</ul>
+<p>It has been a fascinating &ldquo;journey&rdquo;, since SQL Server 2019 is still in preview, and there have been changes in how you call Java code along the way. In this post, we look at some relatively recent changes to how we handle null values in datasets.</p>
+<h2 id="java-code-in-sql-refresh">Java Code in SQL Refresh</h2>
+<p>If you have not done any Java code in SQL Server, or at least not recently, here are a couple of posts which introduces you to Java in SQL Server:</p>
+<ul>
+<li><a href="/post/2019-03-10-sql-server-2019-java--external-libraries---i/"><strong>SQL Server 2019, Java &amp; External Libraries - I</strong></a>. Part I of a couple of posts where we look at how we can deploy Java code to the database, so it can be loaded from there.</li>
+<li><a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>. We look at the implications of the introduction of the Java Language Extension SDK.</li>
+<li><a href="/post/2019-06-06-sql-server-2019-extensibility-framework--external-languages/"><strong>SQL Server 2019 Extensibility Framework &amp; External Languages</strong></a>. We look at SQL Server 2019 Extensibility Framework and Language Extensions.</li>
+<li><a href="/post/2019-08-03-sql-server-2019-ctp32--java/"><strong>SQL Server 2019 CTP3.2 &amp; Java</strong></a>. SQL Server 2019 CTP 3.2 and Azule OpenJDK.</li>
+</ul>
+<h2 id="demo-code">Demo Code</h2>
+<h4 id="data">Data</h4>
+<p>In today&rsquo;s post, we use some data from the database. The code to insert the data is the same we used in a previous post: <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/"><strong>SQL Server 2019 Extensibility Framework &amp; Java - Null Values</strong></a>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">JavaNullDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">JavaNullDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">JavaNullDB</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, 
+</span></span><span style="display:flex;"><span>                          <span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">col1</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>));
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>(<span style="color:#268bd2">x</span>, <span style="color:#268bd2">y</span>, <span style="color:#268bd2">col1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">10</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">int</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">int</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Hello &#39;</span> + <span style="color:#859900">CAST</span>(<span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">int</span>) <span style="color:#859900">AS</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>))
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">UPDATE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">y</span> = <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowId</span> = <span style="color:#2aa198;font-weight:bold">3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">UPDATE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">Col1</span> = <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowId</span> = <span style="color:#2aa198;font-weight:bold">5</span>    
+</span></span><span style="display:flex;"><span><span style="color:#859900">UPDATE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">x</span> = <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowId</span> = <span style="color:#2aa198;font-weight:bold">6</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">UPDATE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">y</span> = <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowId</span> = <span style="color:#2aa198;font-weight:bold">8</span>  
+</span></span><span style="display:flex;"><span><span style="color:#859900">UPDATE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SET</span> <span style="color:#268bd2">col1</span> = <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WHERE</span> <span style="color:#268bd2">RowId</span> = <span style="color:#2aa198;font-weight:bold">9</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Create Database Objects</em></p>
+<p>We see from *Code Snippet 1 * how we:</p>
+<ul>
+<li>Create a database: <code>JavaNullDB</code>.</li>
+<li>Create a table: <code>dbo.tb_NullRand10</code>.</li>
+<li>Insert some data into the table.</li>
+</ul>
+<p>The data we insert is entirely random, but it gives us something to &ldquo;play around&rdquo; with.</p>
+<p>Let us see what the data looks like, by executing: <code>SELECT RowID, x, y FROM dbo.tb_NullRand10;</code>:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-result1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>T-SQL Result</em></p>
+<p>As we see in <em>Figure 1</em>, we get back 10 rows, and rows 3, 6, and 8 contains null values.</p>
+<h4 id="enable-java-in-the-database">Enable Java in the Database</h4>
+<p>To use Java in the database, you need to do a couple of more things:</p>
+<ul>
+<li>Register Java as an external language in your database. The following post describes what to do: <a href="/post/2019-06-06-sql-server-2019-extensibility-framework--external-languages/"><strong>SQL Server 2019 Extensibility Framework &amp; External Languages</strong></a>.</li>
+<li>Create an external library in the database for the Java SDK. The post <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a> shows you how to do it.</li>
+</ul>
+<p>Now, when we have a database with some data and Java enabled we, can start.</p>
+<h2 id="null-values">Null Values</h2>
+<p>In the <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/">null values post</a> mentioned above, I mentioned that there are differences between SQL Server and Java in how they handle null. So, when we call into Java from SQL Server, we may want to treat null values the same way as we do in SQL Server.</p>
+<p>I wrote about this in the <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/"><strong>SQL Server 2019 Extensibility Framework &amp; Java - Null Values</strong></a> post mentioned above. However, that post was written before SQL Server 2019 CTP 2.5. In CTP 2.5 Microsoft introduced the Java SDK, and certain things changed. Amongst the things that changed is the way we handle nulls when we receive datasets from SQL Server in our Java code.</p>
+<p>Let us see how null handling works now post CTP 2.5. We use similar code to what we saw in the <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/">null post</a> above:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">execute</span>(<span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">input</span>, 
+</span></span><span style="display:flex;"><span>                               <span style="color:#268bd2">LinkedHashMap</span>&lt;<span style="color:#268bd2">String</span>, <span style="color:#268bd2">Object</span>&gt; <span style="color:#268bd2">params</span>) {
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">inputCol1</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getIntColumn</span>(<span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">inputCol2</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getIntColumn</span>(<span style="color:#2aa198;font-weight:bold">1</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">inputCol3</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getIntColumn</span>(<span style="color:#2aa198;font-weight:bold">2</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">output</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">PrimitiveDataset</span>();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198">&#34;RowID&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">INTEGER</span>, <span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#34;x&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">INTEGER</span>, <span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#2aa198">&#34;y&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">INTEGER</span>, <span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addIntColumn</span>(<span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#268bd2">inputCol1</span>, <span style="color:#859900;font-weight:bold">null</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addIntColumn</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#268bd2">inputCol2</span>, <span style="color:#859900;font-weight:bold">null</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addIntColumn</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#268bd2">inputCol3</span>, <span style="color:#859900;font-weight:bold">null</span>);
+</span></span><span style="display:flex;"><span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">return</span> <span style="color:#268bd2">output</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Java Input &amp; Output Data</em></p>
+<p>The code in <em>Code Snippet 3</em> &ldquo;echoes&rdquo; back what it receives as input dataset and we see how we:</p>
+<ul>
+<li>Load three arrays with the three columns in the dataset.</li>
+<li>Create a new <code>PrimitiveDataset</code> to use as the return type.</li>
+<li>Set metadata for the return dataset.</li>
+<li>Assign the columns for the return dataset.</li>
+<li>Return the dataset.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> If you wonder about why the method is named <code>execute</code> and what the <code>PrmitiveDataset</code> is; the post <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/">here</a> explains it.</p>
+</blockquote>
+<p>After we have compiled and packaged the code into a <code>.jar</code> file we can deploy:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">EXTERNAL</span> <span style="color:#268bd2">LIBRARY</span> <span style="color:#268bd2">SqlNullLib</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> (<span style="color:#268bd2">CONTENT</span> = <span style="color:#2aa198">&#39;W:\sql-null-1.0.jar&#39;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> (<span style="color:#859900">LANGUAGE</span> = <span style="color:#2aa198">&#39;Java&#39;</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Deploy Java Code</em></p>
+<p>As we see in <em>Code Snippet 3</em> I named my <code>.jar</code> file <code>sql-null-1.0.jar</code> and I deployed it as an external library: <code>SqlNullLib</code>. Since I deploy to a local SQL Server instance, I can use a file location for my <code>.jar</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The <a href="/post/2019-03-10-sql-server-2019-java--external-libraries---i/">Java &amp; External Libraries</a> post mentioned above goes into details about external libraries.</p>
+</blockquote>
+<p>The code to execute looks something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;sql.NullValues&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT RowID, x, y FROM dbo.tb_NullRand10&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span>((<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">x</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Execute Code</em></p>
+<p>We see in <em>Code Snippet 4</em> how we call into the <code>NullValues</code> class in the <code>sql</code> package and how we use the same <code>SELECT</code> statement that generated the resultset we saw in <em>Figure 1</em>. When we execute the code, we see:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-result2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Java Code Result</em></p>
+<p>Compare the result we see in <em>Figure 2</em> with the result in <em>Figure 1</em>, and we see the difference in the outlined rows, (3, 6, 8), and the highlighted columns, In <em>Figure 1</em> the columns are <code>NULL</code>, whereas in <em>Figure 2</em> they are <code>0</code>. So why are the columns <code>0</code>?</p>
+<p>Well, as we said in the <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/">null post</a>, this is because the Java language C++ extension converts the null values to the default value for the data type in question.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The Java language C++ extension is the bridge between SQL Server and your Java code. The <a href="/post/2019-06-06-sql-server-2019-extensibility-framework--external-languages/"><strong>SQL Server 2019 Extensibility Framework &amp; External Languages</strong></a> post covers it in some detail.</p>
+</blockquote>
+<p>The question is, why do we care that a null value comes across as zero, at least we do not get a null exception? Let us take a look at the following Java code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">execute</span>(<span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">input</span>, 
+</span></span><span style="display:flex;"><span>                                <span style="color:#268bd2">LinkedHashMap</span>&lt;<span style="color:#268bd2">String</span>, <span style="color:#268bd2">Object</span>&gt; <span style="color:#268bd2">params</span>) {
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">inputCol3</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getIntColumn</span>(<span style="color:#2aa198;font-weight:bold">2</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">numRows</span> = <span style="color:#268bd2">inputCol3</span>.<span style="color:#268bd2">length</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">sum</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">for</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">0</span>; <span style="color:#268bd2">x</span> &lt; <span style="color:#268bd2">numRows</span>; <span style="color:#268bd2">x</span>++) {
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">sum</span> += <span style="color:#268bd2">inputCol3</span>[<span style="color:#268bd2">x</span>];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">double</span> <span style="color:#268bd2">avg</span> = (<span style="color:#859900;font-weight:bold">double</span>)<span style="color:#268bd2">sum</span> / <span style="color:#268bd2">numRows</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">System</span>.<span style="color:#268bd2">out</span>.<span style="color:#268bd2">printf</span>(<span style="color:#2aa198">&#34;Average value of y is: %f&#34;</span>, <span style="color:#268bd2">avg</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">return</span> <span style="color:#859900;font-weight:bold">null</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Average Value</em></p>
+<p>The code in <em>Code Snippet 5</em> expects the same input data as we generated in <em>Code Snippet 4</em>, and it calculates the average value of the <code>y</code> column of that dataset. When we execute the code in <em>Code Snippet 4</em>, after having compiled, packaged and deployed, (comment out <code>WITH RESULT SETS</code>), we see the result as so:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-average.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Result of Average Calculation</em></p>
+<p>The result in <em>Figure 3</em> looks OK, so let us see what it looks like if we run a similar query in SQL Server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#859900">CAST</span>(<span style="color:#859900">AVG</span>(<span style="color:#859900">CAST</span>(<span style="color:#268bd2">y</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">DECIMAL</span>(<span style="color:#2aa198;font-weight:bold">4</span>,<span style="color:#2aa198;font-weight:bold">2</span>)))<span style="color:#859900">AS</span> <span style="color:#cb4b16">DECIMAL</span>(<span style="color:#2aa198;font-weight:bold">4</span>,<span style="color:#2aa198;font-weight:bold">2</span>))
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_NullRand10</span>;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>T-SQL Average Calculation</em></p>
+<p>The result of the query in <em>Code Snippet 6</em> looks like so:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-average2.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Result of T-SQL Average Calculation</em></p>
+<p>We see in <em>Figure 4</em> how the result of the average calculation, (outlined in red), differs from the Java calculation. The question is why this is; it was the same data in both calculations? Well, was it; we see in <em>Figure 4</em> the highlighted part at the top: &ldquo;Null value is eliminated &hellip;&rdquo;. So what happens is that for certain operations SQL Server eliminates null values, as SQL Server treats nulls as unknown.</p>
+<p>As the Java language C++ extension converts nulls, we need to handle it in our Java code.</p>
+<h4 id="input-nulls">Input Nulls</h4>
+<p>In the previous <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/">null post</a> we saw that, when we want to handle null input, we use a required class level variable <code>inputNullMap</code>, which the Java language extension populates &ldquo;automagically&rdquo;. However, after the introduction of the Java language SDK, this variable is not required any more. Even if you declared it, the Java language extension does not populate it.</p>
+<p>So how do we then figure out whether a column has a null value? Well, since the Java language extension passes data into the <code>execute</code> method via the <code>PrimitiveDataSet</code> class, let us have a look at the base class for <code>PrimitiveDataSet</code>: <code>AbstractSqlServerExtensionDataset</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#859900">class</span> <span style="color:#cb4b16">AbstractSqlServerExtensionDataset</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">/**
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">   * Column metadata interfaces
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">   */</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">public</span> <span style="color:#859900;font-weight:bold">void</span> <span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">columnId</span>, <span style="color:#268bd2">String</span> <span style="color:#268bd2">columnName</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">columnType</span>, 
+</span></span><span style="display:flex;"><span>                                <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">precision</span>, <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">scale</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">UnsupportedOperationException</span>(<span style="color:#2aa198">&#34;addColumnMetadata is not implemented&#34;</span>);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">public</span> <span style="color:#859900;font-weight:bold">boolean</span>[] <span style="color:#268bd2">getColumnNullMap</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">columnId</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">UnsupportedOperationException</span>(<span style="color:#2aa198">&#34;getColumnNullMap is not implemented&#34;</span>);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>AbstractSqlServerExtensionDataset</em></p>
+<p>We see in <em>Code Snippet 7</em> how the <code>AbstractSqlServerExtensionDataset</code> has a section for metadata, and in that section is a method: <code>getColumnNullMap</code>. The method takes an integer as an input parameter, and it returns an array of type <code>boolean</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The Java SDK is open source, and you find it <a href="https://github.com/microsoft/sql-server-language-extensions">here</a>.</p>
+</blockquote>
+<p>This is what happens when the Java language C++ extension populates the dataset which is used as an input parameter:</p>
+<ul>
+<li>The extension creates a <code>boolean</code> array for each non-nullable Java datatype columns.</li>
+<li>The extension loops each row for each column in the dataset.</li>
+<li>Where there is a null value, for a primitive data type, the extension assigns the default value of the data type to that column.</li>
+<li>When the extension comes across a null value in a non-nullable Java data type column, it sets the boolean array value to <code>true</code> in the column array.</li>
+</ul>
+<p>With this in mind we can change the code in <em>Code Snippet 5</em> to handle null values, or rather handle values in the dataset that originates from a SQL Server null value:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">execute</span>(<span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">input</span>, 
+</span></span><span style="display:flex;"><span>                                <span style="color:#268bd2">LinkedHashMap</span>&lt;<span style="color:#268bd2">String</span>, <span style="color:#268bd2">Object</span>&gt; <span style="color:#268bd2">params</span>) {
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">inputCol3</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getIntColumn</span>(<span style="color:#2aa198;font-weight:bold">2</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">numRows</span> = <span style="color:#268bd2">inputCol3</span>.<span style="color:#268bd2">length</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">boolean</span>[] <span style="color:#268bd2">nullMap</span> = <span style="color:#268bd2">input</span>.<span style="color:#268bd2">getColumnNullMap</span>(<span style="color:#2aa198;font-weight:bold">2</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">nonNull</span>= <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">sum</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">for</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">0</span>; <span style="color:#268bd2">x</span> &lt; <span style="color:#268bd2">numRows</span>; <span style="color:#268bd2">x</span>++) {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span>(!<span style="color:#268bd2">nullMap</span>[<span style="color:#268bd2">x</span>]) {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">nonNull</span> ++;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">sum</span> += <span style="color:#268bd2">inputCol3</span>[<span style="color:#268bd2">x</span>];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">double</span> <span style="color:#268bd2">avg</span> = (<span style="color:#859900;font-weight:bold">double</span>)<span style="color:#268bd2">sum</span> / <span style="color:#268bd2">nonNull</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">System</span>.<span style="color:#268bd2">out</span>.<span style="color:#268bd2">printf</span>(<span style="color:#2aa198">&#34;Average value of y is: %f&#34;</span>, <span style="color:#268bd2">avg</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">return</span> <span style="color:#859900;font-weight:bold">null</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Null Handling</em></p>
+<p>So, in <em>Code Snippet 8</em> we see how we:</p>
+<ul>
+<li>Get the column we want to create the average over.</li>
+<li>Use <code>getColumnNullMap</code> to retrieve the null map for the column we use for the calculation.</li>
+<li>In the <code>for</code> loop check whether the column value is null or not. If it is not null, we include the value and increase the row count.</li>
+<li>Finally do the average calculation.</li>
+</ul>
+<p>The result when executing the code in <em>Code Snippet 4</em> against our new code looks like so:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-average3.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>New Java Average Calculation</em></p>
+<p>We see in <em>Figure 5</em> how our Java calculation now gives the same result as the T-SQL calculation. Awesome!</p>
+<h4 id="output-nulls">Output Nulls</h4>
+<p>We have now seen how to use <code>getColumnNullMap</code> to distinguish input values that come in as <code>NULL</code> from SQL Server, which the Java language C++ extension converts to the default value for the Java data type.</p>
+<p>What about if we need to return null values to SQL Server in a return dataset, but the Java data type is non-nullable? I.e. we receive data in the input dataset, and some column values for a non-nullable Java type are null when passed in from SQL Server. If we wanted to, for example, add the column to another column, the sum should be <code>NULL</code> if we were to handle it the same way as SQL Server does.</p>
+<p>So how do we indicate to SQL Server that a column value is null, even though it has a value in Java? Let us go back to <em>Code Snippet 2</em> where we discussed how to return data to SQL Server from Java code. After &ldquo;newing&rdquo; up an instance of <code>PrimitiveDataset</code>, we defined the metadata for the columns via the <code>addColumnMetadata</code> method. We then added the row arrays for the columns through the <code>add*Type*Column</code>, (in our case it was <code>addIntColumn</code>), and it is in that method the &ldquo;secret&rdquo; to null values lies. Let us go back to <code>AbstractSqlServerExtensionDataset</code> and look at the signature for <code>addIntColumn</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#859900">class</span> <span style="color:#cb4b16">AbstractSqlServerExtensionDataset</span> {
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  <span style="color:#93a1a1;font-style:italic">/**
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">   * Adding column interfaces
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">   */</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">public</span> <span style="color:#859900;font-weight:bold">void</span> <span style="color:#268bd2">addIntColumn</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">columnId</span>, <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">rows</span>, 
+</span></span><span style="display:flex;"><span>                           <span style="color:#859900;font-weight:bold">boolean</span>[] <span style="color:#268bd2">nullMap</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">throw</span> <span style="color:#859900">new</span> <span style="color:#268bd2">UnsupportedOperationException</span>(...);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Add Column Method</em></p>
+<p>Look in <em>Code Snippet 9</em> at the third parameter in the add method. See how it takes a <code>boolean</code> array, and how the name &ldquo;gives it away&rdquo;: <code>nullMap</code>. If we look at other methods for non-nullable Java types, we see that all of them have this parameter, whereas add methods for types that are nullable do not have it.</p>
+<p>So for non-nullable types, we define <code>boolean</code> arrays, and in those arrays, we indicate what row value(s) is <code>null</code>. Let us see an example:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#859900">public</span> <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">execute</span>(<span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">input</span>, 
+</span></span><span style="display:flex;"><span>                                <span style="color:#268bd2">LinkedHashMap</span>&lt;<span style="color:#268bd2">String</span>, <span style="color:#268bd2">Object</span>&gt; <span style="color:#268bd2">params</span>) {
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PrimitiveDataset</span> <span style="color:#268bd2">output</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">PrimitiveDataset</span>();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">numRows</span> = <span style="color:#2aa198;font-weight:bold">5</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198">&#34;RowID&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">INTEGER</span>, <span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198">&#34;IntCol&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">INTEGER</span>, <span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addColumnMetadata</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#2aa198">&#34;StringCol&#34;</span>, <span style="color:#268bd2">Types</span>.<span style="color:#268bd2">NVARCHAR</span>, <span style="color:#2aa198;font-weight:bold">256</span>, <span style="color:#2aa198;font-weight:bold">0</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">rowIdRows</span> = <span style="color:#859900">new</span> <span style="color:#859900;font-weight:bold">int</span>[<span style="color:#268bd2">numRows</span>];
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">int</span>[] <span style="color:#268bd2">intColRows</span> = <span style="color:#859900">new</span> <span style="color:#859900;font-weight:bold">int</span>[<span style="color:#268bd2">numRows</span>];
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">String</span>[] <span style="color:#268bd2">stringColRows</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">String</span>[<span style="color:#268bd2">numRows</span>];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900;font-weight:bold">boolean</span>[] <span style="color:#268bd2">intColNullMap</span> = <span style="color:#859900">new</span> <span style="color:#859900;font-weight:bold">boolean</span>[<span style="color:#268bd2">numRows</span>];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">for</span>(<span style="color:#859900;font-weight:bold">int</span> <span style="color:#268bd2">x</span> = <span style="color:#2aa198;font-weight:bold">0</span>; <span style="color:#268bd2">x</span> &lt; <span style="color:#268bd2">numRows</span>; <span style="color:#268bd2">x</span>++){
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">rowIdRows</span>[<span style="color:#268bd2">x</span>] = <span style="color:#268bd2">x</span>+<span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span>(<span style="color:#268bd2">x</span> % <span style="color:#2aa198;font-weight:bold">2</span> ==<span style="color:#2aa198;font-weight:bold">0</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">intColRows</span>[<span style="color:#268bd2">x</span>] = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">intColNullMap</span>[<span style="color:#268bd2">x</span>] = <span style="color:#859900;font-weight:bold">true</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">else</span> {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">intColRows</span>[<span style="color:#268bd2">x</span>] = <span style="color:#268bd2">x</span> + <span style="color:#2aa198;font-weight:bold">2</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">intColNullMap</span>[<span style="color:#268bd2">x</span>] = <span style="color:#859900;font-weight:bold">false</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">if</span>(<span style="color:#268bd2">x</span> % <span style="color:#2aa198;font-weight:bold">3</span> ==<span style="color:#2aa198;font-weight:bold">0</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">stringColRows</span>[<span style="color:#268bd2">x</span>] = <span style="color:#859900;font-weight:bold">null</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">else</span> {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">stringColRows</span>[<span style="color:#268bd2">x</span>] = <span style="color:#2aa198">&#34;Hello number: &#34;</span> + (<span style="color:#268bd2">x</span> + <span style="color:#2aa198;font-weight:bold">1</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addIntColumn</span>(<span style="color:#2aa198;font-weight:bold">0</span>, <span style="color:#268bd2">rowIdRows</span>, <span style="color:#859900;font-weight:bold">null</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addIntColumn</span>(<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#268bd2">intColRows</span>, <span style="color:#268bd2">intColNullMap</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">output</span>.<span style="color:#268bd2">addStringColumn</span>(<span style="color:#2aa198;font-weight:bold">2</span>, <span style="color:#268bd2">stringColRows</span>);
+</span></span><span style="display:flex;"><span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">return</span> <span style="color:#268bd2">output</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Return Dataset</em></p>
+<p>What we see in <em>Code Snippet 10</em> is a somewhat contrived example where we return a dataset in which we want certain column values to be <code>NULL</code> in SQL Server. We see how we:</p>
+<ul>
+<li>Create metadata for the dataset.</li>
+<li>Create arrays for the individual rows.</li>
+<li>Create a null map for one of the integer columns.</li>
+<li>In the <code>for</code> loop add values to the arrays, and based on some modulus operations emulate that some values are null.</li>
+<li>Add the arrays to the columns, and for the second integer column, we also add the null map.</li>
+<li>Finally return the dataset.</li>
+</ul>
+<p>A couple of things to notice in the code in <em>Code Snippet 10</em>:</p>
+<ul>
+<li>A null-map is not required for a non-nullable data type columns if the values are not null.</li>
+<li>We do not need a null-map for nullable data type columns.</li>
+</ul>
+<p>To see that our code works we use following code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>  @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Java&#39;</span>
+</span></span><span style="display:flex;"><span>, @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;sql.NullValues&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span>((<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">IntCol</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">StringCol</span> <span style="color:#268bd2">nvarchar</span>(<span style="color:#2aa198;font-weight:bold">256</span>)))
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Execute T-SQL</em></p>
+<p>The result we get when executing the code in <em>Code Snippet 11</em>, looks like so:</p>
+<p>
+  <img src="/images/posts/sql-2k19-java-null2-return-null.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Return Dataset with Null Values</em></p>
+<p>When we look at <em>Figure 6</em> we see that our code worked, and how the Java C++ language extension converted the <code>0</code> values in the integer column to <code>NULL</code> based on the null map.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, we discussed how to handle null values in datasets passed into our Java code from SQL Server, and from our Java code back to SQL Server. I wrote about null handling in a previous <a href="/post/2018-12-19-sql-server-2019-extensibility-framework--java---null-values/">post</a>, but since that post, Microsoft introduced the Java language SDK for SQL Server, and null handling has changed.</p>
+<p>We care about null values because, in SQL Server, all data types are nullable, whereas, in Java, that is not the case. In Java, like in .NET, primitive types, (<code>int</code>, etc.), cannot be null. The Java C++ language extension handles the mismatch between nullable in SQL Server and non-nullable in Java, whereby it converts null values in data from SQL Server to the data type&rsquo;s default value for Java. Going the other way, from Java to SQL Server, the C++ language extension converts the values supposed to be null to actual null values.</p>
+<p>The way we handle null values after the introduction of the Java language SDK is that we:</p>
+<ul>
+<li>For input data, and each non-nullable column, we call <code>getColumnNullMap</code> and pass in the columns ordinal position. We then handle the values where the null map indicates a null value.</li>
+<li>For output data we create <code>boolean</code> arrays for the columns which should contain null values in SQL Server. We pass the array in as a parameter to the <code>add*TypeName*Column</code> method.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-10-20-interesting-stuff---week-42-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 42, 2019">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2019-10-27-interesting-stuff---week-43-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 43, 2019">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

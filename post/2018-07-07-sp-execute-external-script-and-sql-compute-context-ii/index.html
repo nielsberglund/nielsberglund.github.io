@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="sp_execute_external_script and SQL Compute Context - II" />
+    <meta property="og:title" content="sp_execute_external_script and SQL Compute Context - II" />
+    <meta property="twitter:title" content="sp_execute_external_script and SQL Compute Context - II" />
+    
+
+    
+    <meta name="description" content="We look in detail why we see performance differences when using SQL Server Compute Context.">
+    <meta property="og:description" content="We look in detail why we see performance differences when using SQL Server Compute Context." />
+    <meta property="twitter:description" content="We look in detail why we see performance differences when using SQL Server Compute Context." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>sp_execute_external_script and SQL Compute Context - II | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                        <a class="tag" href="/tags/process-monitor" title="Process Monitor">
+                            Process Monitor
+                        </a>
+                        
+                        <a class="tag" href="/tags/parallel" title="parallel">
+                            parallel
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-compute-context" title="SQL Server Compute Context">
+                            SQL Server Compute Context
+                        </a>
+                        
+                        <a class="tag" href="/tags/sp_execute_external_script" title="sp_execute_external_script">
+                            sp_execute_external_script
+                        </a>
+                        
+                    </div>
+                    <h1>sp_execute_external_script and SQL Compute Context - II</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, July 7, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>I wrote the post <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> about how the <strong>SQL Server Compute Context</strong> (SQLCC) works with <code>sp_execute_external_script</code> (SPEES), as I wanted to correct some mistakes I did in the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post. I initially thought one post would be enough, but quite soon I realised I was too optimistic, and at least one more post would be needed, if not more. So this is the first followup post about SPEES and SQLCC.</p>
+<p>To see other posts (including this) in the series, go to <a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
+<p>One of the reasons for me realising that one post is not enough is that while I wrote and executed code for the first <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">post</a>, I noticed some fairly significant performance differences using SQLCC compared to not using SQLCC (SQLCC performed better :)). So that is part of what we look at in this post.</p>
+<h2 id="recap">Recap</h2>
+<p>In quite a few posts about <strong>SQL Server Machine Learning Services</strong> we have discussed how, as part of the functionality in RevoScaleR, you can define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in the context of somewhere else: Hadoop, Spark and also SQL Server. So, in essence, you can run some code on your development machine and have it execute in the environments mentioned above.</p>
+<p>In the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post we saw that even when we executed from inside SQL Server, the compute context was the local context: <code>RxLocalSeq</code>. If we want to use the SQLCC we used <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up the connection string</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlServerConnString</span> &lt;- <span style="color:#2aa198">&#34;Driver=SQL Server;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        server=.; # localhost
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        database=testParallel;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        uid=some_uid;pwd=some_pwd&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set up the context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqlCtx</span> &lt;- <span style="color:#268bd2">RxInSqlServer</span>(<span style="color:#268bd2">connectionString</span> = <span style="color:#268bd2">sqlServerConnString</span>, 
+</span></span><span style="display:flex;"><span>                        <span style="color:#268bd2">numTasks</span> = <span style="color:#2aa198;font-weight:bold">1</span>)
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># set the compute context to be the sql context</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">rxSetComputeContext</span>(<span style="color:#268bd2">sqlCtx</span>)    
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Set up SQL Server Compute Context</em></p>
+<p>To setup the context we see in <em>Code Snippet 1</em> how we use a connection string pointing to the SQL Server where we want to execute the code. In this case, it is the instance we are on.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The connection string is for where we want to execute, not necessarily where the data we use resides.</p>
+</blockquote>
+<p>We also see in <em>Figure 1</em> how <code>RxInSqlServer</code> has the <code>numTasks</code> parameter for you to set the number of tasks (processes) to run for each computation. The parameter defines the maximum number of tasks SQL Server can use. SQL Server can, however, decide to start fewer processes. Finally in <em>Figure 1</em> we call <code>rxSetComputeContext</code> which ensures that any code with functions that support SQLCC, executes under the compute context.</p>
+<p>In the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post, we saw how when we execute inside of SQL Server via SPEES we by default run in the local context and only by setting the context as in <em>Code Snippet 1</em> we can execute in SQLCC.</p>
+<p>An interesting observation when we set the <code>numTasks</code> parameter to a value greater than 1 is that when we run the code, we run it hosted in an <code>mpiexec.exe</code> process:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_comp_mpi.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Parallel Execution in Compute Context</em></p>
+<p>In <em>Figure 1</em> we now see not only the &ldquo;usual&rdquo; RTerm and <code>BxlServer.exe</code> processes but also a new hosting process, outlined in red, <code>mpiexec.exe</code>. Underneath the <code>mpiexec.exe</code> process we see the <code>smpd.exe</code> process (outlined in green) and then four RTerm processes with <code>BxlServer.exe</code> processes which handle the workload. So, <code>mpiexec.exe</code> and <code>smpd.exe</code> are parts of <a href="https://msdn.microsoft.com/en-us/library/bb524831%28v=vs.85%29.aspx?f=255&amp;MSPPError=-2147217396"><strong>Microsoft MPI</strong></a> which is an implementation of MPI which is a communication protocol for programming parallel computers.</p>
+<p>All this is somewhat interesting, but the most interesting thing (at least for me) is the performance difference we saw when executing the same code in the local context compared to the SQLCC. When executing with <code>numTasks</code> set to 1 (as it would be under the local context) code that ran in ~40 seconds in the local context took ~30 seconds to run in SQLCC! Once again, we did not run it with multiple tasks in SQLCC, so just be running in SQLCC we received a performance gain of about 30%!</p>
+<blockquote>
+<p><strong>NOTE:</strong> The performance gain is of course not always 30%, it depends on data volumes.</p>
+</blockquote>
+<p>So, as I said at the beginning of this post - let us try and figure out why the performance is better using SQLCC.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code and the tools we use today. This section is here for those who want to follow along in what we are doing in the post.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we use <em>Process Monitor</em> to filter TCP traffic.</p>
+<h4 id="code">Code</h4>
+<p>This is the database objects we use in this post:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">master</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">TestParallel</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">PRIMARY</span> <span style="color:#859900">KEY</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Rand_50M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">50000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Setup of Database, Table and Data</em></p>
+<p>We use more or less the same database and database object as in the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post:</p>
+<ul>
+<li>A database: <code>TestParallel</code>.</li>
+<li>A table: <code>dbo.tb_Rand_50M</code>. This table contains the data we want to analyse.</li>
+</ul>
+<p>In addition to creating the database and the table <em>Code Snippet 2</em> also loads 50 million records into the <code>dbo.tb_Rand_50M</code>. Be aware that when you run the code in <em>Code Snippet 2</em> it may take some time to finish due to the loading of the data. Yes, I know - the data is entirely useless, but it is a lot of it, and it helps to illustrate what we want to do.</p>
+<p>The code we use is almost like what we used in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">isCtx</span> <span style="color:#cb4b16">bit</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">numTasks</span> <span style="color:#cb4b16">int</span> = <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#859900">start</span> <span style="color:#268bd2">datetime2</span> = <span style="color:#268bd2">SYSUTCDATETIME</span>();
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      # set up the connection string
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      sqlServerConnString &lt;- &#34;Driver=SQL Server;server=.;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              database=testParallel;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              uid=&lt;username&gt;;pwd=&lt;userpwd&gt;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      if(useContext == 1) {
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        sqlCtx &lt;- RxInSqlServer(connectionString = sqlServerConnString, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                numTasks = tasks)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        # set the compute context to be the sql context
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        rxSetComputeContext(sqlCtx)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      }
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      mydata &lt;- RxSqlServerData(sqlQuery = &#34;SELECT y, rand1, rand2, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                            rand3, rand4, rand5 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                            FROM dbo.tb_Rand_50M&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                connectionString = sqlServerConnString);
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      myModel &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      data=mydata)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      OutputDataSet &lt;- data.frame(nRows=myModel$nValidObs);&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@tasks int, @useContext bit&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">tasks</span> = @<span style="color:#268bd2">numTasks</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">useContext</span> = @<span style="color:#268bd2">isCtx</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">NumberRows</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>));
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">DATEDIFF</span>(<span style="color:#268bd2">ms</span>, @<span style="color:#859900">start</span>, <span style="color:#268bd2">SYSUTCDATETIME</span>())
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Test Code</em></p>
+<p>As we see in <em>Code Snippet 3</em> we parameterize the <code>sp_execute_external_script</code> call, and we have parameters for whether to use the SQLCC and also how many tasks to run when executing in the context. The default is to execute in the local context, and when executing in SQLCC <code>numTasks</code> is 1.</p>
+<h2 id="performance-differences">Performance Differences</h2>
+<p>To start with, let us repeat - more or less - what we did in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> and compare execution times when running in the local context (<code>@isCtx = 0</code>) and when in SQLCC  (<code>@isCtx = 1</code>). In both cases, we execute with the default number of tasks (<code>numTasks = 1</code>).</p>
+<blockquote>
+<p><strong>NOTE:</strong> Do a couple of executions in the local context as well as in the SQLCC to ensure you get representative numbers for both.</p>
+</blockquote>
+<p>When I run the code on my SQL Server instance I get the following results:</p>
+<ul>
+<li>Local context: ~40 seconds</li>
+<li>SQLCC: ~24 seconds</li>
+</ul>
+<p>So, the same workload shows an approximately 40% performance improvement when running in the SQLCC compared to the local context and this is in line with what we saw in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>. Why is this, we do the same things:</p>
+<ul>
+<li>We load data</li>
+<li>We apply the <code>rxLinMod</code> function.</li>
+<li>We run with the same number of tasks (single threaded).</li>
+</ul>
+<p>A question I have now is at what stage in the script, the script receives the 50 million rows? Comment out in the code, (<em>Code Snippet 3</em>), the <code>myModel</code> and <code>OutputDataSet</code> lines of code. When you now execute in the local context, you see the execution time is ~ 1 second. When you do the same in the SQLCC the time is about the same. It seems like the actual loading of the data happens not in the <code>RxSqlServerData</code> call, but in the call - in this case - to <code>rxLinMod</code>. Hmm, I wonder what happens if we instead of pulling the data, pushed the data to the <code>rxLinMod</code> call by using <code>@input_data_1</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">isCtx</span> <span style="color:#cb4b16">bit</span> = <span style="color:#2aa198;font-weight:bold">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#268bd2">numTasks</span> <span style="color:#cb4b16">int</span> = <span style="color:#2aa198;font-weight:bold">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">DECLARE</span> @<span style="color:#859900">start</span> <span style="color:#268bd2">datetime2</span> = <span style="color:#268bd2">SYSUTCDATETIME</span>();
+</span></span><span style="display:flex;"><span><span style="color:#859900">EXEC</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>      @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      # set up the connection string
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      sqlServerConnString &lt;- &#34;Driver=SQL Server;server=.;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              database=testParallel;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                              uid=&lt;username&gt;;pwd=&lt;userpwd&gt;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      if(useContext == 1) {
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        sqlCtx &lt;- RxInSqlServer(connectionString = sqlServerConnString, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                numTasks = tasks)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        # set the compute context to be the sql context
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        rxSetComputeContext(sqlCtx)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      }
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      myModel &lt;- rxLinMod(y ~ rand1 + rand2 + rand3 + rand4 + rand5, 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                         data=InputDataSet)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">      OutputDataSet &lt;- data.frame(nRows=myModel$nValidObs);&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT y, rand1, rand2, rand3, rand4, rand5 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                        FROM dbo.tb_Rand_50M&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">params</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;@tasks int, @useContext bit&#39;</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">tasks</span> = @<span style="color:#268bd2">numTasks</span>
+</span></span><span style="display:flex;"><span>    , @<span style="color:#268bd2">useContext</span> = @<span style="color:#268bd2">isCtx</span>    
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">NumberRows</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>));
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">DATEDIFF</span>(<span style="color:#268bd2">ms</span>, @<span style="color:#859900">start</span>, <span style="color:#268bd2">SYSUTCDATETIME</span>())
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Pushing the Data</em></p>
+<p>In <em>Code Snippet 4</em> we see how we push the data through the <code>@input_data_1</code> straight to the <code>rxLinMod</code> call via <code>InputDataSet</code>. The code here does not look any different than from most of the other code used in many of my blog posts. When I execute it in the local context (<code>@isCtx bit = 0)</code> however:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_II_push_error.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Error Pushing Data</em></p>
+<p>Oh, it looks like we try to push too much data as we see, highlighted in <em>Figure 2</em>, a memory issue. Ok, but this is what the SQLCC is all about - efficiently handling large volumes of data, so let us execute the same code but in the SQLCC (<code>@isCtx bit = 1</code>):</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compII_input_data_ctx_error.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Push and SQLCC Error</em></p>
+<p>Ouch, it seems that to use SQLCC we need to pull data through <code>RxSqlServerData</code>. Never mind, I still want to push large volumes of data, so I change <code>@input_data_1</code> to do a <code>SELECT TOP(30000000) ...</code> (30 million) from the table instead. When I push my 30 million rows in the local context the execution time is around  17 seconds. What are the timings if we execute the code in <em>Code Snippet 3</em> with a <code>TOP (30000000)</code> both in the local context as well as SQLCC and compare execution times:</p>
+<ul>
+<li>Local context push (<em>Code Snippet 4</em> and <code>@isCtx = 0</code>): ~ 17 seconds.</li>
+<li>Local context pull (<em>Code Snippet 3</em> and <code>@isCtx = 0</code>): ~ 23 seconds.</li>
+<li>SQLCC pull (<em>Code Snippet 3</em> and <code>@isCtx = 1</code>): ~ 15 seconds.</li>
+</ul>
+<p>That was interesting, the timings between pushing the data in the local context are almost the same as pulling the data in SQLCC, and the push in the local context is much faster than the pull in the same context. What gives?</p>
+<p>All we have done so far points to that the difference in performance comes from loading the data, so the question is what the difference is when loading it from the local context compared to the SQLCC, and is SQLCC always faster. Let us start with the last question first; is SQLCC always faster?</p>
+<p>To test this change the <code>TOP</code> clause to <code>TOP(50)</code> and execute <em>Code Snippet 4</em> (pushing the data) and <em>Code Snippet 3</em> pulling the data both in the local context as well as SQLCC and take note of the timings:</p>
+<ul>
+<li>Local context push (<em>Code Snippet 4</em> and <code>@isCtx = 0</code>): ~ 200 ms.</li>
+<li>Local context pull (<em>Code Snippet 3</em> and <code>@isCtx = 0</code>): ~ 260 ms.</li>
+<li>SQLCC pull (<em>Code Snippet 3</em> and <code>@isCtx = 1</code>): ~ 1.6 seconds.</li>
+</ul>
+<p>That was quite a difference and now, all of a sudden, SQLCC is slowest! Why is that? Let us use <em>Process Monitor</em> to try to figure out why this is the case. However, before we do that let us recap a little bit about the internal workings when we execute <em>SPEES</em>.</p>
+<h4 id="internals">Internals</h4>
+<ul>
+<li>The host for an external engine is <code>BxlServer.exe</code>.</li>
+<li>When we execute <em>SPEES</em> the SqlSatellite (loaded by the BxlServer) connects to SQL Server over a TCP connection.</li>
+<li>Data is sent over the TCP connection from and to SQL Server.</li>
+<li>The data sent among other things authentication data, script data (the actual external script) as well as the dataset.</li>
+</ul>
+<p>The figure below illustrates connections and so forth in a &ldquo;simple&rdquo; case where we push data to the SqlSatellite in the local context:</p>
+<p>
+  <img src="/images/posts/sql_r_services_ext_scriptIII_single_process.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Process Flow</em></p>
+<p>In <em>Figure 4</em> we see what happens when we execute <code>sp_execute_external_script</code> and the numbers in the figure stands for:</p>
+<ol>
+<li>We call <code>sp_execute_external_script</code> and SQL Server calls into the launchpad service.</li>
+<li>The launchpad service creates RTerm processes which in turn creates BxlServer processes. One process becomes the executing process.</li>
+<li>A TCP connection from the SqlSatellite in the executing process gets established.</li>
+<li>SQL server sends input data to the SqlSatellite.</li>
+<li>The <code>BxlServer.exe</code> does the processing.</li>
+<li>SQL Server receives data back from the SqlSatellite.</li>
+</ol>
+<p>The <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series covered in &ldquo;excruciating&rdquo; details what data SQL Server sends to the BxlServer. If you want to read up on it I suggest <strong>Internals</strong> <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a>, <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a>, <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">XIV</a> and <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">XV</a>.</p>
+<h4 id="investigation-using-performance-monitor">Investigation using Performance Monitor</h4>
+<p>To see what happens when we execute our three scenarios (local push, local pull, SQLCC pull) we set up some <em>Process Monitor</em> event filters to capture TCP traffic from SQL Server to the SqlSatellite, where <code>BxlServer.exe</code> is &ldquo;hosting&rdquo; the SqlSatellite. The filters we set up are for &ldquo;Process Name&rdquo; and &ldquo;Operation&rdquo;. We want the process to be <code>BxlServer.exe</code> and the operation &ldquo;TCP Receive&rdquo;.</p>
+<p>So, run <em>Process Monitor</em> as admin. To set the filter; under the <em>Filter</em> menu click the Filter menu item, and you see the &ldquo;Process Monitor Filter&rdquo; dialog. To create the filter we enter the conditions we want to match:</p>
+<ul>
+<li>The <em>Process Name</em> (from the first drop down) should be  <em>is</em> (from the second drop-down): <code>bxlserver.exe</code>.</li>
+<li><em>Operation</em> (first drop-down) <em>is</em> (second dropdown): &ldquo;TCP Receive&rdquo;</li>
+</ul>
+<p>You add and include the conditions included and added, and at this stage, the filter dialog looks something like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_II_procmon_filter.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Filters BxlServer</em></p>
+<p>What the filter says is that any &ldquo;TCP Receive&rdquo; events for <code>bxlserver.exe</code> should be monitored and displayed. When you have clicked &ldquo;OK&rdquo; out of the dialog box, we are ready to test this by executing the code for local context push (<em>Code Snippet 4</em>), local context pull (<em>Code Snippet 3</em> and <code>@isCtx = 0</code>) and SQLCC pull (<em>Code Snippet 3</em> and <code>@isCtx = 1</code>). When executing we look at the <em>Process Monitor</em> output, and the output for the local push is like so:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_II_procmon_push2.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>TCP Receive Local Context Push</em></p>
+<p>We see in <em>Figure 6</em> that the output looks quite &ldquo;tidy&rdquo; and by looking at the <code>Path</code> column see a connection between SQL Server and the SqlSatellite on port 13273 (<code>win10-dev:13273</code>). Furthermore, we see:</p>
+<ul>
+<li>There is one <code>BxlServer.exe</code> process with a process id of 17260.</li>
+<li>The data the BxlServer receives are what we covered in the <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series.</li>
+<li>The 50 rows we pushed to the BxlServer is the outlined (in blue) row with a length of 1392.</li>
+</ul>
+<p>Ok, so onto the local context pull:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_II_procmon_pull_loc_ctx2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>TCP Receive Local Context Pull</em></p>
+<p>Looking at <em>Figure 7</em> we see that there is quite a difference between when we push the data to the SqlSatellite. First, we see (highlighted in red) the usual connection between SQL Server and the SqlSatellite and how SQL Server sends data (authentication and script) to the SqlSatellite. Then, however, we see data going from SQL Server from a &ldquo;strange&rdquo; port: <code>ms-sql-s</code>. That &ldquo;name&rdquo; is <a href="http://www.t1shopper.com/tools/port-number/1433/"><em>IANA</em>&rsquo;s</a> (Internet Assigned Numbers Authority) definition for SQL Server&rsquo;s port 1433. As we know, port 1433 is the default port SQL uses for connections and retrieval of data. So it looks like that when we use pull, we connect to SQL Server over the default port and retrieves the data that way. Thinking about it, it makes sense as the connection is an ODBC connection. All the packets received by the SqlSatellite are the regular ODBC data packets. The actual 50 rows of data are in the packet outlined in blue with a length of 1358. As we use ODBC the protocol used to send the data is TDS.</p>
+<p>Oh, TDS - that is probably a reason why the local pull is slower than local push, as the local push uses the <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/"><strong>Binary eXchange Language</strong></a> protocol (BXL) which is very efficient for transferring data. Another reason why the local pull is slower than the local push, even with small datasets, is that for local pull there is much more happening, as we see in <em>Figure 7</em>.</p>
+<p>Right, then what about SQLCC pull:</p>
+<p>
+  <img src="/images/posts/sql_ml_services_compctx_II_procmon_pull_sqlcc2.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>TCP Receive SQLCC Pull</em></p>
+<p>Oh my, that is a lot! As in <em>Figure 7</em> the sections outlined in red is the connection between SQL Server and the SqlSatellite, and in blue it is the &ldquo;ODBC&rdquo; connection. What is noticeable is that there are multiple sections interleaved, as well that there are multiple <code>BxlServer.exe</code> processes involved (process id&rsquo;s 2108, 13360 and 15340). Well, maybe that is not such a surprise as we spoke about it in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>.</p>
+<p>What is more interesting though is that we receive the dataset both via the ODBC connection outlined in blue (length 1358), as well as the way we do it in the local push context, outlined in purple (length 1392)! That means that SQL sends data using both the TDS protocol as well as the BXL protocol.</p>
+<p>By seeing the amount of &ldquo;stuff&rdquo; happening in <em>Figure 8</em> we do realise why the SQLCC pull is not as efficient as local push and local pull (1.6 s vs ~200 ms). Having seen all this, we probably ask ourselves why the SQLCC pull was a lot faster (~15 s) than local pull (~23 s) for a big dataset and somewhat faster than the local push (~17 s)?</p>
+<p>Let us execute the code in <em>Code Snippet 3</em> and <em>Code Snippet 4</em> with <code>TOP (30000000)</code> (30 million) and see what <em>Process Monitor</em> tells us. For local push, we see many packets with a size of 65495 which is the maximum size for BXL data package. When we execute the local pull, we see many TDS packets with a size of 4096 followed by many packages with sizes ranging from ~70,000 up to 2.5 Mb. For me, it looks like the local pull is nowhere as efficient as the local push. Finally, the SQLCC pull shows the same behaviour as local pull with many TDS 4096 packages. However, after the TDS packages follows BXL packages where most have the maximum size of 65495.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I do not know why, in the case of SQLCC, data is first loaded via TDS and then BXL. I also do not know why in the case of local pull we see multiple 4096 packages followed by packages with an arbitrary big size. I see if I can find answers to this, in which case update this post (or write a new).</p>
+</blockquote>
+<h2 id="summary">Summary</h2>
+<p>This post set out to try to find out why SQLCC performs better than local context. I believe we found why this is the reason but not necessarily how it works.</p>
+<p>What did we see:</p>
+<ul>
+<li>Local push performs really, really well up until it does not :). It performs well up until you hit memory restrictions.</li>
+<li>Some of the memory issues can be alleviated by using the <code>@r_rowsPerRead</code> parameter (not shown in this post).</li>
+<li>When pushing the data (<code>@input_data_1</code>) we cannot use SQLCC.</li>
+<li>Both local pull as well as SQLCC uses ODBC connections, and the data transfer protocol is TDS.</li>
+<li>When using SQLCC the BXL protocol is also used.</li>
+<li>By the use of BXL we get very efficient processing of data, and that is the reasons we see good performance.</li>
+</ul>
+<p>After writing this post, I have quite a few questions which I will try to answer in a future post.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-07-01-interesting-stuff---week-26/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 26">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-07-08-interesting-stuff---week-27/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 27">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Facebook Prophet and Microsoft R Server" />
+    <meta property="og:title" content="Facebook Prophet and Microsoft R Server" />
+    <meta property="twitter:title" content="Facebook Prophet and Microsoft R Server" />
+    
+
+    
+    <meta name="description" content="How to use Facebook Prophet in Microsoft R Server / SQL Server R Services">
+    <meta property="og:description" content="How to use Facebook Prophet in Microsoft R Server / SQL Server R Services" />
+    <meta property="twitter:description" content="How to use Facebook Prophet in Microsoft R Server / SQL Server R Services" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Facebook Prophet and Microsoft R Server | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-05-20-facebook-prophet-and-microsoft-r-server/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-2017" title="SQL Server 2017">
+                            SQL Server 2017
+                        </a>
+                        
+                        <a class="tag" href="/tags/microsoft-r-server" title="Microsoft R Server">
+                            Microsoft R Server
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/r-tools-for-visual-studio" title="R Tools for Visual Studio">
+                            R Tools for Visual Studio
+                        </a>
+                        
+                        <a class="tag" href="/tags/facebook-prophet" title="Facebook Prophet">
+                            Facebook Prophet
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                    </div>
+                    <h1>Facebook Prophet and Microsoft R Server</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, May 20, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p><a href="https://en.wikipedia.org/wiki/Time_series">Time series</a> data is being used more and more in all industries, and of course we want to be able to forecast and predict future values. There are however a variety of challenges that come with producing a large number of forecasts across a variety of time series.</p>
+<p>The <a href="https://research.fb.com/category/data-science/">Facebook&rsquo;s data science team</a> has worked with time series forecasting for quite a while, and recently they open-sourced an internal tool for this type of forecasting: <a href="https://facebookincubator.github.io/prophet/">Facebook Prophet</a>.</p>
+<p>Recently there was a post on the Microsoft R Server forum if it was possible to use Prophet with Microsoft R Server, so I thought I&rsquo;d test it out. This post covers how to use it, both from a standalone Microsoft R Server as well as SQL Server R Services.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Prophet requires an R version of 3.2.3 or greater. Unfortunately an installation of SQL Server 2016 R Services, in-database as well as standalone, uses R 3.2.2. So Prophet cannot be run on SQL Server R Services 2016, unless you upgrade the R version. In this post I am running SQL Server R Services 2017, both in-database and standalone.</p>
+</blockquote>
+<p>So, in essence Prophet is just an R packet and should be installed as such. However on Windows, Prophet requires a compiler, <a href="http://mc-stan.org/">Stan</a>, which incurs some extra steps when installing Prophet.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The description of Stan from <a href="https://en.wikipedia.org/wiki/Stan_(software)">Wikipedia:</a> <em>Stan is a probabilistic programming language for statistical inference written in C++. The Stan language is used to specify a (Bayesian) statistical model with an imperative program calculating the log probability density function.</em>. So there!</p>
+</blockquote>
+<h2 id="stan--dependencies">Stan &amp; Dependencies</h2>
+<p>If you are on Windows, regardless if you want to use Prophet in a standalone version of Microsoft R Server or in SQL Server R Services, you need to install Stan, or rather the R version (RStan). There is also a Stan version for Python; PyStan. In addition to RStan there are some dependencies that need to be installed.</p>
+<p>There is a very good article about how to install RStan on Windows <a href="https://github.com/stan-dev/rstan/wiki/Installing-RStan-on-Windows">here</a>, and below follows a very short summary of the article.</p>
+<h3 id="rtools-installation">RTools Installation</h3>
+<p>Before you can install RStan you need to install a tool-chain that works with R, and - for this - RTools is an excellent choice.</p>
+<p>RTools can be downloaded form <a href="https://cran.r-project.org/bin/windows/Rtools/">here</a>, and you download the version that matches your Microsoft R Server&rsquo;s / SQL Server R Services version. The table below is a map between various Microsoft R Servers and the corresponding R version. I have not included SQL Server 2016 R Services as the R version is not compatible with Prophet:</p>
+<table>
+<thead>
+<tr>
+<th><strong>R Server</strong></th>
+<th><strong>R Version</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft R Server 8.x - 9.01</td>
+<td>3.3.2</td>
+</tr>
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+<tr>
+<td>Microsoft R Server 9.1</td>
+<td>3.3.3</td>
+</tr>
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+<tr>
+<td>SQL Server 2017 R Services</td>
+<td>3.3.3</td>
+</tr>
+<tr>
+<td>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-</td>
+<td>&mdash;&mdash;&mdash;&ndash;</td>
+</tr>
+</tbody>
+</table>
+<p>On the machine I test this on, I have the in-database as well as the standalone R Services from SQL Server 2017, so I downloaded the <code>Rtools34.exe</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you have installed the stand-alone version of Microsoft R that comes with SQL Server R Services, the version of R is the same as for SQL Server R Services.</p>
+</blockquote>
+<p>To install RTools double click the executable you just downloaded. What you need to ensure is that the <code>PATH</code> is set properly. So during the installation process, when it comes to the dialog <strong>Select Additional Tasks</strong> ensure that you check the check-box for <em>Edit the system PATH</em>:</p>
+<p>
+  <img src="/images/posts/prophet_rtool_install.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Edit the System Path</em></p>
+<p>After having checked the box for editing the PATH, just click through and let the install finish. After installation check that the PATH has been set. You do this by running <code>RTerm.exe</code> and executing <code>Sys.getenv('PATH')</code> from command prompt.</p>
+<p>Dependent on if you want to run RTools on a standalone Microsoft Windows R Server installation or in-database, you find <code>RTerm.exe</code> at different locations. On my box the locations are:</p>
+<ul>
+<li>Standalone Microsoft R Server: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code></li>
+<li>SQL Server R Services: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code></li>
+</ul>
+<p>After executing <code>Sys.getenv('PATH')</code>, you should see something like so:</p>
+<p>
+  <img src="/images/posts/prophet_rtool_install_path.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>RTools Path</em></p>
+<p>You can also check that <code>g++</code> (C++ compiler) can be called: <code>system('g++ -v')</code>. That should result in something like:</p>
+<p>
+  <img src="/images/posts/prophet_rtool_install_g&#43;&#43;.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Checking for g++</em></p>
+<h3 id="rstan-installation">RStan Installation</h3>
+<p>OK, so after all the above is OK - we can finally install RStan. RStan is just another package, and it should be installed as any other package (like Prophet, which we will see in a bit). Whereas RTools is just installed to a shared directory on the box where R resides, RStan needs to be installed for each R instance specifically.</p>
+<h4 id="standalone-microsoft-r-server">Standalone Microsoft R Server</h4>
+<p>To install R packages you use the function <code>install.packages()</code>. For a standalone Microsoft R Server instance there is not much more you need to do, apart from saying where to install the package from and what to do about dependencies:</p>
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the standalone instance (in my case: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code>).</li>
+<li>Execute the following code: <code>install.packages(&quot;rstan&quot;, repos = &quot;https://cloud.r-project.org/&quot;, dependencies=TRUE)</code></li>
+<li>This will run for a while, click yes for any questions during installation.</li>
+</ol>
+<p>When the installation has finished you can test that it has succeeded and that the tool chain works:</p>
+<ol>
+<li>Close down the <code>RTerm.exe</code> terminal and re-open it (as admin).</li>
+<li>Execute the code in <em>Code Snippet 1</em> below.</li>
+</ol>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># create an inline function fx</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">fx</span> &lt;- <span style="color:#268bd2">inline</span>::<span style="color:#268bd2">cxxfunction</span>( <span style="color:#268bd2">signature</span>(<span style="color:#268bd2">x</span> = <span style="color:#2aa198">&#34;integer&#34;</span>, <span style="color:#268bd2">y</span> = <span style="color:#2aa198">&#34;numeric&#34;</span> ) , 
+</span></span><span style="display:flex;"><span>            <span style="color:#2aa198">&#39;return ScalarReal( INTEGER(x)[0] * REAL(y)[0] ) ;&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">fx </span>(<span style="color:#2aa198;font-weight:bold">2L</span>,<span style="color:#2aa198;font-weight:bold">5</span> ) <span style="color:#93a1a1;font-style:italic"># the result should be 10</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Test of RStan Installation</em></p>
+<p>When executing the above, the result from <code>fx(2L,5)</code> should be 10.</p>
+<h4 id="sql-server-r-services-installation">SQL Server R Services Installation</h4>
+<p>The way to install a package in SQL Server R Services is similar to the standalone installation. However you cannot install a package to any directory, it has to be installed to the default package directory for the instance, as only only one package library is allowed.</p>
+<p>The code in <em>Code Snippet 2</em> below shows how to retrieve the default package library:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>  
+</span></span><span style="display:flex;"><span>           @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>         , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;OutputDataSet &lt;- data.frame(.libPaths());&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> (([<span style="color:#268bd2">DefaultLibraryName</span>] <span style="color:#cb4b16">VARCHAR</span>(<span style="color:#859900">MAX</span>) <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>));
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Retrieving Default Package Directory</em></p>
+<p>On my machine the directory is: <code>C:/Program Files/Microsoft SQL Server/MSSQL14.INST2K17CTP20/R_SERVICES/library</code>. So to install RStan:</p>
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the SQL Server R Services instance (in my case: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code>).</li>
+<li>Execute the code in <em>Code Snippet 3</em> at command prompt.</li>
+</ol>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#268bd2">pkg.dir</span> &lt;- <span style="color:#2aa198">&#34;C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\library&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">install.packages</span>(<span style="color:#2aa198">&#34;rstan&#34;</span>, <span style="color:#268bd2">repos</span> = <span style="color:#2aa198">&#34;https://cloud.r-project.org/&#34;</span>, <span style="color:#268bd2">dependencies</span>=<span style="color:#859900;font-weight:bold">TRUE</span>, <span style="color:#268bd2">lib</span> = <span style="color:#268bd2">pkg.dir</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Installing RStan on SQL Server R Services</em></p>
+<p>When I ran the code in <em>Code Snippet 3</em> on my box it ran OK, but it did not install all the dependencies as the install for the standalone installation did. I then tested the installation like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>  
+</span></span><span style="display:flex;"><span>           @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>         , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              library(&#34;rstan&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">              fx &lt;- inline::cxxfunction
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                ( signature(x = &#34;integer&#34;, y = &#34;numeric&#34; ) , 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">            &#39;&#39;return ScalarReal( INTEGER(x)[0] * REAL(y)[0] ) ;&#39;&#39;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">            res &lt;-fx(2L, 5)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">            cat(paste0(&#34;Result: &#34;, res))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">            cat(&#34;\n&#34;)&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4</strong> <em>Test of RStan Installation SQL Server R Services</em></p>
+<p>Initially, straight after installation, I received an error that <code>ggplot2</code> was missing. I resorted to copying all the packages from the package library for the standalone installation (<code>W:\Documents\R\win-library\3.3</code>) to the package library for the SQL Server R Services, and that sorted it the issue. When executing the code in <em>Code Snippet 4</em> a second time, all was OK:</p>
+<p>
+  <img src="/images/posts/prophet_rstan_sql_server.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Result from SQl Server R Services</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> My assumption is that when installing RStan the second time, the installation saw that I had the dependent packages installed already. However for SQL Server R Services all packages need to be installed in the default package library directory. For now it all works though.</p>
+</blockquote>
+<p>OK, now when we we have the various pre-requisites installed we can install Prophet.</p>
+<h2 id="prophet-installation">Prophet Installation</h2>
+<p>Compared to the installation of RStan (and its dependencies), the installation of Prophet is really straight forward. Let us start installing Prophet on a standalone Microsoft R Server instance.</p>
+<h3 id="install-prophet-on-microsoft-r-server">Install Prophet on Microsoft R Server</h3>
+<p>As you did with RStan you:</p>
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the standalone instance (in my case: <code>C:\Program Files\Microsoft SQL Server\140\R_SERVER\bin\x64</code>).</li>
+<li>Set the package library where to install Prophet to: <code>lib.dir &lt;- &quot;C:\\Program Files\\Microsoft SQL Server\\140\\R_SERVER\\library&quot;</code></li>
+<li>Execute the actual installation: install.packages(&ldquo;prophet&rdquo;, lib = lib.dir, repos = &ldquo;<a href="https://cloud.r-project.org/%22">https://cloud.r-project.org/&quot;</a>, dependencies = TRUE)</li>
+</ol>
+<blockquote>
+<p><strong>NOTE:</strong> The reason why I explicitly state where to get the package from in the code above is that I had problems with the Prophet package installing from Microsoft&rsquo;s R repo.</p>
+</blockquote>
+<p>The output from the code above will be something like so (heavily redacted):</p>
+<p>
+  <img src="/images/posts/prophet_install_standalone.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Install Prophet Microsoft R Server</em></p>
+<p>Prophet should now be installed and ready to use. Further below we&rsquo;ll see some examples how to use it.</p>
+<h3 id="install-prophet-on-sql-server-2017-r-services">Install Prophet on SQL Server 2017 R Services</h3>
+<p>The install of Prophet on SQL Server R Services does not differ much from the install on a standalone server:</p>
+<ol>
+<li>Open <code>RTerm.exe</code> as admin from the location for the SQL Server R Services instance (in my case: <code>C:\Program Files\Microsoft SQL Server\MSSQL14.INST2K17CTP20\R_SERVICES\bin\x64</code>).</li>
+<li>Execute the code in <em>Code Snippet 5</em>.</li>
+</ol>
+<pre tabindex="0"><code>lib.dir &lt;- &#34;C:\\Program Files\\Microsoft SQL Server\\MSSQL14.INST2K17CTP20\\R_SERVICES\\library&#34;
+install.packages(&#34;prophet&#34;, lib = lib.dir, repos = &#34;https://cloud.r-project.org/&#34;, dependencies = TRUE)
+</code></pre><p><strong>Code Snippet 5:</strong> <em>Installation of Prophet on SQL Server 2017 R Services</em></p>
+<p>The output from the execution is the same as you see in <em>Figure 5</em>.</p>
+<h2 id="use-prophet">Use Prophet</h2>
+<p>Now everything should be ready, and we should be able to use Prophet. To test it out I am &ldquo;shamelessly&rdquo; &ldquo;borrowing&rdquo; the examples from <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">here</a> (but I will just do the bare minimum to see that it works - no plotting etc.). The data I use is also the same; the log number of views to <a href="https://en.wikipedia.org/wiki/Peyton_Manning">Petyon Manning’s Wikipedia page</a>. The <code>csv</code> file can be downloaded from <a href="https://github.com/facebookincubator/prophet/blob/master/examples/example_wp_peyton_manning.csv">here</a>.</p>
+<p>After you have downloaded the <code>csv</code> file you can see it has two columns: <code>ds</code> which are dates, and <code>y</code> which shows the number of views of his page. This is now the data we&rsquo;ll use to predict future hits of his page. We&rsquo;ll start with the standalone Microsoft R Server installation.</p>
+<h3 id="test-code-microsoft-r-server">Test Code Microsoft R Server</h3>
+<p>For this test you can use any IDE you want, I&rsquo;m using R Tools for Visual Studio 2017. So following the <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">example</a>, this is what the code will look like:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># load prophet</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">library</span>(<span style="color:#268bd2">prophet</span>)
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># load dplyr, needed for mutate()</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">library</span>(<span style="color:#268bd2">dplyr</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># read in the csv data into a data frame</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">df</span> &lt;- <span style="color:#268bd2">read.csv</span>(<span style="color:#2aa198">&#39;W:/nielsb-work/GitHub-Repos/prophet/
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                  examples/example_wp_peyton_manning.csv&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># convert the y variable to a natural logarithm</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">df</span> &lt;- <span style="color:#268bd2">mutate</span>(<span style="color:#268bd2">df</span>, <span style="color:#268bd2">y</span> = <span style="color:#268bd2">log</span>(<span style="color:#268bd2">y</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># create the model</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">m</span> &lt;- <span style="color:#268bd2">prophet</span>(<span style="color:#268bd2">df</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># create a dataframe to fit a forecast into</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">future</span> &lt;- <span style="color:#268bd2">make_future_dataframe</span>(<span style="color:#268bd2">m</span>, <span style="color:#268bd2">periods</span> = <span style="color:#2aa198;font-weight:bold">365</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># do the forecast</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">forecast</span> &lt;- <span style="color:#268bd2">predict</span>(<span style="color:#268bd2">m</span>, <span style="color:#268bd2">future</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># print out some data</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">tail</span>(<span style="color:#268bd2">forecast</span><span style="color:#268bd2">[c</span>(<span style="color:#2aa198">&#39;ds&#39;</span>, <span style="color:#2aa198">&#39;yhat&#39;</span>, <span style="color:#2aa198">&#39;yhat_lower&#39;</span>, <span style="color:#2aa198">&#39;yhat_upper&#39;</span>)<span style="color:#268bd2">]</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Forecasting With Prophet</em></p>
+<p>If you want to know what the code does, look at the comments in the code block. You can also look at the <a href="https://facebookincubator.github.io/prophet/docs/quick_start.html#r-api">Prophet Quick Start page</a> mentioned above, there they explain it quite well.</p>
+<p>Below you see the output from running the code, from the point where <code>forecast &lt;- predict(m, future)</code> was called:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-r" data-lang="r"><span style="display:flex;"><span>&gt; <span style="color:#268bd2">forecast</span> &lt;- <span style="color:#268bd2">predict</span>(<span style="color:#268bd2">m</span>, <span style="color:#268bd2">future</span>)
+</span></span><span style="display:flex;"><span>&gt; <span style="color:#268bd2">tail</span>(<span style="color:#268bd2">forecast</span><span style="color:#268bd2">[c</span>(<span style="color:#2aa198">&#39;ds&#39;</span>, <span style="color:#2aa198">&#39;yhat&#39;</span>, <span style="color:#2aa198">&#39;yhat_lower&#39;</span>, <span style="color:#2aa198">&#39;yhat_upper&#39;</span>)<span style="color:#268bd2">]</span>)
+</span></span><span style="display:flex;"><span>             <span style="color:#268bd2">ds</span>     <span style="color:#268bd2">yhat</span> <span style="color:#268bd2">yhat_lower</span> <span style="color:#268bd2">yhat_upper</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3265</span> <span style="color:#2aa198;font-weight:bold">2017-01-14</span> <span style="color:#2aa198;font-weight:bold">7.832611</span>   <span style="color:#2aa198;font-weight:bold">7.133318</span>   <span style="color:#2aa198;font-weight:bold">8.577273</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3266</span> <span style="color:#2aa198;font-weight:bold">2017-01-15</span> <span style="color:#2aa198;font-weight:bold">8.214427</span>   <span style="color:#2aa198;font-weight:bold">7.507750</span>   <span style="color:#2aa198;font-weight:bold">8.924990</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3267</span> <span style="color:#2aa198;font-weight:bold">2017-01-16</span> <span style="color:#2aa198;font-weight:bold">8.539490</span>   <span style="color:#2aa198;font-weight:bold">7.824840</span>   <span style="color:#2aa198;font-weight:bold">9.325312</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3268</span> <span style="color:#2aa198;font-weight:bold">2017-01-17</span> <span style="color:#2aa198;font-weight:bold">8.326945</span>   <span style="color:#2aa198;font-weight:bold">7.660892</span>   <span style="color:#2aa198;font-weight:bold">9.099628</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3269</span> <span style="color:#2aa198;font-weight:bold">2017-01-18</span> <span style="color:#2aa198;font-weight:bold">8.159623</span>   <span style="color:#2aa198;font-weight:bold">7.447501</span>   <span style="color:#2aa198;font-weight:bold">8.897813</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">3270</span> <span style="color:#2aa198;font-weight:bold">2017-01-19</span> <span style="color:#2aa198;font-weight:bold">8.171545</span>   <span style="color:#2aa198;font-weight:bold">7.473959</span>   <span style="color:#2aa198;font-weight:bold">8.911978</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Result from Forecasting with Prophet</em></p>
+<p>The <code>forecast</code> object is a data frame with a column <code>yhat</code> containing the forecast. It has additional columns for uncertainty intervals and seasonal components.</p>
+<h3 id="test-code-sql-server-r-services">Test Code SQL Server R Services</h3>
+<p>Having done the Microsoft R Server test, let us do the test against SQL Server R Services. I want upfront say that there is an issue with running this on SQL Server R Services, whereby dates returned in the model are shown incorrectly. At the moment I am not sure why this is the case - if someone reading this knows the reason, please let me know. I do believe it may be due to some incorrect package in the SQL Server R Services installation, but I am not sure.</p>
+<p>Anyway, let&rsquo;s just see what it would look like running more or less the same code as in <em>Code Snippet 6</em>, inside SQL Server R Services. Let&rsquo;s take the code in <em>Code Snippet 6</em>, and enable it to run in SQL Server. You do that by encapsulation the R code inside the <code>@script</code> parameter in <code>sp_execute_external_script</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">EXECUTE</span> <span style="color:#268bd2">sp_execute_external_script</span>  
+</span></span><span style="display:flex;"><span>                    @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span>
+</span></span><span style="display:flex;"><span>                  , @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # load prophet
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      library(prophet)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # load dplyr, needed for mutate()
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      library(dplyr)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # read in the csv data into a data frame
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      df &lt;- read.csv(&#34;W:\\nielsb-work\\GitHub-Repos\\prophet\\examples\\example_wp_peyton_manning.csv&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # convert the y variable to a natural logarithm
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      df &lt;- mutate(df, y = log(y))
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # create the model
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      m &lt;- prophet(df)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # create a dataframe to fit a forecast into
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      future &lt;- make_future_dataframe(m, periods = 365)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # do the forecast
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      forecast &lt;- predict(m, future)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      # output the result of the forecast
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                      OutputDataSet &lt;- data.frame(forecast[c(&#34;ds&#34;, &#34;yhat&#34;, &#34;yhat_lower&#34;, &#34;yhat_upper&#34;)])&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#859900">RESULT</span> <span style="color:#859900">SETS</span> ((<span style="color:#268bd2">ds</span> <span style="color:#268bd2">datetime</span>, <span style="color:#268bd2">yhat</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>), <span style="color:#268bd2">yhat_lower</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>), <span style="color:#268bd2">yhat_upper</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">50</span>)) );
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Executing Prophet in SQL Server</em></p>
+<p>The only difference from what we see in <em>Code Snippet 6</em>, is that we output the result as a result set. When you execute the code you will get 3270 rows back: 2905 historical, and 365 predicted. However as I said above, there seems to be something not quite right when running it in SQL Server as the dates are completely wrong, and the values are also a bit off. In <em>Figure 6</em> below, you see the last 6 rows returned from SQL Server, compare that with the same in <em>Code Snippet 7</em>, and you will see some differences (apart from the dates).</p>
+<p>
+  <img src="/images/posts/prophet_result_sql_server.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Result from SQL Server Execution</em></p>
+<p>Anyway, this post was more about if you can, and if so how, run Prophet in Microsoft R Server and SQL Server R Services, which we now see we can.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Prophet can be run in both Microsoft R Server as well as SQL Server R Services.</li>
+<li>Prophet requires R 3.2.3 or above, so a standard SQL Server 2016 R installation is not going to work.</li>
+<li>There seems to be an issue when executing Prophet inside SQL Server, as dates come out completely wrong, and values are somewhat off. I&rsquo;ll try and find out why this is the case.</li>
+</ul>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/" data-toggle="tooltip" data-placement="top" title="Microsoft SQL Server R Services - Internals VI">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-05-21-interesting-stuff---week-20/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 20">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

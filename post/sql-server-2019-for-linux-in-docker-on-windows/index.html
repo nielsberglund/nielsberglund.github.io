@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="SQL Server 2019 for Linux in Docker on Windows" />
+    <meta property="og:title" content="SQL Server 2019 for Linux in Docker on Windows" />
+    <meta property="twitter:title" content="SQL Server 2019 for Linux in Docker on Windows" />
+    
+
+    
+    <meta name="description" content="A look at how to run SQL Server 2019 for Linux in a Docker container on a Windows machine.">
+    <meta property="og:description" content="A look at how to run SQL Server 2019 for Linux in a Docker container on a Windows machine." />
+    <meta property="twitter:description" content="A look at how to run SQL Server 2019 for Linux in a Docker container on a Windows machine." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>SQL Server 2019 for Linux in Docker on Windows | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/sql-server-2019-for-linux-in-docker-on-windows/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-2019" title="SQL Server 2019">
+                            SQL Server 2019
+                        </a>
+                        
+                        <a class="tag" href="/tags/azure-data-studio" title="Azure Data Studio">
+                            Azure Data Studio
+                        </a>
+                        
+                        <a class="tag" href="/tags/docker" title="Docker">
+                            Docker
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                        <a class="tag" href="/tags/java" title="Java">
+                            Java
+                        </a>
+                        
+                    </div>
+                    <h1>SQL Server 2019 for Linux in Docker on Windows</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, September 29, 2018
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>By the time I publish this blog post <a href="https://www.microsoft.com/en-us/ignite">MS Ignite</a> is over. During Ignite, Microsoft announced quite a few new things, amongst them <strong>SQL Server 2019</strong> with a whole lot of new features and functionality.</p>
+<p>I touched briefly on some of them in my <a href="/post/2018-09-24-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a> post. A couple of things that caught my eye were that <strong>SQL Server 2019 for Linux</strong> now supports In-Database analytics, what we know as <strong>SQL Server Machine Learning Services</strong> (R and Python), as well as the Java language extension.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You may ask yourself what the Java language extension is; well, that is the ability to access Java code from T-SQL. It is a little bit like SQLCLR, but it executes outside of the SQL Server memory and process space.</p>
+</blockquote>
+<p>Seeing that I never really have played around with <em>SQL Server for Linux</em>, mostly due to that in previous versions (2017) it did not have support for In-Database analytics, I thought that now would be a good time to have a look.</p>
+<p>Cool, so install <em>SQL Server 2019 for Linux</em> and start to play around! Hmm, what do I install it on - I am a Windows guy, this whole Linux thing is &ldquo;scary&rdquo;. Ok, I guess I could spin up a virtual machine and install it there, but I am lazy. Create a VM, and then install SQL Server seemed like too much work.</p>
+<p>Then I thought about my mate and colleague <a href="https://twitter.com/charllamprecht">Charl Lamprecht</a>, a.k.a <a href="https://charlla.com/kafka-donuts/">The Donut Maker</a>, and how he raves about Docker. So maybe I should run <em>SQL Server 2019 for Linux</em> in a container, problem solved. Uh, maybe not; you see - I have never used Docker. I am an old guy (some would even call me a &ldquo;Grumpy Old Man&rdquo;, a <em>GOM</em>), and you know the saying about old dogs and new tricks.</p>
+<p>So anyway, I decided to give it a go; how hard can it be (it turns out not hard at all), and this post is about the steps I took to get <em>SQL Server 2019 for Linux</em> running in Docker on Windows.</p>
+<h2 id="docker-for-windows">Docker for Windows</h2>
+<p>This post does not cover how to download and install Docker for Windows, as there are lots of posts out there about it. If you want somewhere to start; <a href="https://docs.docker.com/v17.09/docker-for-windows/">Get started with Docker for Windows</a> is an excellent starting point.</p>
+<p>I do, however, want to point out a couple of things, that caught me out:</p>
+<ul>
+<li>Hyper-V needs to be enabled on your host computer. This means you cannot run Virtual Box VM&rsquo;s at the same time.</li>
+<li>When you install Docker, you decide whether you want to run Linux or Windows containers. So, if you install Docker for Windows intending to run <em>SQL Server 2019 for Linux</em>, you choose Linux containers.</li>
+</ul>
+<p>You can change the choice between Linux and Windows containers from the Docker icon in the system tray (right click on the icon):</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_container_type.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Change Container Type</em></p>
+<p>In <em>Figure 1</em> we see the menu entry to change the Docker container type to Windows. To change container type works the other way around as well; changing from Windows to Linux.</p>
+<h2 id="docker-basics">Docker Basics</h2>
+<p>Before we look at how to get and install the SQL Server &ldquo;stuff&rdquo; let us discuss some basics, and let us start with some vocabulary:</p>
+<ul>
+<li>Layer: a set of read-only files or commands that describe how to set up the underlying system beneath the container</li>
+<li>Image: this is the piece of &ldquo;something&rdquo;, in our case <em>SQL Server 2019 for Linux</em>, that you want to install. The image consists of one or more layers.</li>
+<li>Container: you download an image and create a container, and this is what you interact with.</li>
+<li>Registry: where images are stored and delivered from.</li>
+</ul>
+<p>In our case we:</p>
+<ul>
+<li>Connect to a registry which contains a <em>SQL Server 2019 for Linux</em> image.</li>
+<li>We download the image and create a container.</li>
+<li>We &ldquo;run&rdquo; the container and interact with SQL Server.</li>
+</ul>
+<p>The interaction with Docker (download image, create a container, etc.) is via CLI (Command Line Interface), using the <code>docker</code> base command followed by child commands and options/parameters (<code>docker childcommand</code>). Examples of child commands:</p>
+<ul>
+<li><code>login</code>: logs in to a Docker registry.</li>
+<li><code>pull</code>: retrieve an image from a registry.</li>
+<li><code>images</code>: returns a list of images on the machine.</li>
+<li><code>run</code>: creates a new container from an image and starts it. If the image has not been <code>pull</code>:ed yet, it also pulls the image.</li>
+<li><code>ps</code>: Lists containers.</li>
+<li><code>exec</code>: executes a command in a container. For example, you want to run a command shell in the container.</li>
+<li><code>stop</code>: stops a running container.</li>
+<li><code>start</code>: starts up an existing stopped container.</li>
+<li><code>rm</code>: removes a container.</li>
+</ul>
+<p>To see a full list of commands you can go <a href="https://docs.docker.com/engine/reference/commandline/docker/">here</a>.</p>
+<p>As I mentioned above, we interact with Docker via the command line, and when you are on Windows, you most likely use <em>Powershell</em>. In this post I do it somewhat differently in that I do not use the actual <em>Powershell</em> shell, but instead <strong>Azure Data Studio</strong>.</p>
+<h2 id="azure-data-studio">Azure Data Studio</h2>
+<p>What is Azure Data Studio then? Well, it is the evolution of SQL Operations Studio. The blog post <a href="https://cloudblogs.microsoft.com/sqlserver/2018/09/25/azure-data-studio-for-sql-server/">Azure Data Studio for SQL Server</a>, introduces it like so:</p>
+<p><em>Azure Data Studio is a new cross-platform desktop environment for data professionals using the family of on-premises and cloud data platforms on Windows, MacOS, and Linux. Previously released under the preview name SQL Operations Studio, Azure Data Studio offers a modern editor experience with lightning fast IntelliSense, code snippets, source control integration, and an <strong>integrated terminal</strong>. It is engineered with the data platform user in mind, with built-in charting of query resultsets and customizable dashboards.</em></p>
+<p>We can think what we want about the &ldquo;blurb&rdquo; above, but <em>ADS</em> does have some interesting features, and for the Docker CLI work we use the integrated terminal:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_azure_data_studio.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Azure Data Studio and Integrated Terminal</em></p>
+<p>What we see in <em>Figure 2</em> is <em>ADS</em> with visualised resultsets, some dashboards and - outlined in red - the integrated terminal. Now, let us get down to business.</p>
+<h2 id="getting-the-sql-server-2019-for-linux-image">Getting the SQL Server 2019 for Linux Image</h2>
+<p>We get the <em>SQL Server 2019 for Linux</em> Docker image from the <a href="https://azure.microsoft.com/en-us/blog/microsoft-syndicates-container-catalog/">Microsoft Container Registry</a> (MCR). MCR acts as a single download source for Microsoft’s container images. Regardless of where customers discover Microsoft images, the pull source is <a href="https://azure.microsoft.com/en-us/services/container-registry/">mcr.microsoft.com</a>.</p>
+<p>To get the image I open <em>Azure Data Studio</em>:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_azure_data_studio2.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Docker Helper Files</em></p>
+<p>We see in <em>Figure 3</em> how I have the <code>2k19_linux.ps</code> file open in the <em>ADS</em> editor, and how that file contains some Docker commands. I open the integrated terminal in <em>ADS</em> through <strong>Ctrl + `</strong>, or by using the menu: &ldquo;View | Command Palette | View: Toggle Integrated Terminal&rdquo;:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_azure_data_studio3.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Integrated Terminal</em></p>
+<p>In <em>Figure 4</em> we see how the terminal is open (outlined in red) and it is the Powershell terminal (highlighted in red).</p>
+<blockquote>
+<p><strong>NOTE:</strong> The reason I use <em>ADS</em> is that I wanted to see what I can do with it, I could as easily have used the <em>Powershell</em> shell.</p>
+</blockquote>
+<p>Let us now get the SQL Server 2019 image, and I do it by copying the <code>docker pull ...</code>command from the file to the terminal and hit enter. In the terminal you now see something like so (output edited for readability):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>PS W:<span style="color:#2aa198">\n</span>ielsb-work<span style="color:#2aa198">\G</span>itHub-Repos<span style="color:#2aa198">\s</span>qlserver<span style="color:#2aa198">\d</span>ockerfiles&gt; 
+</span></span><span style="display:flex;"><span>    docker pull mcr.microsoft.com/mssql/server:vNext-CTP2.0-ubuntu
+</span></span><span style="display:flex;"><span>vNext-CTP2.0-ubuntu: Pulling from mssql/server
+</span></span><span style="display:flex;"><span>b234f539f7a1: Downloading [========&gt; ]  7.519MB/43.12MB
+</span></span><span style="display:flex;"><span>55172d420b43: Download <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>5ba5bbeb6b91: Download <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>43ae2841ad7a: Download <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>f6c9c6de4190: Download <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>28f02293f049: Download <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>5eb40916d530: Downloading [&gt;         ]   1.08MB/70.39MB
+</span></span><span style="display:flex;"><span>46e88947bdd0: Downloading [=&gt;        ]  8.634MB/414.5MB
+</span></span><span style="display:flex;"><span>26983ce22a89: Waiting
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Doing a Pull</em></p>
+<p>We see in <em>Code Snippet 1</em> how Docker retrieves the image. In fact, it retrieves the layers the image consists of. The layers are identified by the <code>b234f539f7a1</code>, <code>55172d420b43</code>, and so forth as we see in <em>Code Snippet 1</em>. Eventually, the <code>pull</code> finishes, and we see in the terminal:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>PS W:<span style="color:#2aa198">\n</span>ielsb-work<span style="color:#2aa198">\G</span>itHub-Repos<span style="color:#2aa198">\s</span>qlserver<span style="color:#2aa198">\d</span>ockerfiles&gt; 
+</span></span><span style="display:flex;"><span>    docker pull mcr.microsoft.com/mssql/server:vNext-CTP2.0-ubuntu
+</span></span><span style="display:flex;"><span>vNext-CTP2.0-ubuntu: Pulling from mssql/server
+</span></span><span style="display:flex;"><span>b234f539f7a1: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>55172d420b43: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>5ba5bbeb6b91: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>43ae2841ad7a: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>f6c9c6de4190: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>28f02293f049: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>5eb40916d530: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>46e88947bdd0: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>26983ce22a89: Pull <span style="color:#cb4b16">complete</span>
+</span></span><span style="display:flex;"><span>Digest: sha256:87e691e2e5f738fd64a427ebe935e4e5ccd...
+</span></span><span style="display:flex;"><span>Status: Downloaded newer image <span style="color:#859900">for</span> 
+</span></span><span style="display:flex;"><span>    mcr.microsoft.com/mssql/server:vNext-CTP2.0-ubuntu
+</span></span><span style="display:flex;"><span>PS W:<span style="color:#2aa198">\n</span>ielsb-work<span style="color:#2aa198">\G</span>itHub-Repos<span style="color:#2aa198">\s</span>qlserver<span style="color:#2aa198">\d</span>ockerfiles&gt;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Pull Finished</em></p>
+<p>After the <code>pull</code> command has finished, we can check what images we have by executing <code>docker images</code>. When I do it on my machine I see this:</p>
+<p>![](/images/posts/sql_2k19Docker_pulled images.png)</p>
+<p><strong>Figure 5:</strong> <em>Pulled Docker Images</em></p>
+<p>We see from <em>Figure 5</em> how the SQL Server image now exists on the machine.</p>
+<h4 id="creating-a-container">Creating a Container</h4>
+<p>Cool, we have an image. However, an image is just that, an image, and you cannot interact with it. To relate it to SQL Server, think about the image as an <code>.iso</code> install file. We need to &ldquo;install&rdquo; the image, e.g. create and run a container. For this we use the second <code>docker</code> command from  <em>Figure 3</em> above, and it looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -e <span style="color:#2aa198">&#34;ACCEPT_EULA=Y&#34;</span> <span style="color:#2aa198">\ </span>
+</span></span><span style="display:flex;"><span>           -e <span style="color:#2aa198">&#34;SA_PASSWORD=&lt;Strong!Passw0rd&gt;&#34;</span> <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>           -p 1433:1433 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>           --name sql2k19_1 <span style="color:#2aa198">\
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198"></span>           -d mcr.microsoft.com/mssql/server:vNext-CTP2.0-ubuntu
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Create &amp; Run a Container</em></p>
+<p>In <em>Code Snippet 3</em> we see how we use the <code>docker run</code> command to create the container. Let us look at the options:</p>
+<ul>
+<li><code>-e &quot;ACCEPT_EULA=Y&quot;</code>: As creating the container also installs SQL Server, we need to accept the SQL Server EULA. The <code>-e</code> option (also <code>--env</code>) sets environment variables. In this case, environment variables SQL Server requires.</li>
+<li><code>-e &quot;SA_PASSWORD=&lt;Strong!Passw0rd&gt;&quot;</code>: A second environment variable. When running SQL Server in a container, you need to set a password which follows the SQL Server default password policy. Otherwise, the container can not setup SQL server and will stop working. By default, the password must be at least 8 characters long and contain characters from three of the following four sets: Uppercase letters, Lowercase letters, Base 10 digits, and Symbols.</li>
+<li><code>-p 1433:1433</code>: The <code>-p</code> (or <code>--expose</code>) option binds a port on the host machine (to the left of the colon) to a port on the container. If you run multiple SQL Server containers, the SQL Server container uses port 1433 by default, and you should use different port numbers for the host machine: <code>-p 1401:1433</code> for example.</li>
+<li><code>--name sql2k19_1</code>: The <code>--name</code> option assigns a name to the container. This is like a SQL Server instance name.</li>
+<li><code>-d mcr.microsoft.com/mssql/server:vNext-CTP2.0-ubuntu</code>: This indicates which image to create a container from. The <code>-d</code> option tells Docker we want to run the container detached from the calling process. In other words, it is still up and running after you close the terminal.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> I mentioned above about the <code>-p</code> option that if you run multiple instances you should have different host ports. This is also true if you run a non Docker SQL Server instance on you machine.</p>
+</blockquote>
+<p>After we execute the code in <em>Code Snippet 3</em> we can check that we have a new container: <code>docker ps</code>:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_created_container.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Docker Container</em></p>
+<p>From what we see in <em>Figure 6</em>, it looks like we are in business! If we want to we can connect into the container and, for example, run a bash shell:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker <span style="color:#cb4b16">exec</span> -it sql2k19_1  /bin/bash
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Run bash Shell in the Container</em></p>
+<p>That is all well and good, but what about SQL Server?</p>
+<h2 id="test-the-container">Test the Container</h2>
+<p>Right, so now we have a container, and that container hopefully runs SQL Server. Let us try and connect to the SQL Server via <em>ADS</em>.</p>
+<p>So I switch from the <em>Explorer</em> view to <em>Servers</em>: <strong>Ctrl + G</strong>, and I click <em>New Connection</em>:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_ADS_new_connection.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>New Connection</em></p>
+<p>The <em>New Connection</em> is what is highlighted in red in <em>Figure 7</em>, and clicking it I get a connection dialog:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_ADS_connect.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>New Connection</em></p>
+<p>In the connection dialog we see, in <em>Figure 8</em>, how I want to connect to localhost (the highlighted &ldquo;.&rdquo; in the <code>Server</code> text box), the password is whatever password I set in <em>Code Snippet 3</em>, and I chose to give the connection a name (the highlighted part in the <code>Name</code> text box). So if everything works, when I click on <em>Connect</em> I should see something like so:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_ADS_connected.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Successful Connection</em></p>
+<p>As we see in <em>Figure 9</em> everything worked, and I am now connected to SQL Server 2019 for Linux, running in Docker container! To further prove all works I click on the &ldquo;New Query&rdquo; button (highlighted in red), and I execute a trivial <code>SELECT</code> statement: <code>SELECT * FROM sys.databases</code>:</p>
+<p>
+  <img src="/images/posts/sql_2k19Docker_ADS_query_result.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Result from Select</em></p>
+<p>In <em>Figure 10</em> we see how we get the result back! We can now continue working with <em>SQL Server 2019 for Linux</em>. If you for some reason want to shut down the container you run <code>docker stop &lt;containername&gt;</code> , and to start it up again - surprise, surprise - <code>docker start &lt;containername&gt;</code>.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we covered how we can run <em>SQL Server 2019 for Linux</em> in a Docker container on our Windows machine. We mentioned the Docker commands to use:</p>
+<ul>
+<li><code>docker pull</code></li>
+<li><code>docker run</code></li>
+<li><code>docker images</code></li>
+<li><code>docker ps</code></li>
+<li><code>docker stop</code></li>
+<li><code>docker start</code></li>
+</ul>
+<p>We mentioned how we map a port on the hosting machine to a port on the container, and how we should use different host ports when we have multiple SQL Server instances. The SQL Server in the container is by default using port 1433.</p>
+<p>In the post I also spoke about <em>Azure Data Studio</em> and some of its new functionality.</p>
+<p>In future blog posts I will talk more about <em>SQL Server 2019 for Linux</em>, especially the In-Database analytics and the Java extensions, as well as <em>Azure Data Studio</em>.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2018-09-24-sql-server-2019-public-preview/" data-toggle="tooltip" data-placement="top" title="What is New in SQL Server 2019 Public Preview">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2018-09-30-interesting-stuff---week-39/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 39">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

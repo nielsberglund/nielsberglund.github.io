@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XI" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XI" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XI" />
+    
+
+    
+    <meta name="description" content="What are the two strange TCP/IP packets sent from SQL Server to SqlSatellite, and who sends them?">
+    <meta property="og:description" content="What are the two strange TCP/IP packets sent from SQL Server to SqlSatellite, and who sends them?" />
+    <meta property="twitter:description" content="What are the two strange TCP/IP packets sent from SQL Server to SqlSatellite, and who sends them?" />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XI | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/sqlsatellite" title="SqlSatellite">
+                            SqlSatellite
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XI</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Friday, October 20, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the twelfth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eleventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the last <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">post</a> we spoke about how the transfer of data happens between SQL Server and the R components, and we saw how data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server. In the post we mentioned that the protocol being used is  <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>), and this post was supposed to talk about BXL.</p>
+<p>However, while I was investigating BXL I did some WinDbg <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a> in SQL Server and came across some interesting &ldquo;stuff&rdquo; that ties into how data is being sent, so I decided to post about that instead (a future post will definitely cover BXL).</p>
+<h2 id="recap">Recap</h2>
+<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, as mentioned above, we looked at how data was transferred from SQL Server to R. By using <strong>WireShark</strong> we could see how the data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server.</p>
+<blockquote>
+<p><strong>NOTE:</strong> We discussed the communications mechanisms in general and the TCP connection specifically in <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>.</p>
+</blockquote>
+<p>To see what happens in SQL Server as well as the launchpad service when a script executes we set some break-points in WinDbg, for both processes:</p>
+<ul>
+<li>SQL Server: <code>sqllang!SpExecuteExternalScript</code></li>
+<li>SQL Server: <code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li>SQL Server: <code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>SQL Server: <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li>Launchpad: <code>launchpad!Np::AcceptConnection</code></li>
+<li>Launchpad: <code>launchpad!Np::ReadAsync</code></li>
+<li>Launchpad: <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li>Launchpad: <code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ul>
+<p>The script used when investigation what happens is very simple:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(30)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-42&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Basic External Script</em></p>
+<p>The reason for using simple code like in <em>Code Snippet 1</em>, is that it might make it easier to understand what is happening, and we can compare with what is happening when executing some other, not so basic, code. Notice how in <em>Code Snippet 1</em> there is a <code>Sys.sleep</code>. It is there to make it easier to determine - when debugging - when data is sent to R and when data is coming back.</p>
+<p>When we executed the code in <em>Code Snippet 1</em>, we saw how the breakpoints where hit as below:</p>
+<ol>
+<li><code>sqllang!SpExecuteExternalScript</code> is called.</li>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li><code>launchpad!Np::AcceptConnection</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code> - notice how nothing happens in the SQL process until <code>WriteMessage</code> is executed.</li>
+<li><code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>Pause for <code>Sys.sleep</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ol>
+<p>The above led us to the conclusion - which I voiced in the start of this recap - that data may not be sent via the launchpad service, but over the SqlSatellite TCP connection. The reason that conclusion was achieved was that some of the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> did not have a corresponding <code>launchpad!Np::ReadAsync</code>.</p>
+<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we further proved that theory by using <em>Process Monitor</em> and capturing what TCP packets were sent to the SqlSatellite (or rather <code>BxlServer.exe</code> - which hosts SqlSatellite). When executing the code in <em>Code Snippet 1</em> we saw <em>Process Monitor</em> output like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_10_procmon_output1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Process Monitor Base Output</em></p>
+<p>Combined with the breakpoints the flow looked like below:</p>
+<ol>
+<li><code>sqllang!SpExecuteExternalScript</code> is called.</li>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code></li>
+<li><code>launchpad!Np::AcceptConnection</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li>TCP Connect</li>
+<li><code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li>TCP Receive</li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li>Pause for <code>Sys.sleep</code></li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li>TCP Receive</li>
+<li>TCP Receive</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>launchpad!Np::ReadAsync</code></li>
+<li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
+</ol>
+<p>From what we can see, the three first TCP events happens while we connect. The fourth happens after a <code>WriteMessage</code>, and the fifth after the second <code>WriteMessage</code> before <code>Sys.sleep</code>. The remainders will be covered when we investigate how data is returned to SQL Server.</p>
+<p>By using *<em>WireShark</em> we saw how the actual script was sent to SqlSatellite in one of the TCP packets, and if data (<code>@input_data_1 = SELECT ...</code>) was sent, that also was transferred in TCP packet(s). In <em>Figure 2</em> below we see what it looks like in <em>Process Monitor</em> when both script and data is sent:</p>
+<p>
+  <img src="/images/posts/sql_r_services_10_procmon_output3.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Process Monitor Output Data Select</em></p>
+<p>The two highlighted packets (with length of 350, and 6300 respectively) contains the data that is sent to SqlSatellite, but what are the two first packets being sent? That, and what in SQL Server that sends these packets are  what we&rsquo;ll try to figure out in the rest of this post.</p>
+<h2 id="packets-sent-from-sql-server">Packets Sent from SQL Server</h2>
+<p>So let&rsquo;s start at the top; when we look at <em>Figure 1</em> we see two <code>TCP Receive</code> after the connection is opened, and these two have a length of 217 and 17 respectively. Regardless what we execute, we&rsquo;ll always see these two &ldquo;events&rdquo; and they will always have the same lengths. Seeing that they appear after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, it may have something to do with setup of the connection, or something like that. To find out what these events are, let&rsquo;s do some &ldquo;spelunking&rdquo; using WinDbg. Run WinDbg as admin and attach to the <code>sqlservr.exe</code> process.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach WinDbg to a process, and what commands to use.</p>
+</blockquote>
+<p>When we look at the code flow above combining breakpoints together with the <em>Process Monitor</em> output we see that the two first <code>TCP Receive</code> events (the ones we are interested in appears after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, but there are no <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> preceding them. Let&rsquo;s see if we can find out something based on what <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> calls. In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we used the <code>uf [options] &lt;address&gt;</code> WinDbg command to see what a particular routine did, so let&rsquo;s do that for <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. In the WinDbg console execute <code>uf /c sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> (we&rsquo;re using the <code>/c</code> options which displays only the call instructions). That returns something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0x30</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">RetrieveConnection</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0x5d</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteProxy</span>::<span style="color:#268bd2">PostSetupMessage</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0x90</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">unresolvable</span> <span style="color:#268bd2">call</span>: <span style="color:#268bd2">call</span>    <span style="color:#268bd2">qword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rax</span>+<span style="color:#2aa198;font-weight:bold">48</span><span style="color:#268bd2">h</span>]
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0x9e</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">ex_raise_oom</span> (<span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d183fe0</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0xab</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CServerCargoContext</span>::<span style="color:#268bd2">CServerCargoContext</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0xc2</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">Init</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>+<span style="color:#2aa198;font-weight:bold">0x111</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSatelliteCargoContext</span>::<span style="color:#268bd2">SetupMessageWriter</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>ConnectToSatellite Calls</em></p>
+<p>Nothing, in <em>Code Snippet 2</em>, really stands out and screams &ldquo;pick me, pick me&rdquo; (think the donkey in Shrek) - for being responsible for the TCP events, so let&rsquo;s approach it from another angle. Let&rsquo;s try and see if we can find some routine that actually sends the TCP packets.</p>
+<p>For that we&rsquo;ll search in WinDbg for some routines that has TCP and Write in their names. So in the WinDbg console, execute the following: <code>x *!*TCP*Write*</code>. Hmm, that returned some interesting &ldquo;stuff&rdquo; (the result below is somewhat reduced for readability):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d1bac30</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteSync</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d1ba9b0</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteDone</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d1baf30</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteSyncPost</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d1b6f40</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">GatherWriteAsync</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">d1bb200</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteSyncWait</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">3</span><span style="color:#268bd2">cf79e40</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span> (&lt;<span style="color:#268bd2">no</span> <span style="color:#268bd2">parameter</span> <span style="color:#268bd2">info</span>&gt;)
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3&quot;:</strong> <em>Partial Output for TCP::Write</em></p>
+<p>The output in <em>Code Snippet 3</em> has some &ldquo;promising&rdquo; routines, where <code>sqllang!Tcp::WriteAsync</code> looks very interesting. Let&rsquo;s set some breakpoints:</p>
+<ul>
+<li><code>bp sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
+<li><code>bp sqllang!CUDXR_ExternalScript::ConnectToSatellite</code></li>
+<li><code>bp sqllang!Tcp::WriteAsync</code></li>
+</ul>
+<p>The breakpoints above are &ldquo;loosely&rdquo; based on what we did in [Internals - X], and hopefully they&rsquo;ll give us some clarity in what happens. After having set the breakpoints execute the code in <em>Code Snippet 1</em> and notice how the breakpoints are hit:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># here is sys.Sleep
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">WriteMessage</span>:
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4&quot;:</strong> <em>Breakpoints Hit</em></p>
+<p>The code in <em>Code Snippet 4</em> matches quite well up with what we saw in the flow in the beginning; <code>ConnectToSatellite</code> followed by two TCP events, followed by <code>WriteMessage</code>, TCP event, <code>WriteMessage</code> and TCP event, and then <code>Sys.sleep</code>. Here we see two <code>sqllang!Tcp::WriteAsync</code> calls after <code>ConnectToSatellite</code> without any <code>WriteMessage</code>. Maybe if we investigated the call-stack at the first <code>sqllang!Tcp::WriteAsync</code>, that could give us some more information:</p>
+<ol>
+<li>Execute the code in <code>Code Snippet 1</code> again.</li>
+<li>Let it run through the <code>WriteMessage</code> and <code>ConnectToSatellite</code> breakpoints.</li>
+<li>When the first <code>sqllang!Tcp::WriteAsync</code> breakpoint is hit, check the call-stack: <code>kc</code>.</li>
+</ol>
+<blockquote>
+<p><strong>NOTE:</strong> By using <code>kc</code> we display a clean stack trace where each display line includes only the module name and the function name.</p>
+</blockquote>
+<p>The call-stack after step 3 above, looks like so (I have &ldquo;snipped&rdquo; out some of the initial calls):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># Call Site
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">HandshakeWriteToken</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">02</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">ProcessAndWriteSecurityToken</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">03</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">ProcessAddProvider</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">NegotiateSecurityContext</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Sspi</span>::<span style="color:#268bd2">InitX</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">AddProvider</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIAddProviderEx</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">08</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">09</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">DataCargoAcceptTask</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">a</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">snip</span>]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Call Stack at First WriteAsync</em></p>
+<p>When we look at the call-stack we see some routines that have to do with security; <code>NegotiateSecurityContext</code>, <code>ProcessAndWriteSecurityToken</code>, etc. We also see a routine: <code>sqllang!SNIAddProviderEx</code>. This refers to the <strong>SQL Server Network Interface</strong> which is a protocol layer that establishes the network connection between the client and the server. Paired this with the routine <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> it seems that our initial thoughts that the first packet has something to do with setting up the connection to the satellite may not be totally off. Now, let the code run through by pressing F5 or <code>g</code> in the WinDbg console?</p>
+<p><strong>NOTE:</strong> At this stage, the TCP connection may be closed due to timeout and you eventually will get an error.</p>
+<p>So let&rsquo;s ensure that we have the part about <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> correct, by setting a breakpoint at it (<code>bp sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>). When you execute you will see how you hit that breakpoint breakpoint almost immediately. You can ignore that, and continue executing until you hit <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. After you have hit <code>ConnectToSatellite</code>  you break at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>. When you now continue execution you&rsquo;ll see something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">9f</span><span style="color:#268bd2">bc1990</span> <span style="color:#2aa198;font-weight:bold">488</span><span style="color:#268bd2">bc4</span>          <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">rax</span>,<span style="color:#268bd2">rsp</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">054</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">9e864</span><span style="color:#268bd2">a40</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">c8bdc</span>          <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">r11</span>,<span style="color:#268bd2">rsp</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">054</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">9e864</span><span style="color:#268bd2">a40</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">c8bdc</span>          <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">r11</span>,<span style="color:#268bd2">rsp</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span>:<span style="color:#2aa198;font-weight:bold">050</span>&gt; <span style="color:#268bd2">g</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">Breakpoint</span> <span style="color:#2aa198;font-weight:bold">2</span> <span style="color:#268bd2">hit</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">00007ff</span><span style="color:#2aa198;font-weight:bold">8</span>\`<span style="color:#2aa198;font-weight:bold">9e864</span><span style="color:#268bd2">a40</span> <span style="color:#2aa198;font-weight:bold">4</span><span style="color:#268bd2">c8bdc</span>          <span style="color:#268bd2">mov</span>     <span style="color:#268bd2">r11</span>,<span style="color:#268bd2">rsp</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Breakpoints Hit</em></p>
+<p>What happens is that straight after the <code>AuthenticateConnection </code> you will hit the <code>WriteAsync</code> breakpoint twice, the same way as we see in <em>Code Snippet 4</em>. The first hit at <code>WriteAsync</code> sort of makes sense, as it ties up with the call-stack we see in <em>Code Snippet 5</em>. But what about the second <code>WriteAsync</code> (the one that causes the second package to be sent), where does that come from? To try to figure that out, we start with the call-stack for that particular <code>WriteAsync</code>.</p>
+<p>Execute the code in <em>Code Snippet 1</em> again, and continue to the second <code>WriteAsync</code>. When you hit the breakpoint do a <code>kc</code> again. The call-stack should now look somewhat like this (this time it is the full call-stack):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span> <span style="color:#93a1a1;font-style:italic"># Call Site
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#2aa198;font-weight:bold">00</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">01</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">HandshakeWriteToken</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">02</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">ProcessAndWriteSecurityToken</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">03</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CryptoBase</span>::<span style="color:#268bd2">ProcessAddProvider</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">04</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIProcessAddProviderOnWorker</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">05</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Task</span>::<span style="color:#268bd2">Param</span>::<span style="color:#268bd2">Execute</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">06</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">RunTask</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">07</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SOS_Scheduler</span>::<span style="color:#268bd2">ProcessTasks</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">08</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SchedulerManager</span>::<span style="color:#268bd2">WorkerEntryPoint</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">09</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SystemThread</span>::<span style="color:#268bd2">RunWorker</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">a</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SystemThreadDispatcher</span>::<span style="color:#268bd2">ProcessWorker</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">b</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SchedulerManager</span>::<span style="color:#268bd2">ThreadEntryPoint</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">c</span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">BaseThreadInitThunk</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198;font-weight:bold">0</span><span style="color:#268bd2">d</span> <span style="color:#268bd2">ntdll</span>!<span style="color:#268bd2">RtlUserThreadStart</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Call Stack at Second WriteAsync</em></p>
+<p>Comparing the call-stack in <em>Code Snippet 7</em> with the one in <em>Code Snippet 5</em> we see that they are somewhat similar. We also see that <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> is nowhere to be seen in the second call-stack. However it looks like this call has something to do with SNI as there is the <code>sqllang!SNIProcessAddProviderOnWorker</code> call. So what causes the second <code>WriteAsync</code>? As we did with <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> let&rsquo;s see what calls <code>AuthenticateConnection</code> makes (<code>uf /c sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x9d</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNISetInfo</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0xbc</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIAddProviderEx</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x100</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x13c</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">RefCountImpl</span>&lt;<span style="color:#268bd2">CSQLSatelliteConnection</span>&gt;::<span style="color:#268bd2">Release</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x14a</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">FireAuthenticationXEvent</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x163</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x17a</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqldk</span>!<span style="color:#268bd2">SystemThread</span>::<span style="color:#268bd2">MakeMiniSOSThread</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x189</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">TlsGetValueStub</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x1bf</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">AutoSwitchPreemptive</span>::<span style="color:#268bd2">AutoSwitchPreemptive</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x1d5</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthorizeNamedPipeConnection</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x204</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIGetInfo</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x21c</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">SSPICLI</span>!<span style="color:#268bd2">QueryContextAttributesW</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x239</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">ADVAPI32</span>!<span style="color:#268bd2">CheckTokenMembershipStub</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x241</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">KERNEL32</span>!<span style="color:#268bd2">GetLastErrorStub</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x26c</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">FireAuthorizationXEvent</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x2a8</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">unresolvable</span> <span style="color:#268bd2">call</span>: <span style="color:#268bd2">call</span>    <span style="color:#268bd2">qword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rax</span>+<span style="color:#2aa198;font-weight:bold">10</span><span style="color:#268bd2">h</span>]
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x2b0</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SOS_ExternalAutoWait</span>::~<span style="color:#268bd2">SOS_ExternalAutoWait</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x2da</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">call</span> <span style="color:#268bd2">to</span> <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">SNIRemoveProvider</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Calls from AuthenticateConnection</em></p>
+<p>Looking at the code in <em>Code Snippet 8</em>, we can see the call to <code>sqllang!SNIAddProviderEx</code> (line 5), but nowhere we see <code>sqllang!SNIProcessAddProviderOnWorker</code>. A first thought would be that <code>SNIProcessAddProviderOnWorker</code> is called from another routine, but looking at the call-stack for the second <code>WriteAsync</code> call (<em>Code Snippet 7</em>), we cannot see any particular method that would call <code>SNIProcessAddProviderOnWorker</code>. The only thing we see is that the first call in the call-stack is a start of a new thread: <code>ntdll!RtlUserThreadStart</code>.</p>
+<p>Hmm, based on the fact that a new thread is started and we&rsquo;re doing SNI &ldquo;stuff&rdquo;, we may assume that we are still inside <code>AuthenticateConnection</code>. With that in mind we can now start &ldquo;spelunking&rdquo; away in <code>AuthenticateConnection</code>. From the code in <em>Code Snippet 8</em> wee see that the call to <code>SNIAddProviderEx</code> happens at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0xbc</code>. We know that the first call to <code>WriteAsync</code> happens after <code>SNIAddProviderEx</code>, which then tells us that the second <code>WriteAsync</code> must happen after <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0xbc</code>. Next call is at <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection+0x100</code>, so let us set a break-point there.</p>
+<p>When you execute again, (and ignore the first breaks on <code>AuthenticateConnection</code> and <code>AuthenticateConnection+0x100</code>), you will eventually see the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CUDXR_ExternalScript</span>::<span style="color:#268bd2">ConnectToSatellite</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mov</span>     <span style="color:#268bd2">qword</span> <span style="color:#268bd2">ptr</span> [<span style="color:#268bd2">rsp</span>+<span style="color:#2aa198;font-weight:bold">8</span>],<span style="color:#268bd2">rcx</span> <span style="color:#268bd2">ss</span>:<span style="color:#2aa198;font-weight:bold">0000010</span><span style="color:#268bd2">d</span>\`<span style="color:#2aa198;font-weight:bold">6e4</span><span style="color:#268bd2">fc2e0</span>=<span style="color:#2aa198;font-weight:bold">000002</span><span style="color:#268bd2">ab0d57d620</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mov</span>     <span style="color:#268bd2">rax</span>,<span style="color:#268bd2">rsp</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mov</span>     <span style="color:#268bd2">r11</span>,<span style="color:#268bd2">rsp</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">CSQLSatelliteConnection</span>::<span style="color:#268bd2">AuthenticateConnection</span>+<span style="color:#2aa198;font-weight:bold">0x100</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">call</span>    <span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">EventInternal</span>&lt;<span style="color:#268bd2">SuspendQueueSLock</span>&gt;::<span style="color:#268bd2">Wait</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sqllang</span>!<span style="color:#268bd2">Tcp</span>::<span style="color:#268bd2">WriteAsync</span>:
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mov</span>     <span style="color:#268bd2">r11</span>,<span style="color:#268bd2">rsp</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Calls from AuthenticateConnection 2</em></p>
+<p>Our hunch was right, we can see how we are breaking at <code>AuthenticateConnection+0x100</code> right before the second <code>WriteAsync</code>. In other words the two packets we are interested in are both sent during authentication of the TCP/IP connection between SQL Server and SqlSatellite.</p>
+<h2 id="summary">Summary</h2>
+<p>In this post we set out to find out more about the two TCP/IP packets that are sent from SQL Server to the SqlSatellite, before the actual packages with the script etc., are sent. After some WinDbg &ldquo;spelunking&rdquo; we figured out that the packets were sent during the connection to the SqlSatellite, more specifically during <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>.</p>
+<p>In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> I had a figure which tried to illustrate what happens in SQL Server when executing <code>sp_execute_external_script</code>, and - based on that figure - I created a new figure where I have included what we found out in this post:</p>
+<p>
+  <img src="/images/posts/sql_r_services_11_calls.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Flow in SQL Server</em></p>
+<p>The numbered arrows shows the communication out from SQL Server, and in what order it happens:</p>
+<ol>
+<li><code>sqllang!CSQLSatelliteConnection::OpenNpConnection</code> - SQL Server opens named pipe connection to the launchpad service.</li>
+<li><code>sqllang!CSQLSatelliteConnection::WriteMessage</code> - Message sent to the launchpad service.</li>
+<li>After the call above, the SqlSatellite opens a TCP/IP connection to SQL Server.</li>
+<li>During <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> SQL Server sends the first packet to the SQL Satellite. The packet has something to do with authentication.</li>
+<li>After the first packet is sent, a second packet (still within <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>), which also is related to authentication, is sent on a separate thread to SqlSatellite.</li>
+</ol>
+<p>Thus we have figured out what the two first packets are, and where they are sent from.</p>
+<p>In the next post we&rsquo;ll look at what is sending the packets containing the scripts, and what the flow looks like.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-10-13-interesting-stuff---week-41/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 41">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-10-22-interesting-stuff---week-42/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 42">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

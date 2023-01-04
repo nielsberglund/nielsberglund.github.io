@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Microsoft SQL Server R Services - Internals XIV" />
+    <meta property="og:title" content="Microsoft SQL Server R Services - Internals XIV" />
+    <meta property="twitter:title" content="Microsoft SQL Server R Services - Internals XIV" />
+    
+
+    
+    <meta name="description" content="Binary eXchange Language format, and strange packet sizes.">
+    <meta property="og:description" content="Binary eXchange Language format, and strange packet sizes." />
+    <meta property="twitter:description" content="Binary eXchange Language format, and strange packet sizes." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Microsoft SQL Server R Services - Internals XIV | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/sql-server-r-services" title="SQL Server R Services">
+                            SQL Server R Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/sql-server-machine-learning-services" title="SQL Server Machine Learning Services">
+                            SQL Server Machine Learning Services
+                        </a>
+                        
+                        <a class="tag" href="/tags/r" title="R">
+                            R
+                        </a>
+                        
+                        <a class="tag" href="/tags/windbg" title="WinDbg">
+                            WinDbg
+                        </a>
+                        
+                        <a class="tag" href="/tags/launchpad" title="Launchpad">
+                            Launchpad
+                        </a>
+                        
+                        <a class="tag" href="/tags/rterm.exe" title="RTerm.exe">
+                            RTerm.exe
+                        </a>
+                        
+                        <a class="tag" href="/tags/binary-exchange-language" title="Binary eXchange Language">
+                            Binary eXchange Language
+                        </a>
+                        
+                        <a class="tag" href="/tags/bxl" title="BXL">
+                            BXL
+                        </a>
+                        
+                    </div>
+                    <h1>Microsoft SQL Server R Services - Internals XIV</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, November 25, 2017
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the 15:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 14:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>Finally, after a couple of false starts this post will look into the protocol used when transferring data back and forth between SQL Server and the SqlSatellite: <strong>Binary eXchange Language</strong> (<strong>BXL</strong>). Why write about it at all? Well, the big reason why I wanted to know more about it, was due to the strange packet sizes I saw when inspecting data being sent from SQL Server to the SqlSatellite: one row with 5 numeric columns had a packet size of 6300 bytes!!!</p>
+<p>Before we dive down, let us recap</p>
+<h2 id="recap">Recap</h2>
+<p>That last few Internals blog-posts have all had the same thing in common, discussing data packets going from SQL Server to the SqlSatellite.</p>
+<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we saw how both the external script as well as data from <code>@input_data_1</code> was sent over a TCP/IP connection to the SqlSatellite from SQL Server, as in the figure below where we see output from <em>Process Monitor</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_10_procmon_output3.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Process Monitor Output Data Select</em></p>
+<p>We see in <em>Figure 1</em> the script packet with a length of 350, and the data packet with a length of 6300 being sent. We also see two packets with a size of 217 and 17 being sent (before the 350 and 6300) and we did not know what those packets were. In <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we figured out that they were authentication packets sent while the SqlSatelliteConnection was established, and we presented the flow like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_11_calls.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Flow in SQL Server</em></p>
+<p>In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we looked at at from where the script and data packets are sent (what routines), and we determined that the script packet was sent while the <code>sqllang!CSatelliteProxy::PostSetupMessage</code> routine was called, and the data packet(s) was sent during the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a> we also explained the two packets with a length of 28 we see in <em>Figure 1</em> (being sent after the two data packets), as end packets. Packets used to tell SqlSatellite that no more data is coming. We illustrated the internal SQL Server flow like this:</p>
+<p>
+  <img src="/images/posts/sql_r_services_12_calls.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Flow in SQL Server</em></p>
+<p>Finally in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we tried to figure out where and when the <code>SELECT</code> statement for <code>@input_data_1</code> is executed, and we saw the following:</p>
+<ul>
+<li>Before the SqlSatellite was initialized the statement is compiled.</li>
+<li>After the satellite has been initialized the statement is executed.</li>
+<li>If an error happens after the satellite has been initialized, SQL Server sends an abort message to the satellite in the <code>sqllang!CSQLSatelliteCommunication::SendAbort</code> routine.</li>
+</ul>
+<p>That leads us up to this post, where - as I said above - we&rsquo;ll look at BXL and why, in <em>Figure 1</em>, we see a packet with a length of 6300, when we just send one row consisting of 5 numeric columns.</p>
+<h2 id="housekeeping">Housekeeping</h2>
+<p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code.</p>
+<h4 id="helper-tools">Helper Tools</h4>
+<p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>Microsoft Message Analyzer</em>:</p>
+<ul>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li>In this post we will use <a href="https://www.microsoft.com/en-za/download/details.aspx?id=44226"><strong>Microsoft Message Analyzer</strong></a> to &ldquo;sniff&rdquo; and capture network packets. In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we used <em>WireShark</em>, but when writing this post I had some issues capturing TDS packets (they were marked as malformed) so I switched to <em>Message Analyzer</em> instead. There is a tutorial <a href="https://technet.microsoft.com/en-us/library/jj649776.aspx">here</a> how to use it.</li>
+</ul>
+<h4 id="code">Code</h4>
+<p>As we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we&rsquo;ll use a database with some specific tables for what we want to do in this post. The code below sets up the database and creates some tables with some data:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">SET</span> <span style="color:#268bd2">NOCOUNT</span> <span style="color:#859900">ON</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">DATABASE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">DATABASE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">USE</span> <span style="color:#268bd2">ResultData</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M_N</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M_N</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>                           <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>                           
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>, <span style="color:#268bd2">y</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>                         <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>                         <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>, 
+</span></span><span style="display:flex;"><span>                         <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">DROP</span> <span style="color:#859900">TABLE</span> <span style="color:#859900">IF</span> <span style="color:#859900">EXISTS</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Test1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Test1</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand1</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">4</span>) <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand2</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">4</span>) <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand3</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">4</span>) <span style="color:#859900">NOT</span> <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand4</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">4</span>) <span style="color:#859900">NULL</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">rand5</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">4</span>) <span style="color:#859900">NULL</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">tb_Test1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span>   (<span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>)
+</span></span><span style="display:flex;"><span>       , (<span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#859900">NULL</span>)
+</span></span><span style="display:flex;"><span>       , (<span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#2aa198">&#39;size&#39;</span>, <span style="color:#859900">NULL</span>, <span style="color:#859900">NULL</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">TOP</span>(<span style="color:#2aa198;font-weight:bold">1000000</span>) <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>) 
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">20</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">25</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">14</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">50</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span>  , <span style="color:#859900">CAST</span>(<span style="color:#859900">ABS</span>(<span style="color:#268bd2">CHECKSUM</span>(<span style="color:#268bd2">NEWID</span>())) % <span style="color:#2aa198;font-weight:bold">100</span> <span style="color:#859900">AS</span> <span style="color:#cb4b16">INT</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o1</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o2</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">CROSS</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">sys</span>.<span style="color:#268bd2">objects</span> <span style="color:#268bd2">o4</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M_N</span>(<span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> <span style="color:#268bd2">y</span>, <span style="color:#268bd2">rand1</span>, <span style="color:#268bd2">rand2</span>, <span style="color:#268bd2">rand3</span>, <span style="color:#268bd2">rand4</span>, <span style="color:#268bd2">rand5</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">rand_1M</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
+<p>We will also later on in this post create more tables for certain operations.</p>
+<h2 id="protocols">Protocols</h2>
+<p>Let us look at what started this investigation; the very big packet size when executing a seemingly innocent statement. In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we had code looking something like this:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1, rand2 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                   FROM dbo.rand_1M_N&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>External Script with Data Select</em></p>
+<p>Yes, yes, I know - the code wasn&rsquo;t exactly like that, but close enough. When we - in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> - executed the code we saw this big packet being sent to SqlSatellite. Let us now set up <em>Process Monitor</em> to filter for TCP packets sent to the <code>BxlServer.exe</code>, and execute and see the output from <em>Process Monitor</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_procmon_bxl1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Process Monitor Output</em></p>
+<p>We see now in <em>Figure 4</em> how we get a very big TCP packet (4046) sent to the SqlSatellite. This packet does contain the data; but 4046 from one row with two integer columns, surely there is something strange going on here? What would the size be if we did a pure <code>SELECT</code>, and didn&rsquo;t bother sending to SqlSatellite, e.g. we just execute in SSMS? So what we want to do is to execute <code>sp_executesql</code> with the statement in <em>Code Snippet 3</em>, and see what the packet size is:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_executesql</span> <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) y, rand1, rand2 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                FROM dbo.rand_1M_N&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Execute sp_executesql</em></p>
+<blockquote>
+<p><strong>NOTE:</strong> We use <code>sp_executesql</code> as that is close to what happens when the statement in <code>@input_data_1</code> is executed.</p>
+</blockquote>
+<p>To be able to capture the TCP packets in <em>Process Monitor</em> you need to ensure that the TCP/IP protocol is enabled in SQL Server Network Configuration:</p>
+<ul>
+<li>Open <em>Sql Server Configuration Manager</em>. If it is not in the Apps menu, you can start it up doing a <em>Windows Key + R</em>, and type <code>SQLServerManager13.msc</code> followed by enter.</li>
+<li>Expand the <em>SQL Server Network Configuration</em> node, and choose the instance to enable the protocol for.</li>
+<li>Enable the TCP/IP protocol and disable <em>Shared Memory</em>.</li>
+</ul>
+<p>On my machine it looks like this, for the default instance:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_network_conf.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>SQL Server Network Configuration</em></p>
+<p>Before you can start see the TCP packets in <em>Process Monitor</em> you need to create a filter to capture these packets, somewhat similar to what you have for the packets being sent to the SqlSatellite:</p>
+<ul>
+<li>Save the existing <em>Process Monitor</em> filter (<em>Filter</em> menu <em>Save Filter</em>) and give it a name.</li>
+<li>Create the new filter as per the figure below:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_14_procmon_tds_filter.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Filter to Capture TCP Packets</em></p>
+<p>After you have created the filter is a good idea to save that filer as well, so you can switch between filters when needed. Let&rsquo;s execute the code in <em>Code Snippet 3</em> and see what <em>Process Monitor</em> outputs:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_procmon_tds1.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Packets sp_executesql</em></p>
+<p>In <em>Figure 7</em> we see two packets being sent, the first one having a length of 37 and the second a length of 93. The second packet is the packet containing the result-set. Compare that to the packet we see in <em>Figure 4</em> - that&rsquo;s a big difference; 93 vs. 4043 and the data it contains is the same. So why is this?</p>
+<p>The reason we are seeing such a difference come down to what protocol is used for the data transfer. In the case of the data being transferred when executing the code in <em>Code Snippet x</em>, the protocol was <strong>Tabular Data Stream</strong> (<strong>TDS</strong>), and we already know that the protocol used for the data in <em>Code Snippet 2</em> was <strong>Binary eXchange Language</strong> (<strong>BXL</strong>).</p>
+<h4 id="tds">TDS</h4>
+<p>This post is about BXL. but let&rsquo;s mention a bit about TDS so we can later on in this post do some comparisons between these two protocols.</p>
+<p>The TDS Protocol is an application-level protocol used for the transfer of requests and responses between clients and database server systems. It allows for most actions that can happen between a client and server:</p>
+<ul>
+<li>Authentication and identification.</li>
+<li>Issuing of SQL batches, stored procedure calls, etc.</li>
+<li>Transaction manager requests.</li>
+<li>Returning data. The returned data is self-describing and record-oriented.</li>
+</ul>
+<p>When we executed the code in <em>Code Snippet 3</em>, (apart from authentication packets etc.) a packet would have been sent from the client (SSMS) with the request to execute the statement, followed by a response from SQL Server with the result data (that was the packet with a length of 93). The client receives the data and parses it based on the meta-data in the return packet.</p>
+<p>If you want to know more about TDS, it is quite well documented and the internet has quite a lot of information floating around. Even though there are quite a lot of information around, seeing that this series is a lot abut <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a>, let&rsquo;s see if we can learn something about the TDS protocol by using the tools we have at hand.</p>
+<p>We&rsquo;ll start with <em>Process Monitor</em> and look at packet sizes. The code you executed in <em>Code Snippet 3</em>, executed against the <code>dbo.rand_1M_N</code> table, where the columns are nullable. To not be &ldquo;led astray&rdquo; by null values, etc., we&rsquo;ll now use the <code>dbo.rand_1M</code> table where all columns are constrained to be non null (in all other aspects the table looks exactly the same as <code>dbo.rand_1M_N</code>). So:</p>
+<ul>
+<li>Ensure that the filter you created in <em>Figure 6</em> is loaded in <em>Process Monitor</em></li>
+<li>Clear the display.</li>
+</ul>
+<p>Now you can execute the code in <em>Code Snippet 4</em> below:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">sp_executesql</span> <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) y 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                FROM dbo.rand_1M&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sp_executesql</span> <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                FROM dbo.rand_1M&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">sp_executesql</span> <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1, rand2 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                FROM dbo.rand_1M&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>                               
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Execute Against Non-Nullable</em></p>
+<p>The idea with the code in <em>Code Snippet 4</em> is that you can see if there are any differences in the packet lengths, and from there potentially make some assumptions about the packets, The output when I execute looks like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_procmon_tds2.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Multiple Executions</em></p>
+<p>We can immediately see a difference between the first statement where we retrieve <code>y</code> (length 59) and the second where we get <code>rand1</code> (67). Both columns are non nullable integers, so part of the difference must be the column name length. So, in TDS result packets the column names are returned in the packet, and they are returned as unicode (double byte). When comparing first and second statement, the second statement&rsquo;s column name is 4 character longer than the first, so 8 bytes - and that would explain the difference.</p>
+<p>On to second and third statement. Third statement returns an additional column, where the size of the column is 4 bytes (integer) and the column name adds 10 bytes (length of <code>rand2</code> * 2). That gives us 14 bytes, and we now have 8 bytes un-accounted for. Those 8 bytes are for the column header, e.g. each column has a header of 8 bytes. As we have seen, the column header does not include the column name, but the column name is included in addition to the header.</p>
+<p>The code above retrieves 1 row - what about multiple rows, will we get column headers etc. again? To check this, execute <code>SELECT TOP(2) rand1, rand2 ...</code> and look at the packet length. When I execute that particular code I get a packet length of 98, e.g. 9 bytes more than for one record. We can definitely say that no new column headers are included . But why 98 bytes, I would have expected 97: i.e. 89 plus two integer column values of 4 bytes each? It looks like each row in the TDS result packet has an additional byte added to it.</p>
+<p>Based on all this, it seems that there may be some additional data in the TDS result packets, seeing that the first statement resulted in a packet with the length of 59. Let&rsquo;s sum up the parts for the first statement:</p>
+<ul>
+<li>Data type size - 4</li>
+<li>Column header  - 8</li>
+<li>Column name    - 2</li>
+<li>Row byte       - 1</li>
+</ul>
+<p>That gives us a total of 15 bytes, which means there is an extra 44 bytes in the packet - somewhere. Where those bytes are, is not of interest for this discussion, but what is interesting is what the packet looks like.</p>
+<p>For this we&rsquo;ll use <em>Microsoft Message Analyzer</em> (<em>MMA</em>). To use <em>MMA</em> we need to shut down <em>Process Monitor</em> first, and after <em>Process Monitor</em> is shut down, let&rsquo;s start up <em>MMA</em> as admin. After you have started <em>MMA</em>, here is what you do:</p>
+<ul>
+<li>Initialize a new &ldquo;packet capture&rdquo; session by clicking on the <em>Loopback and Unencrypted IPSEC</em> scenario as below:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_14_mma1.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Microsoft Message Analyzer</em></p>
+<ul>
+<li>Set a filter, where the filter is the source port for the packets: <code>tcp.SourcePort==1433</code> (we are using SQL Server&rsquo;s default port), and click <em>Apply</em>:</li>
+</ul>
+<p>
+  <img src="/images/posts/sql_r_services_14_mma_filter.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>MMA Filter</em></p>
+<p>The capture session has started and you&rsquo;ll see messages being captured. To not &ldquo;clutter&rdquo; the screen you can stop capturing either from the <em>Session</em> menu, or the stop button in the menu bar, or by pressing <strong>Shift + F5</strong>.</p>
+<p>To &ldquo;clear&rdquo; the display start capturing again (<strong>F5</strong>), and then execute <code>sp_executesql N'SELECT TOP(1) rand1 FROM dbo.rand_1M'</code> and see what <em>MMA</em> captures:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_mma_tds_1col.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>MMA Capture</em></p>
+<p>In <em>Figure 11</em> we see how <em>MMA</em> has captured some packets, and we are interested in the last row - where we in the <code>Summary</code> column see a length of 67. When we click on that row, the <code>Details 1</code> window looks like so:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_mma_tds_details.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Packet Details</em></p>
+<p>In <em>Figure 12</em> we see how we have clicked on the <code>Payload</code> entry, and by right clicking in the <code>Value</code> column we can copy out the binary value of the packet.</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>...<span style="color:#268bd2">C</span><span style="color:#2aa198;font-weight:bold">.4</span>............<span style="color:#2aa198;font-weight:bold">.8</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.1</span>.Ñ....ÿ..Á.........<span style="color:#268bd2">y</span>....þ..à.........
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Binary Packet - 1 Row 1 Column</em></p>
+<p>In <em>Code Snippet 5</em> we see how the column name is printed out in clear text, but the rest is fairly hard to make sense of. One thing we can assume though is that each character (or dot) represents a byte. To try and make things a little bit clearer, let&rsquo;s execute against a table with <code>varchar(4)</code> columns: <code>dbo.tb_Test1</code>. Reason for executing against <code>varchar</code> columns is that the column value is output in clear-text, and that might make it easier to see what is going on.</p>
+<blockquote>
+<p><strong>NOTE:</strong> I choose <code>varchar(4) NOT NULL</code> as column types, to make it as close to an integer - which we have looked at up until now - as possible.</p>
+</blockquote>
+<p>The statements we&rsquo;ll execute are the following:</p>
+<ul>
+<li><code>SELECT TOP(1) rand1 FROM dbo.tb_Test1</code></li>
+<li><code>SELECT TOP(1) rand1, rand2 FROM dbo.tb_Test1</code></li>
+<li><code>SELECT TOP(2) rand1, rand2 FROM dbo.tb_Test1</code></li>
+</ul>
+<p>This is what the captured binary packets look like on my machine when I execute the statements above:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//sp_executesql N&#39;SELECT TOP(1) rand1 FROM dbo.tb_Test1&#39;:
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>...<span style="color:#268bd2">L</span><span style="color:#2aa198;font-weight:bold">.5</span>.............§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.1</span>.
+</span></span><span style="display:flex;"><span>Ñ..<span style="color:#268bd2">size</span>ÿ..Á.........<span style="color:#268bd2">y</span>....þ..à.........
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//sp_executesql N&#39;SELECT TOP(1) rand1, rand2 FROM dbo.tb_Test1&#39;:
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>...<span style="color:#268bd2">k</span><span style="color:#2aa198;font-weight:bold">.5</span>.............§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.1</span>.......§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.2</span>.
+</span></span><span style="display:flex;"><span>Ñ..<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>ÿ..Á.........<span style="color:#268bd2">y</span>....þ..à.........
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">//sp_executesql N&#39;SELECT TOP(2) rand1, rand2 FROM dbo.tb_Test1&#39;:
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>...<span style="color:#268bd2">x</span><span style="color:#2aa198;font-weight:bold">.5</span>.............§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.1</span>.......§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.2</span>.
+</span></span><span style="display:flex;"><span>Ñ..<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>Ñ..<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>ÿ..Á.........<span style="color:#268bd2">y</span>....þ..à.........
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Binary Packets - 1 Row 1 Column, 1 Row 2 Columns, 2 Rows 2 Columns</em></p>
+<p>From <em>Code Snippet 6</em> above we see how the column values are printed in clear-text, and to make the copied values somewhat clearer I have entered a new-line after the last column name. What is common between the binary values in all packets in both <em>Code Snippet 5</em> and <em>Code Snippet 6</em>, is that the last part starts with the <code>ÿ</code> character, and it directly follows the last column value. It definitely looks like the <code>ÿ..Á.........y....þ..à.........</code> sequence defines the end.</p>
+<blockquote>
+<p><strong>NOTE:</strong> It turns out that the assumption about the <code>ÿ</code> sequence is correct. If we were to execute a statement that resulted in multiple TDS packets, only the last packet would have the <code>ÿ</code> sequence.</p>
+</blockquote>
+<p>When looking at <code>Ñ</code> character and what comes after it, we see in <em>Code Snippet 5</em> how there are 4 bytes (dots) after the <code>Ñ</code>, and in the first packet in <em>Code Snippet 6</em> there are 2 dots followed by the data in the column (<code>size</code>). In both cases it is followed by the <code>ÿ</code> sequence. For the other statements in <em>Code Snippet 6</em> we also see those two dots (bytes) preceding the column text. These two bytes defines the size of the variable length data, and those bytes are per variable length column.</p>
+<p>Looking some more at the <code>Ñ</code> character, wee see how it precedes the column values. In the first instance we had one row one column (2 bytes + 4 bytes), and in the second 2 columns and one row (12 bytes total). So to me it looks like the <code>Ñ</code> character is the start of a row, which would fit in with what we said abut each row had one byte added to it. When we look at the last packet (in <em>Code Snippet 6</em>), we see that our assumptions seem fairly accurate. That packet represents 2 rows, 2 columns, and we see 2 <code>Ñ</code> followed by the two column values each, with a final <code>ÿ</code> sequence. In essence, the result TDS packet looks something like this using the last packet in <em>Code Snippet 6</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>...<span style="color:#268bd2">x</span><span style="color:#2aa198;font-weight:bold">.5</span>.............§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.1</span>.......§....Ð<span style="color:#2aa198;font-weight:bold">.4</span>.<span style="color:#268bd2">r</span>.<span style="color:#268bd2">a</span>.<span style="color:#268bd2">n</span>.<span style="color:#268bd2">d</span><span style="color:#2aa198;font-weight:bold">.2</span>.
+</span></span><span style="display:flex;"><span>Ñ..<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>Ñ..<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>ÿ..Á.........<span style="color:#268bd2">y</span>....þ..à.........
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>TDS Packet</em></p>
+<p>From what we have seen so far and what we see in <em>Code Snippet 7</em>, we can deduce that TDS is a row based protocol; there is a header-like initial part containing, among other things, column information. This is followed by the individual rows, and finally there is an end section.</p>
+<p>Phew, that was quite a bit about TDS. Hopefully, having covered this - it will help us in understanding BXL, or at least do comparisons.</p>
+<h2 id="binary-exchange-language-bxl">Binary eXchange Language (BXL)</h2>
+<p>Right, so back to what this post is all about - BXL. When Microsoft came up with Microsoft R Server / SQL Server R Services, BxlServer and SqlSatellite, they realized that using TDS for data transfers were not the most optimal way to do transfers. The reason being that TDS is basically a request response protocol, where the &ldquo;client&rdquo;:</p>
+<ul>
+<li>Sends a request to the server</li>
+<li>Receives responses from a request.</li>
+<li>Parses the response.</li>
+<li>Asks for more data, until the server indicates there are no more data.</li>
+</ul>
+<p>In the case of SQL Server R Services, the SqlSatellite is not doing a request, but the SQL Server pushes data to the SqlSatellite, and it wants to do is as efficient as possible. That&rsquo;s the reason (at least one of them) why Microsoft introduced BXL, where BXL is optimized for fast data transfers between SQL Server and external script engines.</p>
+<p>Right now you probably think: &ldquo;what is he talking about, transferring a packet of 4043 bytes (as above) does not seem efficient?!&rdquo;. No, you are right - but as we&rsquo;ll see, this is not always the case. For example, if we were to execute the statement in <em>Code Snippet 2</em>, but instead of against <code>dbo.rand1M_N</code> we do it against <code>dbo.rand1M</code> (the table we have used for the TDS examples), what would the output from <em>Process Monitor</em> be? The code would look like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">exec</span> <span style="color:#268bd2">sp_execute_external_script</span>
+</span></span><span style="display:flex;"><span>                 @<span style="color:#859900">language</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;R&#39;</span> ,
+</span></span><span style="display:flex;"><span>                 @<span style="color:#268bd2">script</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Sys.sleep(10)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                 d&lt;-InputDataSet&#39;</span>
+</span></span><span style="display:flex;"><span>               , @<span style="color:#268bd2">input_data_1</span> = <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;SELECT TOP(1) rand1, rand2 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                                   FROM dbo.rand_1M&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>External Script Non-Null Table</em></p>
+<p>Shut down <em>MMA</em> and open <em>Process Monitor</em> again (as admin) and load the filter you saved to filter against BxlServer. When you execute the code in <em>Code Snippet 7</em> you&rsquo;ll see <em>Process Monitor</em> reporting a packet size of 72 bytes! Hmm, 72 bytes vs. 4043 - what is going on? The only difference is that the columns in <code>dbo.rand_1M</code> are constrained to be not nullable, so it seems that a nullable column has a huge impact on packet sizes for BXL.</p>
+<h4 id="packet-layout">Packet Layout</h4>
+<p>OK, let&rsquo;s see if we can figure out the format of a BXL packet, and we&rsquo;ll do it in more or less the same way we did TDS packets above. So take the SQL statements in <em>Code Snippet 4</em>, and execute through <code>sp_execute_external_script</code>, and for each statement capture the packet size. When I do it I get following packet sizes:</p>
+<ol>
+<li><code>SELECT TOP(1) y FROM dbo.rand_1M</code>            - 36</li>
+<li><code>SELECT TOP(1) rand1 FROM dbo.rand_1M</code>        - 36</li>
+<li><code>SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M</code> - 72</li>
+</ol>
+<p>As we see in the list above, both statement 1 and statement 2 resulted in a same size packet. So it seems that column names do not have any impact on the size of the actual result packet being sent to SqlSatellite, e.g. they are not included in the packet. That sort of makes sense, since we in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> saw how the column names are being sent to the SqlSatellite in the script packet.</p>
+<p>Interesting is the size of the resulting packet for the third statement - it is twice the size of the packet for both the first and second statement! Is it a co-incidence that the third statement has two columns, where the two first statements have only one? To test that out, execute <code>sp_execute_external_script</code> as before but with the statement: <code>SELECT TOP(1) rand1, rand2, rand3 FROM dbo.rand_1M</code>, and see the packet size. The packet size comes out at 108 bytes, 3 times the size of the packet returning one row, one column. So it seems that each column &ldquo;weighs&rdquo; in at 36 bytes (including the data type size). So what about if there are more rows than one: <code>SELECT TOP(2) rand1, rand2 FROM dbo.rand_1M</code>, what will the packet size be? Ah, that returns a packet size of 80, 8 bytes more than for one row. So for a row, the size increase is for only the size of the data, no extra bytes for rows etc.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The above statement is true at least for non-nullable columns and fixed width data types.</p>
+</blockquote>
+<p>Given that one row, one column (integer) had size of 36, it seems that each column has an overhead of 32 bytes. Seeing what we&rsquo;ve seen so far, it looks like there is a difference in packet format between TDS and BXL, so let&rsquo;s do what we did with TDS and have a look at what the binary packets look like.</p>
+<p>Execute the statements in <em>Code Snippet 6</em>, but do it with <code>sp_execute_external_script</code> instead, like in <em>Code Snippet 7</em>. Capture the response packets with <em>MMA</em> like we did for TDS and see what they look like. This time when we filter the TCP, we need to do it on the SQL Server source port that listens on for the satellite connection. The easiest way to get that port number is to look at the <code>Path</code> column in <em>Process Monitor</em>:</p>
+<p>
+  <img src="/images/posts/sql_r_services_10_procmon_output_port.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Get Port Number from Path</em></p>
+<p>Equipped with the port number we can now execute the statements we used in <em>Code Snippet 6</em> (but with <code>sp_execute_external_script</code>), plus an added statement and see what the response packets look like, and also the sizes. The added statement is <code>SELECT TOP(2) rand1 FROM dbo.tb_Test1</code> and we should execute it as second statement in the &ldquo;batch&rdquo;. When I execute the four statements I get following packets and packet sizes:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// SELECT TOP(1) rand1 FROM dbo.tb_Test1        - 38
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>....&amp;...Þ.´<span style="color:#2aa198">&#34;/&gt;ì@£þRÞ/.F/..........size   </span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// SELECT TOP(2) rand1 FROM dbo.tb_Test1        - 44
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>....,.....ô|=<span style="color:#268bd2">b</span> <span style="color:#268bd2">A</span>.ú<span style="color:#268bd2">G</span>Ïóã¤...........<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// SELECT TOP(1) rand1, rand2 FROM dbo.tb_Test1 - 76
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>....&amp;.....¸<span style="color:#268bd2">U</span>Óè<span style="color:#268bd2">TN</span>¯¾<span style="color:#268bd2">u</span>î..ø<span style="color:#268bd2">o</span>..........<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>....&amp;.....¸<span style="color:#268bd2">U</span>Óè<span style="color:#268bd2">TN</span>¯¾<span style="color:#268bd2">u</span>î..ø<span style="color:#268bd2">o</span>..........<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">// SELECT TOP(2) rand1, rand2 FROM dbo.tb_Test1 - 88
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span>....,....Ð}.Ì\<span style="color:#268bd2">_K</span>¾+Ù+.<span style="color:#268bd2">sRq</span>..........<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span>
+</span></span><span style="display:flex;"><span>....,....Ð}.Ì\<span style="color:#268bd2">_K</span>¾+Ù+.<span style="color:#268bd2">sRq</span>..........<span style="color:#268bd2">size</span>..<span style="color:#268bd2">size</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>BXL Binary Packets</em></p>
+<p>This looks quite different from TDS. In TDS we saw a header with column information followed by rows of data followed by an end sequence. In BXL we get column oriented data, e.g. each row appears together with the column, and we are not seeing an end sequence. So whereby TDS is a row oriented protocol, BXL seems to be column oriented.</p>
+<p>Notice how the packet sizes for the results returned from the statements against the <code>varchar</code> columns are slightly bigger than from the <code>int</code> columns (38 vs. 36, 76 vs. 72). This is - as in TDS - due to each <code>varchar</code> column is preceded with 2 bytes, indicating data length. With that in mind, we see again how each column has a 32 bytes overhead, like a column header. What is in that column header then? Well, since BXL is not documented, it is hard to tell - my guess is that the header contains column information such as data type, maybe number of rows, potentially whether the column is nullable, etc.</p>
+<p>So, if the column header is 32 bytes, what is the storage size for each column (we have already mentioned that <code>varchar</code> seems to require more storage)? I did some testing by creating a table with one not nullable column each, for interesting data types (I started with numeric types), and inserted two rows per column into the table:</p>
+<blockquote>
+<p><strong>NOTE:</strong> Below we&rsquo;ll see why two rows.</p>
+</blockquote>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test3</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coltiny</span> <span style="color:#268bd2">tinyint</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colsmallint</span> <span style="color:#cb4b16">smallint</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colint</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colbigint</span> <span style="color:#cb4b16">bigint</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colfloat</span> <span style="color:#cb4b16">float</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colfloatsmall</span> <span style="color:#cb4b16">float</span>(<span style="color:#2aa198;font-weight:bold">10</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colreal</span> <span style="color:#cb4b16">real</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colmoney</span> <span style="color:#268bd2">money</span> <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coldec</span> <span style="color:#cb4b16">decimal</span>(<span style="color:#2aa198;font-weight:bold">4</span>,<span style="color:#2aa198;font-weight:bold">2</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coldec2</span> <span style="color:#cb4b16">decimal</span>(<span style="color:#2aa198;font-weight:bold">18</span>, <span style="color:#2aa198;font-weight:bold">10</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test3</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span> (<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>),
+</span></span><span style="display:flex;"><span>       (<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">3147483647</span>, <span style="color:#2aa198;font-weight:bold">100</span>.<span style="color:#2aa198;font-weight:bold">56</span>, <span style="color:#2aa198;font-weight:bold">1</span>.<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1234</span>.<span style="color:#2aa198;font-weight:bold">1234</span>, <span style="color:#2aa198;font-weight:bold">10</span>.<span style="color:#2aa198;font-weight:bold">15</span>, <span style="color:#2aa198;font-weight:bold">123456</span>.<span style="color:#2aa198;font-weight:bold">7891234</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Numeric Types Table</em></p>
+<p>I then executed <code>sp_execute_external_script</code> with a <code>SELECT TOP(1) column_name ...</code> followed by a <code>SELECT TOP(2) column_name ...</code> statement and noted the packet size in <em>Process Monitor</em>. Finally I compared the packet sizes, and tried to determine the size of the column in terms of storage.</p>
+<p>For the data types in the table in <em>Code Snippet 9</em> I came up with the following:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th style="text-align:center">Column Data Size</th>
+<th>Comments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td style="text-align:center">1</td>
+<td>-</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td style="text-align:center">2</td>
+<td>-</td>
+</tr>
+<tr>
+<td>int</td>
+<td style="text-align:center">4</td>
+<td>-</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td style="text-align:center">8</td>
+<td>-</td>
+</tr>
+<tr>
+<td>decimal / numeric</td>
+<td style="text-align:center">1 + (5 | 9 | 13 | 17)</td>
+<td>Size based on the precision. My assumption is that the pre-pended byte defines the precision (but I am not sure).</td>
+</tr>
+<tr>
+<td>float</td>
+<td style="text-align:center">4 | 8</td>
+<td>Size based on number of bits that are used to store the mantissa of the float number in scientific notation.</td>
+</tr>
+<tr>
+<td>real</td>
+<td style="text-align:center">4</td>
+<td>-</td>
+</tr>
+<tr>
+<td>money</td>
+<td style="text-align:center">4</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 1:</strong> <em>Column Data Type Storage Size</em></p>
+<p>What we see in <em>Table 1</em> is fairly straight forward, the only slightly confusing thing is the pre-pended byte on a <code>decimal</code> or <code>numeric</code> column.</p>
+<p>Even though you probably won&rsquo;t send that much alpha-numeric data to the SqlSatellite, I did a similar test for alpha-numeric data types:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test4</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colchar</span> <span style="color:#cb4b16">char</span>(<span style="color:#2aa198;font-weight:bold">10</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colnchar</span> <span style="color:#859900">nchar</span>(<span style="color:#2aa198;font-weight:bold">20</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colvchar</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">10</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colnvchar</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#2aa198;font-weight:bold">20</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colvcharmax</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colvcharmaxsmall</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>) <span style="color:#859900">not</span> <span style="color:#859900">null</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test4</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span> (<span style="color:#2aa198">&#39;Hello&#39;</span>, <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Hello&#39;</span>, <span style="color:#2aa198">&#39;Hello&#39;</span>,  <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Hello&#39;</span>, 
+</span></span><span style="display:flex;"><span>        <span style="color:#859900">CAST</span>(<span style="color:#268bd2">REPLICATE</span>
+</span></span><span style="display:flex;"><span>          (<span style="color:#859900">CAST</span>(<span style="color:#2aa198">&#39;Loads of data &#39;</span> <span style="color:#859900">as</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>)),<span style="color:#2aa198;font-weight:bold">1000</span>) <span style="color:#859900">AS</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>)), 
+</span></span><span style="display:flex;"><span>        <span style="color:#2aa198">&#39;Hello&#39;</span>),
+</span></span><span style="display:flex;"><span>        (<span style="color:#2aa198">&#39;Hello&#39;</span>, <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Hello&#39;</span>, <span style="color:#2aa198">&#39;Hello&#39;</span>,  <span style="color:#268bd2">N</span><span style="color:#2aa198">&#39;Hello&#39;</span>, 
+</span></span><span style="display:flex;"><span>        <span style="color:#859900">CAST</span>(<span style="color:#268bd2">REPLICATE</span>
+</span></span><span style="display:flex;"><span>          (<span style="color:#859900">CAST</span>(<span style="color:#2aa198">&#39;Loads of data &#39;</span> <span style="color:#859900">as</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>)),<span style="color:#2aa198;font-weight:bold">1000</span>) <span style="color:#859900">AS</span> <span style="color:#cb4b16">varchar</span>(<span style="color:#859900">max</span>)), 
+</span></span><span style="display:flex;"><span>        <span style="color:#2aa198">&#39;Hello&#39;</span>);
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Character Types Table</em></p>
+<p>I executed in the same way as for the numeric types and arrived at the following:</p>
+<ul>
+<li>The header was 32 bytes.</li>
+<li>Columns of alpha numeric type all had 2 bytes pre-pended to the bytes, except <code>max</code> types (see below).</li>
+<li>For <code>char</code> and <code>nchar</code> the storage size was 2 bytes plus the size the column was defined as.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes plus the size of the data stored.</li>
+</ul>
+<p>For <code>varchar(max)</code> (which was the only <code>varmax</code> type I checked against), the story was somewhat different:</p>
+<ul>
+<li>The header was 32 bytes.</li>
+<li>For a data-size up to 4000 bytes, 4 bytes were pre-pended</li>
+<li>When the data size exceeded 4000, the number of pre-pended bytes increased exponentially.</li>
+</ul>
+<p>Why the <code>varmax</code> types behaved as they did I am not sure, but for now I&rsquo;ll leave it at that. It may become a topic for a future post.</p>
+<h4 id="nullable-columns">Nullable Columns</h4>
+<p>Nullable columns, yes. As I&rsquo;ve said before, this post originated due to me seeing very strange packet sizes when sending data from SQL Server to the SqlSatellite; like in <em>Figure 4</em>. We saw then, in this post, how this was due to accessing data from nullable columns (in the beginning of the BXL section).</p>
+<p>Trying to figure out why nullable columns were different, I created a new test table, like <code>dbo.test3</code>, but this time with nullable columns:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test5</span>
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">RowID</span> <span style="color:#cb4b16">int</span> <span style="color:#859900">identity</span> <span style="color:#859900">primary</span> <span style="color:#859900">key</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coltiny</span> <span style="color:#268bd2">tinyint</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colsmallint</span> <span style="color:#cb4b16">smallint</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colint</span> <span style="color:#cb4b16">int</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colbigint</span> <span style="color:#cb4b16">bigint</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colfloat</span> <span style="color:#cb4b16">float</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colfloatsmall</span> <span style="color:#cb4b16">float</span>(<span style="color:#2aa198;font-weight:bold">10</span>),
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colreal</span> <span style="color:#cb4b16">real</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">colmoney</span> <span style="color:#268bd2">money</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coldec</span> <span style="color:#cb4b16">decimal</span>(<span style="color:#2aa198;font-weight:bold">4</span>,<span style="color:#2aa198;font-weight:bold">2</span>),
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">coldec2</span> <span style="color:#cb4b16">decimal</span>(<span style="color:#2aa198;font-weight:bold">18</span>, <span style="color:#2aa198;font-weight:bold">10</span>)
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span><span style="color:#859900">GO</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">dbo</span>.<span style="color:#268bd2">test5</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">VALUES</span> (<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>),
+</span></span><span style="display:flex;"><span>       (<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">100</span>.<span style="color:#2aa198;font-weight:bold">56</span>, <span style="color:#2aa198;font-weight:bold">1</span>.<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#2aa198;font-weight:bold">1234</span>.<span style="color:#2aa198;font-weight:bold">1234</span>, <span style="color:#2aa198;font-weight:bold">10</span>.<span style="color:#2aa198;font-weight:bold">15</span>, <span style="color:#2aa198;font-weight:bold">123456</span>.<span style="color:#2aa198;font-weight:bold">7891234</span>),
+</span></span><span style="display:flex;"><span>     (<span style="color:#2aa198;font-weight:bold">1</span>,<span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">100</span>.<span style="color:#2aa198;font-weight:bold">56</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">10</span>.<span style="color:#2aa198;font-weight:bold">15</span>, <span style="color:#859900">NULL</span>),
+</span></span><span style="display:flex;"><span>     (<span style="color:#859900">NULL</span>,<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">1</span>.<span style="color:#2aa198;font-weight:bold">1</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">1234</span>.<span style="color:#2aa198;font-weight:bold">1234</span>, <span style="color:#859900">NULL</span>, <span style="color:#2aa198;font-weight:bold">123456</span>.<span style="color:#2aa198;font-weight:bold">7891234</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Nullable Numeric Table</em></p>
+<p>When executing as before (two statements per column), the packet sizes were as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th style="text-align:center">1 Row</th>
+<th style="text-align:center">2 Rows</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td style="text-align:center">7313</td>
+<td style="text-align:center">7314</td>
+<td>-</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td style="text-align:center">3889</td>
+<td style="text-align:center">3891</td>
+<td>-</td>
+</tr>
+<tr>
+<td>int</td>
+<td style="text-align:center">2023</td>
+<td style="text-align:center">2027</td>
+<td>-</td>
+</tr>
+<tr>
+<td>real</td>
+<td style="text-align:center">2023</td>
+<td style="text-align:center">2027</td>
+<td>-</td>
+</tr>
+<tr>
+<td>float</td>
+<td style="text-align:center">2023 | 1050</td>
+<td style="text-align:center">2027 | 1058</td>
+<td>Based on storage size 4 or 8 bytes</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td style="text-align:center">1050</td>
+<td style="text-align:center">1058</td>
+<td></td>
+</tr>
+<tr>
+<td>money</td>
+<td style="text-align:center">1050</td>
+<td style="text-align:center">1058</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 2:</strong> <em>Nullable Packet Sizes</em></p>
+<p>Wow, what we see in <em>Table 2</em> is - to put it mildly - weird! Three things stand out:</p>
+<ul>
+<li>If we subtract the size of the data type, we get the overhead, as we did with non nullable types. But for nullable types, the overhead is different between data types, and it is related to the underlying data type.</li>
+<li>The overhead is greater for smaller data types!</li>
+<li>Where are <code>decimal</code> / <code>numeric</code>?</li>
+</ul>
+<p>The reason <code>decimal</code> is not in <em>Table 2</em>, is that when I ran the statements against the nullable <code>decimal</code> columns I got exactly the same result as for non nullable <code>decimal</code>! So for <code>decimal</code>, being nullable or not has no impact!</p>
+<p>By now I was utterly confused (more than usual), and decided to create a table like <code>dbo.test4</code>, but instead of the columns being non-nullable, they should be nullable. I then ran the same statement against that table as I did against <code>dbo.test4</code> to see the packet sizes for alpha-numeric nullable columns. The result did not differ anything from when I ran against <code>dbo.test4</code>! E.g. the behavior were the same as for <code>decimal</code>. I feel a headache coming on, so this is it for now!</p>
+<h2 id="summary">Summary</h2>
+<p>The purpose of this post was to get some insight into the <strong>Binary eXchange Language</strong> protocol, used by SQL Server to send data to the SqlSatellite. We saw how the protocol moves data in column oriented fashion, and the protocol utilizes schema information to optimize how to send the data.</p>
+<p>When looking at the data sent, the size of the packages and &ldquo;drilling&rdquo; into the TCP packets we could deduct that: :</p>
+<ul>
+<li>Each column has an over-head of 32 bytes (at least for non nullable data)</li>
+<li>The size of the column in one row is the size of the data type for numeric types.</li>
+<li>For <code>decimal</code> and <code>numeric</code> an extra byte is added to each column, where this byte indicates the precision.</li>
+<li>Columns of alpha numeric type all had 2 bytes pre-pended to the bytes, except <code>max</code> types.</li>
+<li>For <code>char</code> and <code>nchar</code> the storage size was 2 bytes plus the size the column was defined as.</li>
+<li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes plus the size of the data stored.</li>
+<li>For the <code>varmax</code> data types the number of bytes that were pre-pended varied dependent on the data size.</li>
+</ul>
+<p>Not taking into account bytes pre-pended to a column etc., the diagram below tries to illustrate the layout of a BXL packet:</p>
+<p>
+  <img src="/images/posts/sql_r_services_14_bxl.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>BXL Schematic Layout</em></p>
+<p><em>Figure 14</em> shows what a BXL packet can look like. In this case it is a three column, four row packet. We see how the column headers all have the same size, where the individual columns can vary in size - but it will still fit into the size of the header.</p>
+<p>What happens with nullable columns is a mystery, as we saw column overheads ranging from 7312 bytes (<code>tinyint</code>) to 32 bytes (<code>decimal</code>). I can&rsquo;t help but think that there is a &ldquo;bug&rdquo; in there somewhere that causes this, and I will try and follow up with Microsoft regarding this.</p>
+<p>Regardless of that, I will do some more <del>playing around</del> investigations around BXL, so there will most likely be a second post about BXL after this one.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2017-11-19-interesting-stuff---week-46/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 46">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2017-11-26-interesting-stuff---week-47/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 47">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>

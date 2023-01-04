@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/banner/main-banner-2.jpg" />
+    
+
+    
+    <meta name="title" content="Confluent Platform &amp; Kafka for a .NET Developer on Windows" />
+    <meta property="og:title" content="Confluent Platform &amp; Kafka for a .NET Developer on Windows" />
+    <meta property="twitter:title" content="Confluent Platform &amp; Kafka for a .NET Developer on Windows" />
+    
+
+    
+    <meta name="description" content="Here we look at how to run Confluent Kafka in Docker on a Windows machine, and writing .NET Code against it.">
+    <meta property="og:description" content="Here we look at how to run Confluent Kafka in Docker on a Windows machine, and writing .NET Code against it." />
+    <meta property="twitter:description" content="Here we look at how to run Confluent Kafka in Docker on a Windows machine, and writing .NET Code against it." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Confluent Platform &amp; Kafka for a .NET Developer on Windows | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2019-06-18-confluent-platform--kafka-for-the-windows--net-developer/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/main-banner-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/kafka" title="Kafka">
+                            Kafka
+                        </a>
+                        
+                        <a class="tag" href="/tags/.net" title=".NET">
+                            .NET
+                        </a>
+                        
+                        <a class="tag" href="/tags/vs-code" title="VS Code">
+                            VS Code
+                        </a>
+                        
+                    </div>
+                    <h1>Confluent Platform &amp; Kafka for a .NET Developer on Windows</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Tuesday, June 18, 2019
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>As many of you know, I am an un-ashamed .NET developer on the Windows platform. Seeing that I do a lot of SQL Server development my development and OS platforms of choice is sufficient for my work, as I on my development box (Windows of course) install SQL Server Developer edition and whatever .NET framework I use.</p>
+<p>That has been sufficient up until now when I want to develop against Kafka. At <a href="/derivco">Derivco</a> we are getting more and more interested in Kafka, and obviously, I want to install it so I can <del>play around</del> investigate it. However, to install it on my development machine as I would typically do with technologies I am interested in, SQL Server, RabbitMQ, etc., is difficult, if not impossible.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Yes I know, there are articles on the web discussing how to run Kafka on Windows, but it is a hit and miss whether it works.</p>
+</blockquote>
+<p>A while ago I wrote a <a href="/post/2018-07-10-install-confluent-platform-kafka-on-windows/">post</a> about how to run Kafka under <strong>Windows Subsystem for Linux</strong> (WSL), and yes it works, but I have had issues with it, and to me, it is still a hack. So the options then (if we rule out WSL) are:</p>
+<ul>
+<li>Running it on a Linux in a virtualized environment, (Virtual Box, VMWare, Hyper-V, etc.).</li>
+<li>Docker.</li>
+</ul>
+<p>The rest of this post goes through how to set up the <em>Confluent Platform</em> in a Docker environment and use it from .NET.</p>
+<h2 id="pre-reqs">Pre-reqs</h2>
+<p>The assumption is that you use a Windows box as your development machine, and you want to run Kafka on your box. Based on that assumption, these are the pre-reqs:</p>
+<ul>
+<li><a href="https://docs.docker.com/docker-for-windows/">Docker Desktop for Windows</a>. The install instructions and download link are <a href="https://docs.docker.com/docker-for-windows/install/">here</a>.</li>
+<li>.NET Framework or .NET Core.</li>
+<li>Your IDE of choice. I kind of like <a href="https://code.visualstudio.com/"><strong>VS Code</strong></a>.</li>
+</ul>
+<p>As I in this post use <em>Confluent Platform</em>, (more about that below), I need to allocate at least 8Gb of memory to Docker.</p>
+<h2 id="confluent-platform"><em>Confluent Platform</em></h2>
+<p>I mentioned above how in this post we install and use <em>Confluent Platform</em>. Some of you may ask why I use the enterprise edition, (which <em>Confluent Platform</em> is), which you need a license for and not the Community Edition which is open source and license free.</p>
+<p>There are two reasons really for this:</p>
+<ul>
+<li>With <em>Confluent Platform</em> I get ALL the goodies, including <strong>Control Center</strong>.</li>
+<li>With the introduction of <em>Confluent Platform</em> 5.2. Confluent <a href="https://www.confluent.io/blog/introducing-confluent-platform-5-2">announced</a> that <em>Confluent Platform</em> is &ldquo;free forever&rdquo; on a single Kafka broker! In other words, it is like a &ldquo;Developer Edition&rdquo; of <em>Confluent Platform</em>. That to me, is excellent, as I can now build awesome streaming and event-driven applications on Apache Kafka using the powerful capabilities of <em>Confluent Platform</em>.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> I confess; I &ldquo;lifted&rdquo; parts of the last bullet point from the previously mentioned <a href="https://www.confluent.io/blog/introducing-confluent-platform-5-2">announcement</a>.</p>
+</blockquote>
+<h2 id="install-confluent-platform-using-docker">Install <em>Confluent Platform</em> Using Docker</h2>
+<p>It is time to install the Docker images we need for <em>Confluent Platform</em>. All the images for the individual components of <em>Confluent Platform</em> are on <a href="https://hub.docker.com/u/confluentinc/">Docker Hub</a>, and we could get them from there. However, if we did that, then we would need to &ldquo;compose&rdquo; them together, and I am way too lazy for that.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Docker Hub is a cloud-based repository for container images, to which organizations upload their container images.</p>
+</blockquote>
+<p>Instead of us grabbing the individual containers, we use a Docker Compose file that Confluent have been kind enough to create. For those of you who don&rsquo;t know what Docker Compose is, you can read more about it <a href="https://docs.docker.com/compose/overview/">here</a>.</p>
+<p>We get the file by:</p>
+<ul>
+<li>Cloning the <a href="https://github.com/confluentinc/cp-docker-images"><em>Confluent Platform</em> Docker Images GitHub Repository</a>. That gives us a directory <code>cp-docker-images</code>.</li>
+<li><code>cd</code> into the directory and check out the branch <code>5.2.1-post</code>: <code>git checkout 5.2.1-post</code>.</li>
+</ul>
+<p>After the check out the <code>cp-docker-images</code> directory looks like so:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_checkout1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Directory Structure After Checkout</em></p>
+<p>Notice in <em>Figure 1</em> how we have a directory named <code>examples</code>. Underneath this directory are directories for different examples, (who&rsquo;d &ldquo;thunk&rdquo;), of Kafka setups. We are interested in an example, (and directory), named <code>cp-all-in-one</code>:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_cp-all-in-one.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Example Directory</em></p>
+<p>When we navigate to the <code>cp-all-in-one</code> we see something like what we see in <em>Figure 2</em>. Among the files in the directory, there is a <code>docker-compose.yml</code> file, which includes all of the <em>Confluent Platform</em> components. After opening the <code>docker-compose.yml</code> file in a text editor, we see what components make up the <em>Confluent Platform</em>:</p>
+<ul>
+<li>Zookeeper.</li>
+<li>Kafka broker.</li>
+<li>Schema registry.</li>
+<li>Kafka connect.</li>
+<li>Control center.</li>
+<li>KSQL server.</li>
+<li>KSQL CLI.</li>
+<li>KSQL datagen.</li>
+<li>Rest proxy.</li>
+</ul>
+<p>When we look at the list above, there is one component that we should not use in production: the <code>ksql-datagen</code> component. It is included for development and test purposes, and we can use it to generate data loads, and you can read more about it <a href="https://docs.confluent.io/current/ksql/docs/tutorials/generate-custom-test-data.html">here</a>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> This post does not cover in any greater detail the various components. Stay tuned for future posts for that.</p>
+</blockquote>
+<p>While we look at the <code>docker-compose.yml</code> file, let us look a bit closer at the <code>broker</code> section, which describes the Kafka broker:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_docker_yml.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Kafka Broker</em></p>
+<p>In <em>Figure 3</em> we see two areas outlined in red, and those two areas have to do with what ports the Kafka broker listens on. In a non-Docker Kafka installation, the port Kafka exposes is typically 9092, and clients, as well as internal components, can connect without any issues. However, in a Docker environment, things are somewhat different, as you have both a Docker internal network, as well as an external network (host machine to Docker containers, for example). That&rsquo;s why we define two <code>ports</code>, (29092 and 9092), and set up two listeners. The <code>broker:29092</code> is for the internal Docker network, and the <code>localhost:9092</code> is for external connections.</p>
+<blockquote>
+<p><strong>NOTE:</strong> <a href="https://twitter.com/rmoff">Robin Moffat</a>, who is a Kafka guru, has written a blog post about port addresses and listeners: <a href="https://rmoff.net/2018/08/02/kafka-listeners-explained/">Kafka Listeners - Explained</a>. If you are interested in Kafka, you should read that post, and whatever else Robin publishes. He knows his stuff!</p>
+</blockquote>
+<p>A final word before we install the Docker containers; please do not forget to increase memory for Docker to at least 8Gb:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_docker_memory.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Docker Memory</em></p>
+<p>In <em>Figure 4</em> we see how we have increased the memory for Docker to 8192MB. After you do this, you need to restart Docker.</p>
+<p>We are now ready for installation so <code>cd</code> into the <code>cp-all-in-one</code> directory. In there, from the command line, execute:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ docker-compose up -d --build
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Execute Docker Command</em></p>
+<p>The code in <em>Code Snippet 1</em>:</p>
+<ul>
+<li>Pulls the different images for the <em>Confluent Platform</em> (if they are not on the machine already).</li>
+<li>
+<ul>
+<li>The <code>--build</code> flag builds the Kafka Connect image together with the <code>datagen</code> connector.</li>
+</ul>
+</li>
+<li>Creates the containers and starts up the <em>Confluent Platform</em>.</li>
+</ul>
+<p>When you execute the command in <em>Code Snippet 1</em>, you see something like so:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_pull_images.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Pull Images</em></p>
+<p>Unless the images for <em>Confluent Platform</em> exists on the machine, the <code>docker-compose</code> command starts to pull them from the registry, and in <em>Figure 5</em> we see how we initially pull ZooKeeper. Eventually, all images have been pulled and the containers created.</p>
+<p>
+  <img src="/images/posts/confluent_kafka_create_images.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Create Images</em></p>
+<p>As we see in <em>Figure 6</em> we have now created the containers for <em>Confluent Platform</em>, and everything should be up and running. Let us first ensure that that is the case (containers running). We use the <code>docker-compose ps</code> command, which lists containers related to images declared in the <code>docker-compose.yml</code> file:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_container_status.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Container Status</em></p>
+<p>From what we see in <em>Figure 7</em> all containers have a <code>State</code> of <code>Up</code>, so everything should be good. That we see that the <code>State</code> is <code>Up</code> do not necessarily indicate that the individual components are up and running, (they most likely are), so to be on the safe side we can check that the Kafka broker is up.</p>
+<p>We can confirm this in various ways, and here we use the command line and have a look at logs. For this, we use the <code>docker logs</code> command, which shows information logged by a running container: <code>docker logs &lt;container_name&gt;</code>. So the question is then what the <code>container_name</code> is for the Kafka broker? Well, if we look in the <code>docker-compose.yml</code> file, we see that for the Kafka broker we have a <code>container-name</code> of <code>broker</code>, and as we see in <em>Figure 6</em> we have a corresponding <code>broker</code> container. With this in mind, the <code>logs</code> command looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ docker logs broker | Select-String -Pattern <span style="color:#2aa198">&#39;Started&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>View Logs</em></p>
+<p>I use PowerShell for this, and I also do a <code>grep</code> like selection by the <code>Select-String</code> command-let, which we see in <em>Code Snippet 2</em>. The reason for this is to filter out what the <code>logs</code> command returns. When I run it, I see:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_broker_started.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Kafka Broker Started</em></p>
+<p>Cool, from what we see in <em>Figure 8</em> it looks like the Kafka broker is up and running! Now if we want to, we can go ahead and create topics etc. Once again, there are various ways we can do this. One way is to do it from the command line; we spin up the <code>bash</code> shell in the Kafka broker container and use: <code>kafka-topics --create ...</code>. However, since I said one big reason for me to use <em>Confluent Platform</em> is <em>Control Center</em>, let us create topics via <em>Control Center</em>.</p>
+<h2 id="control-center">Control Center</h2>
+<p><em>Control Center</em> is a web UI for managing and monitoring Kafka. It does a lot more though than just managing/monitoring the Kafka broker. With <em>Control Center</em> you can manage and monitor:</p>
+<ul>
+<li>Data Streams</li>
+<li>System Health</li>
+<li>Configuration of Kafka Connect</li>
+<li>and more &hellip;</li>
+</ul>
+<p>In a Docker installation, you find where to load the UI from by looking at the <code>Ports</code> column for <code>control-center</code> after you run <code>docker-compose ps</code>. In <em>Figure 6</em> we see <code>control-center</code> exposed by port 9021. So let us, in our favourite browser, browse to: <code>localhost:9021</code>:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_control_center_ui.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Control Center</em></p>
+<p>In <em>Figure 9</em> we see the user interface for <em>Control Center</em>. We see charts showing information about our data pipelines, and on the left a menu where we can choose between different functions of <em>Control Center</em>. For now, as we want to create a topic, what we are interested in, is the <strong>Topics</strong> menu, outlined in red. We click on it, and we see a screen like so:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_control_center_topics1.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Control Center Topics</em></p>
+<p>We see in <em>Figure 10</em> the <strong>Topics</strong> screen, and some pre-configured topics (this is a new Kafka installation). To create a topic we click on the <em>+ Create topic</em> button, (outlined in red), on the right-hand side of the screen:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_control_center_create_topic.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Control Center New Topic</em></p>
+<p>In <em>Figure 11</em> we see the <strong>New topic</strong> screen, and we see - outlined in blue - the area where we define the topic name and how many partitions we want for the topic. I am about to create a new topic: <code>testTopic</code> with default settings and a partition count of 1. I then click on the <em>Create with defaults</em> button, (outlined in red), and I go back to the <em>Topics</em> screen:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_control_center_testTopic.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>New Topic</em></p>
+<p>We see in <em>Figure 12</em> our new <code>testTopic</code>, and we can now start to use it.</p>
+<p>Before we look at how to publish and consume messages with .NET, let us make sure the topic actually works. We do that by using a couple of Kafka command line tools that ship with any Kafka installation. In fact Kafka ships with quite a few command line tools, (we spoke above of one of them: <code>kafka-topics</code>), and the two we use here are:</p>
+<ul>
+<li><code>kafka-console-consumer</code>: reads data from a Kafka topic and writes the data to standard output.</li>
+<li><code>kafka-console-producer</code>: the opposite of <code>kafka-console-consumer</code>, it reads data from standard output and writes it to a Kafka topic.</li>
+</ul>
+<p>To use the two tools we:</p>
+<ul>
+<li>Open two command prompt windows.</li>
+<li>In both windows, <code>docker exec</code> into the <code>bash</code> shell of the Kafka broker container:</li>
+</ul>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ docker <span style="color:#cb4b16">exec</span> -it broker bash
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Execute into Bash Shell</em></p>
+<p>We see in <em>Code Snippet 3</em> the code to get into the Docker container&rsquo;s shell, and when we execute the code in both command windows we see:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_command_windows1.png" alt="">
+
+</p>
+<p><strong>Figure 13:</strong> <em>Docker Container Shell</em></p>
+<p>As we see in <em>Figure 13</em> we are now in the shell as <code>root</code>. The reason we have &ldquo;spun&rdquo; up two command windows is so we can use one for publishing and the other for consuming messages.</p>
+<p>Let us start with the command window for consumption:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ <span style="color:#cb4b16">cd</span> /usr/bin
+</span></span><span style="display:flex;"><span>$ ./kafka-console-consumer --bootstrap-server broker:29092 --topic testTopic
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Console Consumer</em></p>
+<p>In <em>Code Snippet 4</em> we first <code>cd</code> into the <code>/usr/bin</code> directory where the Kafka command line tools are. We then execute the <code>kafka-console-consumer</code> command, where we say what broker and topic we want to connect to. Notice how we define the internal Docker connection here, (<code>broker:29092</code>), as this is on the internal network.</p>
+<p>When we execute the code in <em>Code Snippet 4</em>, we see how the command window now waits for data to read from the broker. Now we set up the producer in the same way (in the second command window):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ <span style="color:#cb4b16">cd</span> /usr/bin
+</span></span><span style="display:flex;"><span>$ ./kafka-console-producer --broker-list broker:29092 --topic testTopic
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Console Producer</em></p>
+<p>When we execute the code in <em>Code Snippet 5</em> we see how the command window waits for input. We enter some strings, and we see how the &ldquo;consume&rdquo; window reads the data from the broker topic and writes it to standard output.</p>
+<p>
+  <img src="/images/posts/confluent_kafka_publish_consume.png" alt="">
+
+</p>
+<p><strong>Figure 14:</strong> <em>Publish Consume</em></p>
+<p>The upper window we see in <em>Figure 14</em> is the publish window, and we see how I entered three strings: <code>Hello</code>, <code>World</code>, and <code>Again</code>, and how they appear in the second window. This simple test shows that our topic works, and we can now move on to .NET.</p>
+<h2 id="net">.NET</h2>
+<p>For the .NET part I use <em>VS Code</em> and .NET Core (2.2). As I am a &ldquo;newbie&rdquo; when it comes to <em>VS Code</em> and .NET Core, I list the steps I to get up and running so I have something to come back to.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Actually, I am pretty much a newbie in all topics in this post.</p>
+</blockquote>
+<p>I start with the publisher, and I:</p>
+<ul>
+<li>Create a new folder for my publisher project.</li>
+<li>In <em>VS Code</em> I open that folder.</li>
+</ul>
+<p>From the integrated terminal in <em>VS Code</em>, (<strong>View &gt; Integrated Terminal</strong>), I create a new console project: <code>dotnet new console</code>:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_vscode_new_console.png" alt="">
+
+</p>
+<p><strong>Figure 15:</strong> <em>New Console Project</em></p>
+<p>When I execute the outlined statement in <em>Figure 15</em>, some files get created in the chosen directory:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_vscode_created_project.png" alt="">
+
+</p>
+<p><strong>Figure 16:</strong> <em>Newly Created Project</em></p>
+<p>What we see in <em>Figure 16</em> are the various project related files, including the source file <code>Program.cs</code>. What is missing now is a Kafka client. For .NET there exists a couple of clients, and theoretically, you can use any one of them. However, in practice, there is only one, and that is the <a href="https://github.com/confluentinc/confluent-kafka-dotnet"><strong>Confluent Kafka DotNet</strong></a> client. The reason I say this is because it has the best parity with the original Java client. The client has NuGet packages, and you install it via <em>VS Code</em>&rsquo;s integrated terminal: <code>dotnet add package Confluent.Kafka --version 1.0.1.1</code>:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_vscode_install_nuget.png" alt="">
+
+</p>
+<p><strong>Figure 17:</strong> <em>Install NuGet Package</em></p>
+<p>When you execute the <code>dotnet add package</code> the result is as we see in <em>Figure 17</em>; <em>VS Code</em> downloads necessary files and then installs the package, (outlined in blue). We can now &ldquo;code up&rdquo; our publisher.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The code here is purely for demonstration purposes, no error handling, etc.</p>
+</blockquote>
+<h4 id="publish">Publish</h4>
+<p>When publishing messages to Kafka with the Confluent .NET client, you need an instance of a <code>Publisher</code> class. When creating a <code>Publisher</code>, you need a <code>PublisherConfig</code> class which - as the name implies - configures the <code>Publisher</code>. In the configuration, you set up things like:</p>
+<ul>
+<li>Bootstrap servers - a list of brokers for the client to connect to.</li>
+<li>Retries.</li>
+<li>Max message sizes.</li>
+<li>etc., etc.</li>
+</ul>
+<p>To create the <code>Publisher</code>, you use the <code>ProducerBuilder</code> class which expects a <code>PublisherConfig</code> in the constructor. The code to create a <code>Publisher</code> looks something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-csharp" data-lang="csharp"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">Confluent.Kafka</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">publisher</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">class</span> <span style="color:#cb4b16">KafkaPublishTest</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">readonly</span> <span style="color:#268bd2">AutoResetEvent</span> <span style="color:#268bd2">_closing</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">AutoResetEvent</span>(<span style="color:#859900">false</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">IProducer</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt; <span style="color:#268bd2">producer</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">ProducerConfig</span> <span style="color:#268bd2">producerConfig</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">Main</span>(<span style="color:#859900;font-weight:bold">string</span>[] <span style="color:#268bd2">args</span>){}
+</span></span><span style="display:flex;"><span>          
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateConfig</span>() {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">producerConfig</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">ProducerConfig</span>
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">BootstrapServers</span> = <span style="color:#2aa198">&#34;localhost:9092&#34;</span>
+</span></span><span style="display:flex;"><span>      };
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateProducer</span>() {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">pb</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">ProducerBuilder</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt;(<span style="color:#268bd2">producerConfig</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">producer</span> = <span style="color:#268bd2">pb</span>.<span style="color:#268bd2">Build</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>PublisherConfig and ProducerBuilder</em></p>
+<p>The code we see in <em>Code Snippet 6</em> is the beginning of the publish application. The <code>Main</code> method is not &ldquo;hooked&rdquo; up yet; we do that later. We see how we have a <code>using</code> statement for the <code>Confluent.Kafka</code> namespace, and how we declare two class variables of the types <code>IProducer</code>, and <code>ProducerConfig</code>. In the method <code>CreateConfig</code> we instantiate <code>ProducerConfig</code> and set the <code>BootstrapServer</code> property to our Kafka broker. Notice how we use the external listener port, as we now connect into the Docker container from outside the Docker internal network. Oh, the <code>AutoResetEvent</code> class variable is used to react on <code>CTRL-C</code> key press to exit the application.</p>
+<p>The <code>producerConfig</code> is then used in the <code>CreateProducer</code> method where we see how we use the <code>Build</code> method on <code>ProducerBuilder</code> to get an <code>IProducer</code> instance.</p>
+<p>Having a producer, we now code the method to publish messages:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-csharp" data-lang="csharp"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">Confluent.Kafka</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">publisher</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">class</span> <span style="color:#cb4b16">KafkaPublishTest</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">readonly</span> <span style="color:#268bd2">AutoResetEvent</span> <span style="color:#268bd2">_closing</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">AutoResetEvent</span>(<span style="color:#859900">false</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">IProducer</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt; <span style="color:#268bd2">producer</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">ProducerConfig</span> <span style="color:#268bd2">producerConfig</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">Main</span>(<span style="color:#859900;font-weight:bold">string</span>[] <span style="color:#268bd2">args</span>){}
+</span></span><span style="display:flex;"><span>          
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateConfig</span>() {...}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateProducer</span>() {...}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">async</span> <span style="color:#859900">void</span> <span style="color:#268bd2">SendMessage</span>(<span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">topic</span>, <span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">message</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">msg</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">Message</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt; {
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">Key</span> = <span style="color:#859900">null</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">Value</span> = <span style="color:#268bd2">message</span>
+</span></span><span style="display:flex;"><span>      };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">delRep</span> = <span style="color:#859900">await</span> <span style="color:#268bd2">producer</span>.<span style="color:#268bd2">ProduceAsync</span>(<span style="color:#268bd2">topic</span>, <span style="color:#268bd2">msg</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">topicOffset</span> = <span style="color:#268bd2">delRep</span>.<span style="color:#268bd2">TopicPartitionOffset</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">$&#34;Delivered &#39;{delRep.Value}&#39; to: {topicOffset}&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Publishing a Message</em></p>
+<p>The method to publish messages is <code>SendMessage</code> as we see in <em>Code Snippet 7</em>. The method takes two parameters; the topic we want to send to, and the actual message we want to send.</p>
+<p>In the method, we create an instance of the <code>Message</code> class. That class has two properties:</p>
+<ul>
+<li><code>Key</code> - this is for if/when our topic has multiple partitions. It refers to the value we want to use for Kafka to decide what partition to target. In our case, we have not defined partitions, so we set the value to <code>null</code>.</li>
+<li><code>Value</code> - the message we want to send. In the code, we set it to the incoming <code>message</code> parameter.</li>
+</ul>
+<p>To publish the message, we call the <code>ProduceAsync</code> method, which expects a topic name, and an instance of the <code>Message</code> class. The method returns an instance of the <code>DeliveryReport</code> class. This class contains information about the delivery of the message, and we are interested to see the original message and partition and offset it was sent to. This, we then write out to the console.</p>
+<p>The final thing to do is to &ldquo;hook up&rdquo; everything in the <code>Main</code> method:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-csharp" data-lang="csharp"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">Confluent.Kafka</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">publisher</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">class</span> <span style="color:#cb4b16">KafkaPublishTest</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">readonly</span> <span style="color:#268bd2">AutoResetEvent</span> <span style="color:#268bd2">_closing</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">AutoResetEvent</span>(<span style="color:#859900">false</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">IProducer</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt; <span style="color:#268bd2">producer</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">ProducerConfig</span> <span style="color:#268bd2">producerConfig</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">Main</span>(<span style="color:#859900;font-weight:bold">string</span>[] <span style="color:#268bd2">args</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">CreateConfig</span>();
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">CreateProducer</span>();
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">SendMessage</span>(<span style="color:#2aa198">&#34;testTopic&#34;</span>, <span style="color:#2aa198">&#34;This is a test42&#34;</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">&#34;Press Ctrl+C to exit&#34;</span>);
+</span></span><span style="display:flex;"><span>      
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">CancelKeyPress</span> += <span style="color:#859900">new</span> <span style="color:#268bd2">ConsoleCancelEventHandler</span>(<span style="color:#268bd2">OnExit</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">_closing</span>.<span style="color:#268bd2">WaitOne</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">OnExit</span>(<span style="color:#859900;font-weight:bold">object</span> <span style="color:#268bd2">sender</span>, <span style="color:#268bd2">ConsoleCancelEventArgs</span> <span style="color:#268bd2">args</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">&#34;Exit&#34;</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">_closing</span>.<span style="color:#268bd2">Set</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>          
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateConfig</span>() {...}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateProducer</span>() {...}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">async</span> <span style="color:#859900">void</span> <span style="color:#268bd2">SendMessage</span>(<span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">topic</span>, <span style="color:#859900;font-weight:bold">string</span> <span style="color:#268bd2">message</span>) {...}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>Main Method</em></p>
+<p>In <em>Code Snippet 8</em> we see how we, in <code>Main</code>, call the different methods. We also have some code to capture <code>CTRL-C</code> to exit the application. We should now be able to publish messages to the broker. We can test that this works without having a consumer, and ensure that we get an offset back from the delivery report.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you want to you can also use <code>kafka-console-consumer</code> and the code in <em>Code Snippet 4</em>.</p>
+</blockquote>
+<p>To make sure everything works, we use the integrated terminal in <em>VS Code</em> and execute <code>dotnet build</code>, followed by <code>dotnet run</code>:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_vscode_build_run_publish.png" alt="">
+
+</p>
+<p><strong>Figure 18:</strong> <em>Build and Run</em></p>
+<p>What we see in <em>Figure 18</em> is how the <code>build</code> command succeeded, (sections outlined in yellow), and <code>run</code> also succeeded, (sections outlined in red). The delivery report says that the message was delivered to the topic <code>testTopic</code> on partition 0, and the offset for the message is 12, (@12).</p>
+<p>Cool, let us now create an application to consume messages.</p>
+<h4 id="consume">Consume</h4>
+<p>To consume messages, we create a new application much along the lines of what we did for the publishing app:</p>
+<ul>
+<li>Create a new folder for the consumer project.</li>
+<li>Open that folder in <em>VS Code</em>.</li>
+<li>In <em>VS Code</em>&rsquo;s integrated terminal create a new console application: <code>dotnet new console</code>.</li>
+<li>After the project has been created, add the <a href="https://github.com/confluentinc/confluent-kafka-dotnet"><strong>Confluent Kafka DotNet</strong></a> client to the project as we did above.</li>
+</ul>
+<p>The way we create a Kafka consumer is more or less the same way we did with the publisher; we have a configuration, <code>ConsumerConfig</code>, and a builder: <code>ConsumerBuilder</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-csharp" data-lang="csharp"><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">System.Threading</span>;
+</span></span><span style="display:flex;"><span><span style="color:#859900">using</span> <span style="color:#268bd2">Confluent.Kafka</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">namespace</span> <span style="color:#268bd2">consumer</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">class</span> <span style="color:#cb4b16">KafkaConsumer</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">CancellationTokenSource</span> <span style="color:#268bd2">cts</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">CancellationTokenSource</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#268bd2">ConsumerConfig</span> <span style="color:#268bd2">consumerConfig</span> = <span style="color:#859900">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">Main</span>(<span style="color:#859900;font-weight:bold">string</span>[] <span style="color:#268bd2">args</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">CreateConfig</span>();
+</span></span><span style="display:flex;"><span>       <span style="color:#268bd2">CreateConsumerAndConsume</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateConfig</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">consumerConfig</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">ConsumerConfig</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">BootstrapServers</span> = <span style="color:#2aa198">&#34;localhost:9092&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">GroupId</span> = <span style="color:#2aa198">&#34;test-group&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">AutoOffsetReset</span> = <span style="color:#268bd2">AutoOffsetReset</span>.<span style="color:#268bd2">Earliest</span>
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">CreateConsumerAndConsume</span>() {
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">cb</span> = <span style="color:#859900">new</span> <span style="color:#268bd2">ConsumerBuilder</span>&lt;<span style="color:#859900;font-weight:bold">string</span>, <span style="color:#859900;font-weight:bold">string</span>&gt;(<span style="color:#268bd2">consumerConfig</span>);
+</span></span><span style="display:flex;"><span>                  
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">&#34;Press Ctrl+C to exit&#34;</span>);
+</span></span><span style="display:flex;"><span>                   
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">CancelKeyPress</span> += <span style="color:#859900">new</span> <span style="color:#268bd2">ConsoleCancelEventHandler</span>(<span style="color:#268bd2">OnExit</span>);
+</span></span><span style="display:flex;"><span>                
+</span></span><span style="display:flex;"><span>        <span style="color:#268bd2">using</span>(<span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">consumer</span> = <span style="color:#268bd2">cb</span>.<span style="color:#268bd2">Build</span>() ) {
+</span></span><span style="display:flex;"><span>          <span style="color:#268bd2">consumer</span>.<span style="color:#268bd2">Subscribe</span>(<span style="color:#2aa198">&#34;testTopic&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">try</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#859900">while</span>(!<span style="color:#268bd2">cts</span>.<span style="color:#268bd2">IsCancellationRequested</span>) {
+</span></span><span style="display:flex;"><span>              <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">cr</span> = <span style="color:#268bd2">consumer</span>.<span style="color:#268bd2">Consume</span>(<span style="color:#268bd2">cts</span>.<span style="color:#268bd2">Token</span>);
+</span></span><span style="display:flex;"><span>              <span style="color:#859900;font-weight:bold">var</span> <span style="color:#268bd2">offset</span> = <span style="color:#268bd2">cr</span>.<span style="color:#268bd2">TopicPartitionOffset</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">$&#34;Message &#39;{cr.Value}&#39; at: &#39;{offset}&#39;.&#34;</span>);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>          <span style="color:#859900">catch</span> (<span style="color:#268bd2">Exception</span> <span style="color:#268bd2">e</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#268bd2">e</span>.<span style="color:#268bd2">Message</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#268bd2">consumer</span>.<span style="color:#268bd2">Close</span>();
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">static</span> <span style="color:#859900">void</span> <span style="color:#268bd2">OnExit</span>(<span style="color:#859900;font-weight:bold">object</span> <span style="color:#268bd2">sender</span>, <span style="color:#268bd2">ConsoleCancelEventArgs</span> <span style="color:#268bd2">args</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">args</span>.<span style="color:#268bd2">Cancel</span> = <span style="color:#859900">true</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">Console</span>.<span style="color:#268bd2">WriteLine</span>(<span style="color:#2aa198">&#34;In OnExit&#34;</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2">cts</span>.<span style="color:#268bd2">Cancel</span>();
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Consumer Code</em></p>
+<p>We see in <em>Code Snippet 9</em> the two interesting methods <code>CreateConfig</code> and <code>CreateConsumerAndConsume</code>. In <code>CreateConfig</code> we set three properties:</p>
+<ul>
+<li><code>BootstrapServers</code> - as for the publisher, this is a list of brokers to connect to.</li>
+<li><code>GroupId</code> - the <code>GroupId</code> is the name of the consumer group you connect as to the broker. The <a href="https://www.oreilly.com/library/view/kafka-the-definitive/9781491936153/ch04.html">article here</a> explains consumer groups fairly well.</li>
+<li><code>AutoOffsetReset</code> - this tells Kafka where to start reading offsets from.</li>
+</ul>
+<p>In <code>CreateConsumerAndConsume</code> we:</p>
+<ul>
+<li>Create a <code>ConsumerBuilder</code> based on the <code>ConsumerConfig</code> instance we created above.</li>
+<li>Subscribe to the topic(s) we are interested in.</li>
+<li>Consume in a <code>while</code> loop.</li>
+</ul>
+<p>The <code>Consume</code> method returns a <code>ConsumeResult</code> instance which we use to print information from to the console. What is left now is to build and run from the integrated terminal as we did with the publisher:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_vscode_build_run_consumer.png" alt="">
+
+</p>
+<p><strong>Figure 19:</strong> <em>Build and Run Consumer</em></p>
+<p>Dependent on the <code>AutoOffsetReset</code> value you now either see a list of messages (if there are any), or the consumer &ldquo;sits&rdquo; and wait for messages to arrive (as in <em>Figure 19</em>). Let us finish this post with sending some messages from the publish application above. In my code, I changed the <code>Main</code> method to instead of just sending one message, send messages in a <code>while</code> loop:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-csharp" data-lang="csharp"><span style="display:flex;"><span><span style="color:#859900">while</span>(<span style="color:#268bd2">x</span> &lt; <span style="color:#2aa198;font-weight:bold">100</span>) {
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">SendMessage</span>(<span style="color:#2aa198">&#34;testTopic&#34;</span>, <span style="color:#2aa198">$&#34;This test: {x}&#34;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">x</span>++;
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">Thread</span>.<span style="color:#268bd2">Sleep</span>(<span style="color:#2aa198;font-weight:bold">200</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Loop and Send Messages</em></p>
+<p>In <em>Code Snippet 10</em> we see the <code>while</code> loop, and how we send 100 messages, pausing 200ms between each message. The reason I pause is that it makes it clearer to see what happens when I run the code. I build the project, and when I run the code I see in the publisher terminal:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_publish_messages.png" alt="">
+
+</p>
+<p><strong>Figure 20:</strong> <em>Publishing Messages</em></p>
+<p>At the same time, I see in the consumer terminal:</p>
+<p>
+  <img src="/images/posts/confluent_kafka_consume_messages.png" alt="">
+
+</p>
+<p><strong>Figure 21:</strong> <em>Consuming Messages</em></p>
+<p>So from what we see in *Figure 20, and <em>Figure 21</em> both the publishing application, as well as the consuming application, works! Awesome!</p>
+<h2 id="summary">Summary</h2>
+<p>In this blog post, we saw how we can install Docker containers for the <em>Confluent Platform</em> on a Windows development machine. Thanks to the announcement of one broker &ldquo;free forever&rdquo; I have the ability to write streaming applications fully utilizing the <em>Confluent Platform</em>.</p>
+<p>In the second part of the post we saw how we can use <em>VS Code</em> together with the <em>Confluent Kafka DotNet</em> client.</p>
+<p>In future posts, I will &ldquo;dig&rdquo; deeper into both Kafka as well as the .NET client.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2019-06-16-interesting-stuff---week-24-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 24, 2019">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/2019-06-23-interesting-stuff---week-25-2019/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 25, 2019">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Niels Berglund" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>
