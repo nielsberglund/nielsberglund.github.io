@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/thumbnails/posts/leaderboard-2.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/thumbnails/posts/leaderboard-2.jpg" />
+    
+
+    
+    <meta name="title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I" />
+    <meta property="og:title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I" />
+    <meta property="twitter:title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I" />
+    
+
+    
+    <meta name="description" content="This post continues the journey towards creating a leaderboard system. In this post we learn more about ADX and why it is an excellent choice for near real-time applications, how to &#39;hook up&#39; Kafka to ADX and how to ingest data into an ADX database.">
+    <meta property="og:description" content="This post continues the journey towards creating a leaderboard system. In this post we learn more about ADX and why it is an excellent choice for near real-time applications, how to &#39;hook up&#39; Kafka to ADX and how to ingest data into an ADX database." />
+    <meta property="twitter:description" content="This post continues the journey towards creating a leaderboard system. In this post we learn more about ADX and why it is an excellent choice for near real-time applications, how to &#39;hook up&#39; Kafka to ADX and how to ingest data into an ADX database." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/leaderboard-2.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/azure-data-explorer" title="Azure Data Explorer">
+                            Azure Data Explorer
+                        </a>
+                        
+                        <a class="tag" href="/tags/kusto" title="Kusto">
+                            Kusto
+                        </a>
+                        
+                        <a class="tag" href="/tags/kql" title="KQL">
+                            KQL
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka" title="Kafka">
+                            Kafka
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka-connect" title="Kafka Connect">
+                            Kafka Connect
+                        </a>
+                        
+                        <a class="tag" href="/tags/python" title="Python">
+                            Python
+                        </a>
+                        
+                    </div>
+                    <h1>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, March 19, 2023
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>This is the second post in a series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. Hmm, the second post you say - why is it that the post title says &quot; - I&quot;? Good question; that is because the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka.</p>
+<p>Anyway, in this post, you will learn more about ADX and why it is an excellent choice for near real-time applications, how to &ldquo;hook up&rdquo; Kafka to ADX and how to ingest data into an ADX database.</p>
+<h2 id="background">Background</h2>
+<p>In the last post, I discussed how analytics is being democratized. From analytics for the few (BI teams, the C-suite, etc.) to analytics for everyone - think LinkedIn&rsquo;s &ldquo;Who&rsquo;s viewed your profile&rdquo;, online gaming leaderboards, etc. The implication of analytics for everyone is that we may have a huge volume of users accessing the analytics system simultaneously. The way we do analytics has also changed. It is no longer enough to run a batch job occasionally; now, we need the analytics to be in near real-time.</p>
+<p>The above (massive volume of users, near real-time insights) results in some &ldquo;interesting&rdquo; requirements:</p>
+<ul>
+<li>Real-time ingestion of large volumes of data.</li>
+<li>Ability to handle thousands and thousands of queries per second.</li>
+<li>Low latency (milliseconds).</li>
+</ul>
+<p>So in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I said that the chosen technologies are Kafka and ADX. In that post, I looked at Kafka and ingesting event data into a topic. In this post, I look closer into ADX and how to ingest data from Kafka into ADX.</p>
+<h2 id="pre-reqs">Pre-Reqs</h2>
+<p>This section is here to list what you need if you want to follow along (they look more or less as in the last post):</p>
+<ul>
+<li>Docker Desktop. We use Docker to &ldquo;spin up&rdquo; containers for Kafka and a Python application. The Python application generates and publishes events to Kafka. Caveat: If you are on an Apple Silicon Mac (M1 or M2), you need Python installed on your machine, as the container for the event generation application won&rsquo;t build on Apple Silicon. Subsequently, you must install the Python Confluent Kafka client on your Mac: <code>pip install confluent-kafka</code>.</li>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
+<li>Azure CLI. The Azure CLI is a cross-platform command-line tool connecting to Azure and executing administrative commands on Azure resources. You find downloads and install instructions <a href="https://learn.microsoft.com/en-us/cli/azure/install-azure-cli">here</a>.</li>
+<li>An Azure Data Explorer cluster and database. To set up an ADX cluster and a database, look here: <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">Quickstart: Create an Azure Data Explorer cluster and database</a>. You can name the database as you like. My database is called <code>leaderboard</code>. Please note that there may be a cost associated with the ADX cluster, so be sure to tear it down when you are done. The assumption is that you now have a running ADX cluster or you set it up as per the instructions in the <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">link</a>.</li>
+</ul>
+<p>You may have seen how ADX offers <a href="https://learn.microsoft.com/en-us/azure/data-explorer/start-for-free-web-ui">free clusters</a>. A free cluster allows you to explore the platform&rsquo;s features, experiment with data analytics queries, and develop proofs of concept without incurring any cost. This would have been ideal for our purposes, but unfortunately, a free cluster does not allow streaming ingestion, which we will be using here.</p>
+<h3 id="code">Code</h3>
+<p>The code for this post is in the <a href="https://github.com/nielsberglund/leaderboard-adx.git">leaderboard-ADX</a> GitHub repo. To follow along, clone the repo somewhere on your machine.</p>
+<p>Now is the time to look at what to build.</p>
+<h2 id="online-gaming-leaderboard">Online Gaming Leaderboard</h2>
+<p>Your &ldquo;mission&rdquo; (as mentioned in the previous post) is to build a leaderboard system for a company that promotes/runs different online games. This company wants to set up promotions/campaigns where each campaign can have its own leaderboard.</p>
+<p>When a user plays an online game (think one-armed bandit), each spin generates an event containing information about the spin:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;playerId&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">32</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;gameId&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">32</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;win&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">64</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;stake&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">32</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;eventTime&#34;</span>: DateTime
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Event Schema</em></p>
+<p>You see the fields of the event in <em>Code Snippet 1</em>. The one field that may not be obvious is <code>stake</code>. That is the value of the spin. When a spin happens, the event is published to a Kafka topic.</p>
+<p>Based on the event, the leaderboard should show the following information for the promoters of the games as well as the players - where the players can be in the ten of thousands:</p>
+<ol>
+<li>The top x players with the highest win/stake ratio during the campaign&rsquo;s last <code>y</code> time units.</li>
+<li>The top x players with the highest win/stake ratio during the campaign.</li>
+</ol>
+<p>Based on the challenges mentioned in the previous post and repeated above, the chosen technologies are Kafka and ADX (also discussed above). The proposed architecture looks like so:</p>
+<p>
+  <img src="/images/posts/leaderboard-kafka-adx.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Leaderboard Architecture</em></p>
+<p>You see in <em>Figure 1</em>:</p>
+<ol>
+<li>The player makes a spin, which generates a spin event. This event is being published to a topic in Kafka.</li>
+<li>The event is ingested into ADX using Kafka Connect and the Kusto Sink connector.</li>
+<li>In ADX, you have written queries which process the ingested data. These queries return leaderboard standings to a web page using ADX REST APIs when called.</li>
+</ol>
+<p>In the previous post, you implemented step 1 - generating and publishing events to Kafka. Logically you would now work on the ADX ingestion. However, before ingesting, you have to set up ADX.</p>
+<h2 id="azure-data-explorer">Azure Data Explorer</h2>
+<p>Before setting up ADX, let&rsquo;s briefly look at what ADX is and why it fits our purposes.</p>
+<p><a href="https://docs.microsoft.com/en-us/azure/data-explorer/">Azure Data Explorer</a> is a fully managed data exploration service provided by Microsoft Azure. It is designed for big data scenarios and allows users to quickly and easily analyze large amounts of data using a SQL-like language. ADX can handle structured and unstructured data and can be used to perform tasks such as data exploration, real-time analytics, and visualization.</p>
+<p>It uses a distributed columnar storage system and a query engine designed to handle complex queries and perform well even with massive datasets. Additionally, ADX uses advanced indexing and caching techniques to speed up queries and reduce the need for full table scans. It also allows for near real-time data ingestion and supports complex data types such as JSON and Avro.</p>
+<p>
+  <img src="/images/posts/adx-arch-orig-black.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Azure Data Explorer Architecture</em></p>
+<p>You see in <em>Figure 2</em> a high-level overview of ADXs architecture. I will not go into detail about the architecture, but I want to point out a few things.</p>
+<h3 id="adx-service">ADX Service</h3>
+<p>The Azure Data Explorer service (outlined in red in <em>Figure 2</em>) consists of two services which run in Azure VMs:</p>
+<ul>
+<li>Data Management Service: The DMS connects the Engine service to various pipelines and orchestrates and maintains the data ingestion process from these pipelines/components. These pipelines/components are outlined in yellow in <em>Figure 2</em>.</li>
+<li>Engine Service: The Engine Service is responsible for processing the incoming raw data from the DMS. It also serves users&rsquo; queries via an API. Data ingested from DMS is cached on SSDs local to the Engine Service. Outlined in green in <em>Figure 2</em>, you see the various methods you use to query data in ADX.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> Ingestion and querying are separated, so there is no contention.</p>
+</blockquote>
+<p>Speaking of ingestion. Let us look at ingesting into ADX.</p>
+<h3 id="adx-ingestion-using-kafka--kafka-connect">ADX Ingestion using Kafka &amp; Kafka Connect</h3>
+<p>When looking at <em>Figure 2</em> you see the ingestion pipelines/components outlined in yellow. Amongst them, you see (outlined in red) that Kafka is supported for ingestion into ADX. As mentioned above, ingesting into ADX from Kafka uses Kafka Connect and the Kusto Sink connector (<em>Figure 1</em>, step 2).</p>
+<h4 id="kafka-connect">Kafka Connect</h4>
+<p>Kafka Connect is a tool for streaming data between Apache Kafka and other systems in a scalable and reliable way. The way you move data between systems and Kafka is using connectors, and there are two flavors of connectors:</p>
+<ul>
+<li>Source connectors: understand how to interact with the source system and publish records from the source into Kafka Topics</li>
+<li>Sink connectors: propagate records from Kafka topics to other systems.</li>
+</ul>
+<p>Kafka Connect is a JVM process that operates separately from the Kafka Broker. Connectors are <code>.jar</code> files loaded by the Kafka Connect process. The diagram below shows a high-level overview of what it looks like:</p>
+<p>
+  <img src="/images/posts/kafka-connect.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Kafka Connect Overview</em></p>
+<p>In <em>Figure 3</em> we see from left to right:</p>
+<ul>
+<li>Source systems, i.e. systems we want to get data from. These systems can be databases, Hadoop, file systems, etc.</li>
+<li>The Kafka Connect worker with source connectors. The connectors know how to interact with the source system, whether querying a database, using CDC, reading from a filesystem, etc. The connectors publish data to Kafka topics.</li>
+<li>The Kafka broker(s). The broker(s) contain topics that are the &ldquo;sinks&rdquo; for the source connectors.</li>
+<li>Kafka Connect worker with sink connectors. Source and sink connectors can be in the same Kafka Connect worker. The sink connectors know how to consume and ingest events from Kafka topics into sink systems.</li>
+<li>Sink systems. These are systems we ingest data into. As with source systems, these can be databases, Hadoop, filesystems, etc.</li>
+</ul>
+<p>In the leaderboard system, you use the <a href="https://github.com/Azure/kafka-sink-azure-kusto">Kusto sink connector</a>, which reads data from a Kafka topic(s) and ingests it into ADX tables.</p>
+<h2 id="adx-setup">ADX Setup</h2>
+<p>At last, it is time to set up ADX. After reading the Pre-Reqs above, you should have a running ADX cluster and a database. What you need to do now is:</p>
+<ul>
+<li>Create a service principal. The SPN is used by the connector to connect to ADX.</li>
+<li>Create a table to ingest the data into.</li>
+<li>Enable streaming ingestion on the cluster, database and table.</li>
+</ul>
+<p>Oh, you also need to get the ADX endpoints for ingestion and querying. Let us do that now.</p>
+<h3 id="query--ingestion-endpoints">Query / Ingestion Endpoints</h3>
+<p>Above, I mentioned the Data Management and Engine services and how they are responsible for ingestion and querying, respectively. What I didn&rsquo;t say was that they are exposed by independent URLs. To ingest, you &ldquo;hit&rdquo; one URL; to query, you &ldquo;hit&rdquo; another.</p>
+<blockquote>
+<p><strong>NOTE:</strong> These URLs can be considered connection strings.</p>
+</blockquote>
+<p>You will find the URLs in the overview page for the ADX cluster:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-urls.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Connection Strings</em></p>
+<p>We are looking for two endpoints outlined in red in <em>Figure 4</em>. Those two endpoints represent the following:</p>
+<ul>
+<li><code>URI</code>: endpoint for querying the cluster.</li>
+<li><code>Data Ingestion URI</code>: this is the endpoint for ingesting into the cluster.</li>
+</ul>
+<p>Take note of the two endpoints. You will use the ingestion endpoint later in this post and the query endpoint in the next post.</p>
+<h3 id="adx-service-principal-spn">ADX Service Principal (SPN)</h3>
+<p>You use the Azure CLI mentioned above in the <em>Pre-Reqs</em>to set up the SPN. This is what you do:</p>
+<ul>
+<li>Log in to Azure: <code>az login</code>. This returns a list of your subscriptions after successful login.</li>
+<li>If you have more than one subscription, you set the subscription you want to use: <code>az account set --subscription &lt;your-sub-id&gt;</code>.</li>
+</ul>
+<p>Having done the above, you now create the service principal:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az ad sp create-for-rbac -n <span style="color:#2aa198">&#34;leaderboard-adx-spn&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Create Service Principal</em></p>
+<p>The code in <em>Code Snippet 2</em> creates - as mentioned before - a service principal configured to access Azure resources. The output, when executing the code, looks something like so:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-spn.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Service Principal Properties</em></p>
+<p>In <em>Figure 5</em>, you see the result from executing the code in <em>Code Snippet 2</em>. You see a JSON blob with 4 fields/properties. Take note of <code>appId</code>, <code>password</code>, and <code>tenant</code>, as you will use them later when configuring the connector.</p>
+<p>In fact, you will use them right now, as the SPN need to be associated with your ADX database. There are different ways to do this, and I find using the <em>Query</em> editor for ADX in the Azure Portal the easiest:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-add-spn.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Query ADX Azure Portal</em></p>
+<p>In <em>Figure 6</em>, I logged in to my Azure subscription and navigated to my ADX cluster (highlighted in yellow). I then:</p>
+<ul>
+<li>Clicked on the <em>Query</em> button outlined in red.</li>
+<li>Did chose my database <code>leaderboard</code> outlined in blue.</li>
+</ul>
+<p>By clicking on the <em>Query</em> button, the query editor opens. You see it outlined in purple in <em>Figure 6</em>. You also see - outlined in green - the code to execute to add the created SPN to the database.</p>
+<blockquote>
+<p><strong>NOTE:</strong> You replace the <code>The-AppId</code> and <code>The-Tenant</code> with the values for <code>appId</code> and <code>tenant</code> you got when executing the code in <em>Code Snippet 2</em>.</p>
+</blockquote>
+<p>You will find the code in *<em>Figure 6</em> in the <code>kql-queries.kql</code> file in the <code>kql</code> folder of the repo you cloned above.</p>
+<h3 id="adx-table">ADX Table</h3>
+<p>You need to create a table to ingest the data from the Kafka <code>gameplay</code> topic. You do it from the <em>Query</em> editor for ADX, as we saw in <em>Figure 6</em>. The table schema should match the event schema in <em>Code Snippet 1</em>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PlayerID</span>: <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">GameID</span>: <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">Win</span>: <span style="color:#268bd2">long</span>, <span style="color:#268bd2">Stake</span>: <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">EventTime</span>: <span style="color:#268bd2">datetime</span>
+</span></span><span style="display:flex;"><span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Create Table</em></p>
+<p>In <em>Code Snippet 3</em>, you see how the table matches the event schema in <em>Code Snippet 1</em>. After executing the code in <em>Code Snippet 3</em>, you can check that the table has been created by executing: <code>.show tables</code>.</p>
+<h2 id="ingestion">Ingestion</h2>
+<p>Let us discuss ingestion and how to set it up in ADX.</p>
+<p>ADX supports two types of ingestion:</p>
+<ul>
+<li><strong>Batch Ingestion:</strong> Batching ingestion does data batching and is optimized for high ingestion throughput. Data is batched according to ingestion properties. Small batches of data are then merged and optimized for fast query results. Batch is the default ingestion type.</li>
+<li><strong>Streaming Ingestion:</strong> Streaming ingestion is ongoing data ingestion from a streaming source. Streaming ingestion allows near real-time latency data sets. Streaming ingestion can be done using an Azure Data Explorer client library or a supported data pipeline (the Kusto Sink connector supports streaming ingestion).</li>
+</ul>
+<p>Streaming ingestion is the best bet as you require low latency for the leaderboard system. As batch ingestion is the default type, streaming ingestions must be explicitly enabled.</p>
+<h3 id="enable-stream-ingestion">Enable Stream Ingestion</h3>
+<p>Stream ingestion must be enabled on cluster and database/table levels.</p>
+<h4 id="cluster">Cluster</h4>
+<p>You start by enabling it on the cluster level. In the Azure Portal, you go to your ADX cluster:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-stream-ingest.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Enable Stream Ingestion ADX Cluster</em></p>
+<p>In <em>Figure 7</em> you see what to do:</p>
+<ul>
+<li>Under the <em>Settings</em> heading select <em>Configurations</em> (outlined in yellow).</li>
+<li>In the In the <em>Configurations</em> pane, select <strong>On</strong> to enable <em>Streaming ingestion</em> (outlined in red).</li>
+<li>Click <em>Save</em> just above <em>Configurations</em>.</li>
+</ul>
+<p>Be aware that it may take some seconds, up to half a minute, for ADX to enable streaming ingestion.</p>
+<h4 id="database--table">Database / Table</h4>
+<p>You use KQL statements to enable streaming ingestion on a database or table level. If you enable streaming ingestion on a database level, it applies to all tables in the database (existing or future):</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>// <span style="color:#268bd2">Enable</span> <span style="color:#268bd2">streaming</span> <span style="color:#268bd2">ingestion</span> <span style="color:#859900">table</span> <span style="color:#859900">level</span>
+</span></span><span style="display:flex;"><span>.<span style="color:#859900">alter</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">policy</span> <span style="color:#268bd2">streamingingestion</span> <span style="color:#268bd2">enable</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>// <span style="color:#859900">to</span> <span style="color:#859900">check</span> <span style="color:#859900">if</span> <span style="color:#268bd2">a</span> <span style="color:#859900">table</span> <span style="color:#268bd2">have</span> <span style="color:#268bd2">streaming</span> <span style="color:#268bd2">ingestion</span>
+</span></span><span style="display:flex;"><span>.<span style="color:#859900">show</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">policy</span> <span style="color:#268bd2">streamingingestion</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>// <span style="color:#859900">if</span> <span style="color:#268bd2">you</span> <span style="color:#268bd2">want</span> <span style="color:#859900">to</span> <span style="color:#268bd2">enable</span> <span style="color:#268bd2">it</span> <span style="color:#859900">on</span> <span style="color:#268bd2">db</span> <span style="color:#859900">level</span>
+</span></span><span style="display:flex;"><span>// .<span style="color:#859900">alter</span> <span style="color:#859900">database</span> <span style="color:#268bd2">leaderboard</span> <span style="color:#268bd2">policy</span> <span style="color:#268bd2">streamingingestion</span> <span style="color:#268bd2">enable</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Enable Streaming Ingestion Code</em></p>
+<p>You see in <em>Code Snippet 4</em> the KQL statements to enable streaming ingestion on a table or database level. Before you run the code, ensure you have enabled streaming ingestion for the cluster as in <em>Figure 7</em>.</p>
+<p>The question is now; what is the relationship between the events in the Kafka topic and the table in the database?</p>
+<h3 id="ingestion-mapping">Ingestion Mapping</h3>
+<p>The following section aims to answer the question above.</p>
+<p>As the event lands in Kafka as JSON (or some other format), ADX needs to understand how the fields in the event map to the columns in the table. You do this by creating a table ingestion mapping in the database:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">ingestion</span> <span style="color:#268bd2">json</span> <span style="color:#268bd2">mapping</span> <span style="color:#2aa198">&#39;gameplay_json_mapping&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;[&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;  {&#34;column&#34;:&#34;PlayerID&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.playerId&#34;}},&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;  {&#34;column&#34;:&#34;GameID&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.gameId&#34;}},&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;  {&#34;column&#34;:&#34;Win&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.win&#34;}},&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;  {&#34;column&#34;:&#34;Stake&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.stake&#34;}},&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;  {&#34;column&#34;:&#34;EventTime&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.eventTime&#34;}}&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;]&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Ingestion Mapping</em></p>
+<p>The code in <em>Code Snippet 5</em> shows how you create a JSON ingestion mapping, naming it <code>gameplay_json_mapping</code>. You see how the columns in the table are mapped against the event fields, where <code>$</code> represents the event&rsquo;s root.</p>
+<p>After running the code in <em>Code Snippet 5</em>, you can check that the mapping exists executing: <code>.show table GamePlay ingestion mappings</code>, which returns all mappings for that table.</p>
+<p>The page <a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/show-ingestion-mapping-command">.show ingestion mapping</a> from the ADX documentation covers ingestion mapping in more detail.</p>
+<p>You now have all the &ldquo;pieces of the puzzle&rdquo;. Let us put it together!</p>
+<h2 id="kafka-connect--kusto-sink-connector">Kafka Connect &amp; Kusto Sink Connector</h2>
+<p>What is left to do is to set up the Kusto Sink connector in Kafka Connect.</p>
+<p>As in the previous post, you will run Kafka (and the event-generating application) in Docker using the supplied <code>docker-compose.yml</code> file in the repo (in the <code>docker</code> folder).</p>
+<h3 id="docker-compose-file">Docker Compose File</h3>
+<p>The Docker Compose file looks the same as in the previous post, except for the addition of a Kafka Connect container:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yml" data-lang="yml"><span style="display:flex;"><span><span style="color:#268bd2;font-weight:bold">connect</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">image</span>: <span style="color:#2aa198">confluentinc/cp-server-connect-base:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">container_name</span>: <span style="color:#2aa198">connect</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#2aa198;font-weight:bold">8083</span>:<span style="color:#2aa198;font-weight:bold">8083</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">environment</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_BOOTSTRAP_SERVERS</span>: <span style="color:#2aa198">&#39;broker:29092&#39;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_REST_ADVERTISED_HOST_NAME</span>: <span style="color:#2aa198">connect</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_REST_PORT</span>: <span style="color:#2aa198;font-weight:bold">8083</span>
+</span></span><span style="display:flex;"><span>      [<span style="color:#2aa198">snipped for brevity]      </span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_KEY_CONVERTER</span>: <span style="color:#2aa198">org.apache.kafka.connect.storage.StringConverter</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_VALUE_CONVERTER</span>: <span style="color:#2aa198">org.apache.kafka.connect.json.JsonConverter</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#268bd2;font-weight:bold">CONNECT_PLUGIN_PATH</span>: <span style="color:#2aa198">&#34;/usr/share/java,/usr/share/confluent-hub-components&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2;font-weight:bold">command</span>: 
+</span></span><span style="display:flex;"><span>      - <span style="color:#2aa198">bash </span>
+</span></span><span style="display:flex;"><span>      - -<span style="color:#2aa198">c </span>
+</span></span><span style="display:flex;"><span>      - |<span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        echo &#34;Installing connector plugins&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        confluent-hub install --no-prompt microsoftcorporation/kafka-sink-azure-kusto:3.0.7
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        #
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        echo &#34;Launching Kafka Connect worker&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        /etc/confluent/docker/run &amp; 
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        #
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        sleep infinity</span>        
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Kafka Connect</em></p>
+<p>You see in <em>Code Snippet 6</em> how I use the Kafka Connect base image and how I am installing (in the <code>command</code> section ) the Kusto Sink connector via <code>confluent-hub install</code>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> When using <code>confluent-hub install</code> in a Docker Compose file, it is important to include the <code>--no-prompt</code> statement, i.e. <code>confluent-hub install --no-prompt ...</code>. If you don&rsquo;t do that, the connector will not install.</p>
+</blockquote>
+<p>I suggest you now check that the Docker Compose file works as expected and that the connector loads. However, before you do that, remember from the last post the caveat around Apple Silicon; if you are on a Mac with Apple Silicon, you must comment on the Python application container (<code>event-gen</code>) in the compose file. This is because there is no &ldquo;wheel&rdquo; for the Confluent Kafka Python client that installs in an ARM-based container.</p>
+<p>When everything is ready you:</p>
+<ul>
+<li>Ensure that Docker Desktop is up and running.</li>
+<li>Spin up the containers: <code>docker compose up -d --build</code>.</li>
+</ul>
+<p>In the last post, you checked that everything was OK using the Docker Desktop application and the browser-based Kafka UI: <strong>UI for Kafka</strong>. Here you use <code>docker ps</code> to check what containers are running:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps --format <span style="color:#2aa198">&#34;table {{.Names}}&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Check Containers</em></p>
+<p>You see in <em>Code Snippet 7</em> me using the <code>--format</code> option to filter the output. Executing the code in <em>Code Snippet 7</em> results in:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-docker-ps.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Output</em></p>
+<p>It looks like everything has worked, as in <em>Figure 8</em> you see that the Kafka Connect container is up.</p>
+<h4 id="installed-connectors">Installed Connectors</h4>
+<p>From the above, it seems all is OK. To be sure, you check that the Kusto Sink connector is loaded into Kafka Connect. You do it by using the Kafka REST API:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>GET http://localhost:8083/connector-plugins
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 8:</strong> <em>GET Connectors</em></p>
+<p>You can use whatever tool you are comfortable with to call the REST API (<code>curl</code>, Postman, etc.). Personally, I prefer Postman, and in <em>Code Snippet 8</em>, you see how I call into the <code>connector-plugins</code> endpoint using port <code>8083</code> exposed by Kafka Connect:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-connect-kusto.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Installed Connectors</em></p>
+<p>Executing the code in <em>Code Snippet 8</em>, I get the result you see in <em>Figure 9</em>, and outlined in red is the Kusto connector. The other connectors you see are part of the base Kafka Connect Container.</p>
+<h3 id="connector-configuration">Connector Configuration</h3>
+<p>Cool, the Kusto connector is loaded. Now it is time to configure it. Remember, you created an ingestion mapping in ADX so that ADX understands the events being ingested. On the connector side, you configure the connector, where to read data from, where to ingest the data, etc.</p>
+<p>The configuration is done using a JSON file and <code>POST</code>:ing it either via <code>curl</code> or Postman.</p>
+<p>The configuration file I use looks like so:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-kusto-config.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Kusto Configuration</em></p>
+<p>Below follows an explanation of some of the fields you see in <em>Figure 10</em>:</p>
+<ol>
+<li>The <code>topics</code> property points to the topic(s) the connector consumes. It is defined as a comma-delimited string.</li>
+<li>In the <code>kusto.ingestion.url</code> and the `kusto.query.url, you set the URLs you retrieved in <em>Figure 4</em>.</li>
+<li>The three <code>aad.auth.xyz</code> properties refer to the properties from creating the SPN. The <code>authority</code> is the <code>tenant</code>, <code>appid</code> is the <code>appId, and the </code>appKey<code>is the</code>password`.</li>
+<li>Let us come back to <code>kusto.tables.topics.mapping</code> below.</li>
+<li>I have found that I need to set both <code>key.converter.schemas.enable</code> and <code>value.converter.schemas.enable</code> to <code>false</code>. I get some errors otherwise.</li>
+</ol>
+<p>Above, I said we&rsquo;d come back to <code>kusto.tables.topics.mapping</code>, so let us do that.</p>
+<h4 id="kustotablestopicsmapping">kusto.tables.topics.mapping</h4>
+<p>As the name implies, this property defines the mapping between the topic and the table(s) in the database(s). My mapping looks like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>[{&#39;topic&#39;: &#39;gameplay&#39;,&#39;db&#39;: &#39;leaderboard&#39;, &#39;table&#39;: &#39;GamePlay&#39;,&#39; \
+</span></span><span style="display:flex;"><span>   format&#39;: &#39;json&#39;, &#39;mapping&#39;:&#39;gameplay_json_mapping&#39;, &#39;streaming&#39;: &#39;false&#39;}]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 9:</strong> <em>Tables Topic Mapping</em></p>
+<p>The mapping is an array of topics and their respective mapping to databases and tables in the cluster. In my example, I have only one mapping, and in the mapping, I define:</p>
+<ul>
+<li>the topic I am consuming from.</li>
+<li>the database and table to ingest that particular topic&rsquo;s events into.</li>
+<li>the format of the data.</li>
+<li>the ingestion mapping that has been set up for the table. You see this in <em>Code Snippet 5</em>.</li>
+<li>whether the ingestion is streaming or batch. This post is streaming ingestion as you want as low latency as possible.</li>
+</ul>
+<p>When you have set the different properties in the configuration, you <code>POST</code> the configuration to the <code>connectors</code> endpoint as outlined in blue in <em>Figure 10</em>.</p>
+<p>I should have mentioned the <code>name</code> property in line 2 in <em>Figure 10</em>. The name is an arbitrary string. You use it when managing the connector. Things you can do are:</p>
+<ul>
+<li>pause the connector.</li>
+<li>restart the connector.</li>
+<li>delete the connector.</li>
+<li>check the status of the connector.</li>
+<li>etc.</li>
+</ul>
+<p>Each operation is against the <code>/connectors</code> endpoint and takes the connector name as an input parameter, potentially followed by a resource request. An example would be that when we have created the connector, we want to check that it actually is up and running:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>GET http://localhost:8083/connectors/WagerConnector/status
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 10:</strong> <em>Connector Status</em></p>
+<p>In <em>Code Snippet 10</em>, you see how you check the newly created <code>WagerConnector</code> connector status.</p>
+<p>Everything is OK (<em>it works on my machine</em>)! Let&rsquo;s test it!</p>
+<h2 id="testing-the-connector">Testing the Connector</h2>
+<p>Let us start in ADX <em>Query</em> editor and ensure that the <code>GamePlay</code> table is empty: <code>GamePlay | count</code>. That should return <code>0</code>.</p>
+<p>You can now start publishing events to the topic. In the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, you saw how to publish events one-by-one or in a loop. To keep things simple, you start by publishing one-by-one.</p>
+<h3 id="publish-single-events">Publish Single Events</h3>
+<p>If you haven&rsquo;t read the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I suggest you go back and read, at least, the part about publishing events and the different command line parameters.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you are on Apple Silicon (M1, M2), note how you need to run the Python application independently, not from the Docker container.</p>
+</blockquote>
+<p>To publish events, follow the &ldquo;instructions&rdquo; in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
+<ul>
+<li>From the command line, you <code>docker exec</code> into the <code>event-gen</code> container: <code>docker exec -it event-gen bash</code>.</li>
+<li>Execute the <code>runProducer.py</code> script.</li>
+</ul>
+<p>When you start running the script, you pass in command-line arguments. For one-by-one events, you only need to pass in the argument for which topic to publish to <code>-t</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python runProducer.py -t gameplay
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 11:</strong> <em>Single Event Mode</em></p>
+<p>When executing the script in <em>Code Snippet 11</em>, you press <code>Y</code> to generate and publish an event. Do this a couple of times. Having done that, in the <em>Query</em> editor, do the equivalent of a SQL <code>SELECT * FROM GamePlay</code>: <code>GamePlay</code>:</p>
+<p>
+  <img src="/images/posts/leaderboard-adx-query-1.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Query GamePlay</em></p>
+<p>Yay, it works! In <em>Figure 11</em> you see the result (outlined in yellow) of the query (outlined in red).</p>
+<p>You are now ready to do a more realistic test where you emulate online gameplay by generating and publishing events in a loop. However, before that, clear out the <code>GamePlay</code> table, so you start afresh: <code>.clear table GamePlay data</code>.</p>
+<h3 id="publish-in-a-loop">Publish in a Loop</h3>
+<p>To recap what was said in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, to publish in a loop, you set - at minimum - the following command line parameters:</p>
+<ul>
+<li><code>-t</code>: The topic to publish to.</li>
+<li><code>-l</code>: Flag to indicate you want to loop.</li>
+</ul>
+<p>Those are the only required parameters. Executing with those parameters would generate 10 events in a loop. To emulate &ldquo;real world&rdquo; gameplay, you probably want to do some more, so I suggest you publish at least 500:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python runProducer.py -t gameplay -l -e <span style="color:#2aa198;font-weight:bold">500</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 12:</strong> <em>Publish in a Loop</em></p>
+<p>Before running the code in <em>Code Snippet 12</em>, I suggest you create a KQL query which will be the base for the leaderboard calculations in the future:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">GamePlay</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#859900">where</span> <span style="color:#268bd2">Win</span> &gt; <span style="color:#2aa198;font-weight:bold">0</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">summarize</span> <span style="color:#268bd2">Score</span> =  <span style="color:#859900">max</span> (<span style="color:#268bd2">Win</span> / <span style="color:#268bd2">Stake</span>) <span style="color:#859900">by</span> <span style="color:#268bd2">PlayerID</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#859900">order</span> <span style="color:#859900">by</span> <span style="color:#268bd2">Score</span> <span style="color:#859900">desc</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 13:</strong> <em>Win/Stake Ratio</em></p>
+<p>To calculate the win/stake ratio, use the <code>summarize</code> operator as in <em>Code Snippet 13</em>. It aggregates data by grouping it based on one or more columns and applying aggregate functions to the data within each group. In <em>Code Snippet 13</em>, you use <code>summarize</code> to get the max ratio for a player.</p>
+<blockquote>
+<p><strong>NOTE:</strong> In the next post, you will see more about what you can do with KQL.</p>
+</blockquote>
+<p>While the code in <em>Code Snippet 12</em> runs, execute the code in <em>Code Snippet 13</em>, and look at how the leaderboard position changes. Very cool!</p>
+<h2 id="summary">Summary</h2>
+<p>In this post, you continued your &ldquo;journey&rdquo; towards creating a leaderboard system, and you:</p>
+<ul>
+<li>Created an Azure Data Explorer database.</li>
+<li>Created an Azure Active Directory Service Principal using Azure CLI (<code>az</code>).</li>
+<li>Created an admin user in your ADX database from that Service Principal.</li>
+<li>Created an ADX table to persist the game events.</li>
+<li>Enabled streaming ingestion on the cluster and the database/table.</li>
+<li>Defined ingestion mapping and streaming ingestion policy in the ADX database.</li>
+<li>Created the connector configuration file and got an insight into some properties.</li>
+<li>Created the connector from the connector configuration file.</li>
+</ul>
+<p>After having done the above, you published some events to Kafka. You saw that your setup worked.</p>
+<p>Finally, you published events in a loop and had a KQL query calculating the highest win/stake ratio for the individual players in real-time.</p>
+<p>The next post will cover more about KQL and how to use Azure Data Explorer&rsquo;s REST API to query ADX.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2023-03-12-interesting-stuff---week-10-2023/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 10, 2023">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>
