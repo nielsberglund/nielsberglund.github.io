@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/thumbnails/posts/leaderboard-II.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/thumbnails/posts/leaderboard-II.jpg" />
+    
+
+    
+    <meta name="title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II" />
+    <meta property="og:title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II" />
+    <meta property="twitter:title" content="Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II" />
+    
+
+    
+    <meta name="description" content="In this post, I do not cover that much about leaderboards. I instead look at ingesting large volumes of data into ADX and how to transform that data using Azure Data Explorer Update Policies.">
+    <meta property="og:description" content="In this post, I do not cover that much about leaderboards. I instead look at ingesting large volumes of data into ADX and how to transform that data using Azure Data Explorer Update Policies." />
+    <meta property="twitter:description" content="In this post, I do not cover that much about leaderboards. I instead look at ingesting large volumes of data into ADX and how to transform that data using Azure Data Explorer Update Policies." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/leaderboard-II.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/azure-data-explorer" title="Azure Data Explorer">
+                            Azure Data Explorer
+                        </a>
+                        
+                        <a class="tag" href="/tags/kusto" title="Kusto">
+                            Kusto
+                        </a>
+                        
+                        <a class="tag" href="/tags/kql" title="KQL">
+                            KQL
+                        </a>
+                        
+                    </div>
+                    <h1>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, April 3, 2023
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Don&rsquo;t be fooled by the &quot; - II&quot; in the title, as this is the third post in the series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. This (&quot; - II&quot;) is because the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka. Posts in the series are:</p>
+<ul>
+<li><a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - Prelude</strong></a></li>
+<li><a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</strong></a></li>
+<li><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong> (this post)</li>
+</ul>
+<p>The <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a> was all about ingesting data into ADX from Kafka. In this post, you will see more about ingesting data into ADX and some &ldquo;cool stuff&rdquo; related to that. Specifically, what to do if you need to update/transform the data you ingest.</p>
+<h2 id="background">Background</h2>
+<p>The premise of this series of posts is that the requirements of analysis are changing:</p>
+<ul>
+<li>From once batch processing being &ldquo;good enough&rdquo; to near real-time is required.</li>
+<li>The volume of data being processed. Back in the batch days, aggregated/rolled-up data was used. Now: the more granular the data is, the better.</li>
+<li>Number of users looking at the analysis. From a selected few to potentially everyone.</li>
+</ul>
+<p>With the changing requirements of analytics, the tech stack needs to be able to handle the following:</p>
+<ul>
+<li>Real-time ingestion of large volumes of data.</li>
+<li>Ability to handle thousands and thousands of queries per second.</li>
+<li>Low latency queries (milliseconds).</li>
+</ul>
+<p>In the previous posts, you have seen that the chosen tech stack for this leaderboard &ldquo;project&rdquo; is Kafka and <strong>Azure Data Explorer</strong>.</p>
+<h3 id="online-gaming-leaderboard">Online Gaming Leaderboard</h3>
+<p>Let us remind ourselves that based on the requirements above, the design/architecture of the leaderboard system looks something like so:</p>
+<p>
+  <img src="/images/posts/leaderboard-kafka-adx.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Leaderboard Architecture</em></p>
+<p>You see in <em>Figure 1</em>:</p>
+<ol>
+<li>The player makes a spin, which generates a spin event. This event is being published to a topic in Kafka.</li>
+<li>The event is ingested into ADX using Kafka Connect and the Kusto Sink connector.</li>
+<li>In ADX, you have written queries which process the ingested data. When called, these queries return leaderboard standings to a web page using ADX REST APIs.</li>
+</ol>
+<p>In the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, you did step 1 above. You looked at ingesting data into Kafka topics using supplied Docker containers for Kafka and a Python application generating and publishing events.</p>
+<p>The <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">second post</a> covered step 2. The pertinent parts of that post were:</p>
+<ul>
+<li>Create an Azure Service Principal to be used by the Kusto connector when ingesting data into ADX.</li>
+<li>Enable the ADX cluster and the database/table for streaming ingestion.</li>
+<li>Get the URLs for ingestion and querying.</li>
+<li>Create an ingesting policy based on the expected event and the table to ingest into. The ingestion policy maps the event fields to the columns in the table.</li>
+<li>Run Kafka Connect and load the Kusto Sink connector.</li>
+<li>Configure the connector to ingest into ADX. The ingestion policy mentioned above plays an important role here.</li>
+</ul>
+<p>That&rsquo;s about it - that is what has been covered so far.</p>
+<p>When I started this post, I planned to go onto step 3 in <em>Figure 1</em>, querying using KQL and ADX REST APIs. However, I realized that to see ADX &ldquo;goodness&rdquo;, I would need more data in the database than what step 2 does. So, instead of going straight to step 3, I took a &ldquo;detour&rdquo; and covered more about ingestion and transformation of ingested data.</p>
+<h2 id="pre-reqs">Pre-Reqs</h2>
+<p>However, before that, let us look at the pre-reqs if you want to follow along. They are pretty much the same as in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, but here goes:</p>
+<ul>
+<li>Docker Desktop. We use Docker to &ldquo;spin up&rdquo; containers for Kafka and a Python application. The Python application generates and publishes events to Kafka. Caveat: If you are on an Apple Silicon (M1 or M2), you need Python installed on your machine, as the container for the event generation application won&rsquo;t build on Apple Silicon. Subsequently, you must install the Python Confluent Kafka client on your Mac: <code>pip install confluent-kafka</code>.</li>
+<li>An Azure Data Explorer cluster and a leaderboard database. You should already have it if you followed along in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a>. If not, go back and read the post and create the cluster, the database and the other necessary &ldquo;stuff&rdquo;.</li>
+</ul>
+<h3 id="code">Code</h3>
+<p>The code for this post is in the <a href="https://github.com/nielsberglund/leaderboard-kql">leaderboard-KQL</a> GitHub repo. To follow along, clone the repo somewhere on your machine. All the required KQL code is in the <code>kql-queries-II.kql</code> file in the <code>kql</code> folder.</p>
+<h2 id="prep">Prep</h2>
+<p>Now you have an ADX cluster with a <code>leaderboard</code> database and the <code>GamePlay</code> table. You have it, either from following along in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a> or you have just created it.</p>
+<p>The table may have data from the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last</a> post, and if it does, you should clean it out: <code>.clean GamePlay data</code>, as you will a little bit later ingest new data in the table.</p>
+<h3 id="azure-data-explorer-web-ui">Azure Data Explorer Web UI</h3>
+<p>When you wrote (and executed) KQL code in the last post, you used the <em>Query</em> editor for ADX in the Azure Portal. The query editor is handy, making it very simple to get up and running with ADX. However, for what you will do in this post, you need an editor which offers a bit more than the <em>Query</em> editor. That editor is the <a href="https://dataexplorer.azure.com">Azure Data Explorer Web UI</a>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> To query Azure Data Explorer, you are not limited to the Web UI or the <em>Query</em> editor. You can also use Azure Data Studio (ADS) or <a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/tools/kusto-explorer">Kusto Explorer</a>.</p>
+</blockquote>
+<p>Ok, so let&rsquo;s get going. Browse to the Web UI&rsquo;s URL: <a href="https://dataexplorer.azure.com"><code>https://dataexplorer.azure.com</code></a>, and you see something like so:</p>
+<p>
+  <img src="/images/posts/dataexplorer-1.png" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Azure Data Explorer Web UI</em></p>
+<p>You won&rsquo;t see exactly what is in <em>Figure 1</em> as that is my Data Explorer, but you should see something similar. The numbered sections represent the following:</p>
+<ol>
+<li>
+<p>Menu of different &ldquo;experiences&rdquo;:</p>
+<ul>
+<li><em>Data</em> - data management.</li>
+<li><em>Query</em> - write queries and see the results.</li>
+<li><em>Dashboards</em> - creation and management of dashboards.</li>
+<li><em>My cluster</em> - lets you set up a free ADX cluster.</li>
+</ul>
+</li>
+<li>
+<p>Cluster connections pane. Similar to the <em>Servers</em> pane in ADS or <em>Object Explorer</em> in SSMS. What you see outlined in blue does what it says on the &ldquo;tin&rdquo;: it adds cluster connections. As you see in *Figure 1, I have a couple of clusters connected. Below you will see how to add your own cluster.</p>
+</li>
+<li>
+<p>The editor pane where you write Kusto Query Language (KQL) queries. You click the <em>Run</em> button - outlined in red - to execute a query. The button outlined in green - the hamburger menu - allows you to open (and save) query files.</p>
+</li>
+<li>
+<p>The results pane.</p>
+</li>
+</ol>
+<h4 id="add-cluster">Add Cluster</h4>
+<p>Let us add your cluster to the cluster connections:</p>
+<p>
+  <img src="/images/posts/dataexplorer-2.png" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Add Cluster</em></p>
+<p>Clicking the <em>Add cluster</em> button in <em>Figure 1</em> shows something like what you see in <em>Figure 2</em>. You replace what is outlined in red in <em>Figure 2</em> with the cluster&rsquo;s URI for queries as you retrieved in the previous post, and you give your cluster a name (outlined in yellow).</p>
+<p>However, when you do this, you may get an error:</p>
+<p>
+  <img src="/images/posts/adx-add-conn-exception.png" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Exception</em></p>
+<p>Eish, that is not good - what to do?</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you didn&rsquo;t get an error, and you can see your <code>leaderboard</code> database as in <em>Figure 1</em>, you can skip this part.</p>
+</blockquote>
+<p>You see in <em>Figure 3</em> that the exception mentions <code>msauser</code>. A <code>msauser</code> authenticates with a Microsoft-managed non-organizational user account. In my case, I authenticate using my Gmail account.</p>
+<p>To fix this, you add the <code>msauser</code> to the leaderboard database using the *Query&quot; editor:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">add</span> <span style="color:#859900">database</span> [<span style="color:#2aa198">&#39;leaderboard&#39;</span>] <span style="color:#268bd2">admins</span> (<span style="color:#2aa198">&#39;msauser=&lt;identity&gt;&#39;</span>)
+</span></span><span style="display:flex;"><span>                                        <span style="color:#2aa198">&#39;&lt;some-decription&gt;&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Add User</em></p>
+<p>In <em>Code Snippet 1</em>, you see how to add a user as an admin to the database. You can read more about users and principals <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">here</a> and <a href="https://azure.microsoft.com/en-us/free/">here</a>.</p>
+<p>You can now add your cluster to the Web UI, having added the user. After adding the cluster, refresh it in the Web UI, and you should see your database. Oh, and open the <code>kql-queries-II.kql</code> file in <em>Data Explorer</em>.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The <code>msauser</code> is per database. If you add a database to a cluster added to the <em>Data Explorer</em>, you must add the <code>msauser</code> to that database before it becomes visible in the cluster connections pane.</p>
+</blockquote>
+<p>Let us now go onto why you need the <em>Data Explorer</em> in the first place.</p>
+<h2 id="ingestion">Ingestion</h2>
+<p>In the last post, I discussed two ways of ingesting data into ADX:</p>
+<ul>
+<li>Batch ingestion.</li>
+<li>Streaming ingestion.</li>
+</ul>
+<p>In the post, you ingested event data from a Kafka topic using streaming ingestion, and you will continue that in this post. However, to see that your leaderboard system works, you probably want more data than just running streaming ingestion for a few minutes. I.e. in the real world, the leaderboard system will have hundreds of thousands of events (if not millions) persisted in a very short time frame, and your queries will run against those volumes of data.</p>
+<p>To emulate this and show off some ADX features, I ran streaming ingestion (as in the last post) and ingested 100,000 records. I then exported that to a CSV file. The file is named <code>events.csv</code>, and you find it in the <code>data</code> folder in the cloned repo.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Loking at the <code>data</code> folder you also see a file <code>events-small.csv</code>. You use that to ensure all is working as expected and also for some testing.</p>
+</blockquote>
+<p>You are to ingest the events from <code>events.csv</code> into the <code>GamePlay</code> table. For this, you use the Data Explorer&rsquo;s ingestion wizard:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-1.png" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Ingestion Wizard</em></p>
+<p>You get to the ingestion wizard by clicking on the <em>Data</em> button (outlined in yellow) in Data Explorer. When scrolling around, you see &ldquo;Quick actions* and, outlined in red, <em>Ingest data</em> underneath it. That is what you use, and if you click on it, you&rsquo;d be taken through the ingestion process. However, in this case, it is more complex. Open the <code>events.csv</code> in - for example - Excel and you see:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-events.png" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Events</em></p>
+<p>What is wrong with that picture, you may ask yourself? Look at the <code>EventTime</code> column and the data and times for the events. The dates are far from when you will be running this, and to make this more real-life-like, those dates should really be updated to when you run it. So why not ingest the data into the <code>GamePlay</code> table and then update the time? That&rsquo;s a great idea! Apart from the minor detail that ADX does not allow updates 😟!</p>
+<blockquote>
+<p><strong>NOTE:</strong> ADX is optimized for processing large volumes of data, and it stores the data in a columnar format that allows for fast querying and analysis. It prioritizes fast ingestion and querying of data over updates to existing data. Therefore it does not support updating existing rows in a table.</p>
+</blockquote>
+<p>Even though ADX doesn&rsquo;t support direct data updates in a table, there are ways and means you can do it, which you will see below.</p>
+<h3 id="update-policy">Update Policy</h3>
+<p>Using an Update Policy is one way to &ldquo;update&rdquo; data, and it does definitely classify as a &ldquo;cool&rdquo; ADX feature mentioned at the beginning of the post.</p>
+<p>An update policy instructs Azure Data Explorer to automatically ingest data into a target table whenever new data is inserted into the source table:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-update-policy.png" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Update Policy</em></p>
+<p>What you see in <em>Figure 6</em> is &ldquo;taken&rdquo; from Microsoft&rsquo;s documentation about <a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/updatepolicy">Update Policy</a>. In the figure, you see:</p>
+<ul>
+<li>Data being ingested into a source table.</li>
+<li>Two update policy queries (outlined in red) insert the data into two target tables. An update policy query is just that - a query, but you usually create a function to execute when the policy triggers.</li>
+</ul>
+<p>The queries mentioned are transformation queries that run on the data inserted into the source table. Remember, <code>GamePlay</code> is the target table, so you must create a source table (staging table) to insert the data from the <code>events.csv</code> file.</p>
+<h3 id="staging-table">Staging table</h3>
+<p>The staging table looks almost the same as the <code>GamePlay</code> table:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlayStaging</span> 
+</span></span><span style="display:flex;"><span>(
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">PlayerID</span>: <span style="color:#cb4b16">int</span>, <span style="color:#268bd2">GameID</span>: <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">Win</span>: <span style="color:#268bd2">long</span>, <span style="color:#268bd2">Stake</span>: <span style="color:#cb4b16">int</span>, 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">OriginalEventTime</span>: <span style="color:#268bd2">datetime</span>
+</span></span><span style="display:flex;"><span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Staging Table</em></p>
+<p>The only difference between the original <code>GamePlay</code> table and the table in <em>Code Snippet 2</em> is the <code>OriginalEventTime</code> column. That&rsquo;s the column you will transform (actually, update the data in), and the transformation is easier if it has a different name.</p>
+<h3 id="ingestion-policy">Ingestion Policy</h3>
+<p>When ingesting data into ADX, you - in most cases - use a data mapping policy which maps incoming data to columns inside tables. You saw this in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, where you created a policy for mapping the Kafka gameplay event to the <code>GamePlay</code> table.</p>
+<p>In this post, you use the Ingestion Wizard to ingest data into the staging table. The wizard is a wizard and can create the underlying tables and ingestion policies. It uses the schema of the source and, based on that, creates the tables and policies. In this case, the schema is somewhat different in that the source file has a column named <code>EventTime</code>, but your underlying table has the <code>OriginalEventTime</code> column. You need to indicate to the wizard what the mapping should be and, as in <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, you do it using an ingestion policy:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlayStaging</span> <span style="color:#268bd2">ingestion</span> <span style="color:#268bd2">csv</span> <span style="color:#268bd2">mapping</span> <span style="color:#2aa198">&#39;GamePlayStaging_mapping&#39;</span> 
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;[&#39;</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#2aa198">&#39;{&#34;Column&#34;: &#34;PlayerID&#34;, &#34;Properties&#34;: {&#34;Ordinal&#34;: &#34;0&#34;}},&#39;</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#2aa198">&#39;{&#34;Column&#34;: &#34;GameID&#34;, &#34;Properties&#34;: {&#34;Ordinal&#34;: &#34;1&#34;}},&#39;</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#2aa198">&#39;{&#34;Column&#34;: &#34;Win&#34;, &#34;Properties&#34;: {&#34;Ordinal&#34;: &#34;2&#34;}},&#39;</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#2aa198">&#39;{&#34;Column&#34;: &#34;Stake&#34;, &#34;Properties&#34;: {&#34;Ordinal&#34;: &#34;3&#34;}},&#39;</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#2aa198">&#39;{&#34;Column&#34;: &#34;OriginalEventTime&#34;, &#34;Properties&#34;: {&#34;Ordinal&#34;: &#34;4&#34;}}&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;]&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Ingestion CSV Mapping</em></p>
+<p>In <em>Code Snippet 3</em>, you see how you create a CSV mapping for the <code>GamePlayStaging</code> table. The difference between the JSON mapping in the previous post and this CSV mapping is that here you map the table&rsquo;s columns against the ordinal positions in the CSV file and not against event fields as in the JSON mapping.</p>
+<p>When you have created the staging table and the ingestion mapping, it is time to check that everything works as expected.</p>
+<h2 id="test-ingestion--function">Test Ingestion &amp; Function</h2>
+<p>For this test, you use the Ingestion Wizard you saw in <em>Figure 4</em> and the <code>events-small.csv</code> file. You will also create a function you later use for the update policy.</p>
+<h3 id="ingestion-wizard">Ingestion Wizard</h3>
+<p>To start the ingestion wizard, you click on the <em>Ingest data</em> button outlined in red in <em>Figure 4</em>:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-2.png" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Ingest Data: Destination</em></p>
+<p>In this first step of the ingestion wizard, you choose the destination table, and - as you see outlined in red in <em>Figure 7</em>, you choose <em>Existing table</em> and the staging table you created above. You then click source:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-3.png" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Ingest Data: Source - I</em></p>
+<p>As you see in <em>Figure 8</em> you choose the source file, and you can either drop the file within the box outlined in red or browse for the file. As mentioned above, choose the <code>events-small.csv</code> file and drop it in the box:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-4.png" alt="">
+
+</p>
+<p><strong>Figure 9:</strong> <em>Ingest Data: Source - II</em></p>
+<p>Having uploaded the source file, the wizard will use the file to define the schema as you see in <em>Figure 9</em>, and you click <em>Next: Schema</em>:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-5.png" alt="">
+
+</p>
+<p><strong>Figure 10:</strong> <em>Ingest Data: Schema</em></p>
+<p>What you see in <em>Figure 10</em> should be clear. The only thing to consider is checking the flag to use an existing mapping and choosing the mapping you created. Outlined in yellow, you see a preview of what the data will look like after ingestion. What is left to do is to click the <em>Next: Start ingestion</em>:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-ingest-6.png" alt="">
+
+</p>
+<p><strong>Figure 11:</strong> <em>Ingest Data: Ingestion Completed</em></p>
+<p>And that is it; you see in <em>Figure 11</em> how the ingestion has been completed.</p>
+<h3 id="data--function">Data &amp; Function</h3>
+<p>You should now have data in your <code>GamePlayStaging</code> table. Confirm that by executing <code>GamePlayStaging | take 10</code> in the Data Explorer. Looking at the result, you see almost what you see in <em>Figure 5</em>, apart from the <code>EventTime</code> column is named <code>OriginalEventTime</code>.</p>
+<p>You now want to write some code to &ldquo;update&rdquo; the values in <code>OriginalEventTime</code> to be based on the start time of the ingestion:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">let</span> <span style="color:#859900">start</span> = <span style="color:#268bd2">toscalar</span>(<span style="color:#268bd2">GamePlayStaging</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">summarize</span> <span style="color:#859900">min</span>(<span style="color:#268bd2">OriginalEventTime</span>));
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">GamePlayStaging</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">sort</span> <span style="color:#859900">by</span> <span style="color:#268bd2">OriginalEventTime</span> <span style="color:#859900">asc</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">extend</span> <span style="color:#268bd2">EventTime</span> = <span style="color:#268bd2">datetime_add</span>(<span style="color:#2aa198">&#39;millisecond&#39;</span>, <span style="color:#268bd2">datetime_diff</span>(<span style="color:#2aa198">&#39;millisecond&#39;</span>, <span style="color:#268bd2">OriginalEventTime</span>, <span style="color:#859900">start</span>), <span style="color:#268bd2">now</span>())
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">project</span>-<span style="color:#268bd2">away</span> <span style="color:#268bd2">OriginalEventTime</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Update Code</em></p>
+<p>In <em>Code Snippet 4</em>, you see how you start by using the <code>let</code> statement to define a variable (<code>start</code>) that holds the minimum event time from the original data. You then use the <code>start</code> variable to calculate the diff in milliseconds for each event&rsquo;s event time (<code>datetime_diff</code>). You add that to the actual time (<code>now</code>) using <code>datetime_add</code>. The date-time values are exposed in a new column in the original dataset called <code>EventTime</code>. The last thing you do is remove the <code>OriginalEventTime</code> column using <code>project-away</code>, and you now have a dataset looking exactly like the <code>GamePlay</code> table.</p>
+<p>After you have checked that the code in <em>Code Snippet 4</em> works you create a function based on the code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">function</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">ResetEventTime</span>()  
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">let</span> <span style="color:#859900">start</span> = <span style="color:#268bd2">toscalar</span>(<span style="color:#268bd2">GamePlayStaging</span>
+</span></span><span style="display:flex;"><span>    | <span style="color:#268bd2">summarize</span> <span style="color:#859900">min</span>(<span style="color:#268bd2">OriginalEventTime</span>));
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">GamePlayStaging</span>
+</span></span><span style="display:flex;"><span>    | <span style="color:#268bd2">sort</span> <span style="color:#859900">by</span> <span style="color:#268bd2">OriginalEventTime</span> <span style="color:#859900">asc</span>
+</span></span><span style="display:flex;"><span>    | <span style="color:#268bd2">extend</span> <span style="color:#268bd2">EventTime</span> = <span style="color:#268bd2">datetime_add</span>(<span style="color:#2aa198">&#39;millisecond&#39;</span>, <span style="color:#268bd2">datetime_diff</span>(<span style="color:#2aa198">&#39;millisecond&#39;</span>, <span style="color:#268bd2">OriginalEventTime</span>, <span style="color:#859900">start</span>), <span style="color:#268bd2">now</span>())
+</span></span><span style="display:flex;"><span>    | <span style="color:#268bd2">project</span>-<span style="color:#268bd2">away</span> <span style="color:#268bd2">OriginalEventTime</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Function</em></p>
+<p>That was easy; you wrap your code in <em>Code Snippet 4</em> in a <code>.create function &lt;function-name&gt; {&lt;your-code&gt;}</code> statement as in <em>Code Snippet 5</em>, and you are done!</p>
+<h2 id="update-policy-1">Update Policy</h2>
+<p>What is left to do now is to create the update policy and check that it works. Before that, you should clear out all data from the <code>GamePlayStaging</code> table: <code>.clear table GamePlayStaging data</code>.</p>
+<p>Having done that, you alter the <code>GamePlay</code> table and assign an update policy to it:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">8
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">alter</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">policy</span> <span style="color:#859900">update</span> 
+</span></span><span style="display:flex;"><span>@<span style="color:#2aa198">&#39;[&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#39;{ &#34;IsEnabled&#34;: true,&#39;</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#39;   &#34;Source&#34;: &#34;GamePlayStaging&#34;,&#39;</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#39;   &#34;Query&#34;: &#34;ResetEventTime()&#34;,&#39;</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#39;   &#34;IsTransactional&#34;: true,&#39;</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#39;   &#34;PropagateIngestionProperties&#34;: false}&#39;</span>
+</span></span><span style="display:flex;"><span> <span style="color:#2aa198">&#39;]&#39;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Update Policy</em></p>
+<p>In <em>Code Snippet 6</em>, you see the syntax for creating an update policy. What confused me when I first looked into this was that you assign the policy to the target table, and in the <code>Source</code> property, you define the table that should trigger the policy. The <code>Query</code> property holds the statement you want to run when the policy triggers. In this case, it is the function you created earlier.</p>
+<h3 id="run-it">Run It</h3>
+<p>To ensure all works, you ingest the 100,000 records from the <code>events.csv</code> by doing exactly the same as you did in <em>Figure 7</em> to <em>Figure 11</em>. When defining the destination, choose the existing <code>GamePlayStaging</code> table (<em>Figure 7</em>) and use the existing mapping as in <em>Figure 10</em>. After ingesting, you check that you have data in the <code>GamePlay</code> table: <code>GamePlay | count</code>, which should return 100,000. Then ensure that the the <code>EventTime</code> column has the &ldquo;new&rdquo; data-time:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#268bd2">GamePlay</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#268bd2">take</span> <span style="color:#2aa198;font-weight:bold">10</span>
+</span></span><span style="display:flex;"><span>| <span style="color:#859900">order</span> <span style="color:#859900">by</span> <span style="color:#268bd2">EventTime</span> <span style="color:#859900">asc</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 7:</strong> <em>Check it Worked</em></p>
+<p>Executing the code in <em>Code Snippet 7</em> you should see something like so:</p>
+<p>
+  <img src="/images/posts/leaderboard-kql-events-2.png" alt="">
+
+</p>
+<p><strong>Figure 12:</strong> <em>Updated EventTime</em></p>
+<p>I ran the ingestion at around 09:52 on April 2, 2023, so what I see in <em>Figure 12</em> matches up!</p>
+<p>You have now seen how to load &ldquo;old&rdquo; data into ADX and treat it as newly ingested.</p>
+<h3 id="real-time-ingestion">Real-Time Ingestion</h3>
+<p>You can now do what you did in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
+<ul>
+<li>Spin up the Docker containers.</li>
+<li>Configure and deploy the Kusto connector.</li>
+<li>Run the event-generating Python app to publish events to Kafka.</li>
+<li>See how those events are ingested into the <code>GamePlay</code> table.</li>
+</ul>
+<p>I feel I have gone on long enough here, so I leave it up to you (you&rsquo;ll do it in the next post).</p>
+<h2 id="summary">Summary</h2>
+<p>So this post was not so much about leaderboards and real-time ingestion but more about &ldquo;cool&rdquo; (and useful) stuff in ADX.</p>
+<p>You learned (read) about:</p>
+<ul>
+<li>Data management in the Data Explorer (ingestion wizard).</li>
+<li>Ingesting from csv files.</li>
+<li>Creating update policies to be able to transform data being ingested.</li>
+</ul>
+<p>In the summary of the last post, I wrote that I would cover Azure Data Explorer&rsquo;s REST API and how to use it to query ADX. That did obviously not happen 😄, but next post (maybe 😄). Sometimes these posts take you off on a tangent - what can I say.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2023-04-02-interesting-stuff---week-13-2023/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 13, 2023">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>
