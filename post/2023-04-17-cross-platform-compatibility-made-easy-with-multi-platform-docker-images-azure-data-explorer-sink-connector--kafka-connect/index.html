@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com/images/thumbnails/posts/multi-platform-docker-4.jpg">
+    <meta property="twitter:image" content="https://nielsberglund.com/images/thumbnails/posts/multi-platform-docker-4.jpg" />
+    
+
+    
+    <meta name="title" content="Cross-Platform Compatibility Made Easy with Multi-Platform Docker Images: Azure Data Explorer Sink Connector &amp; Kafka Connect" />
+    <meta property="og:title" content="Cross-Platform Compatibility Made Easy with Multi-Platform Docker Images: Azure Data Explorer Sink Connector &amp; Kafka Connect" />
+    <meta property="twitter:title" content="Cross-Platform Compatibility Made Easy with Multi-Platform Docker Images: Azure Data Explorer Sink Connector &amp; Kafka Connect" />
+    
+
+    
+    <meta name="description" content="In this blog post, we&#39;ll explore the steps required to build and deploy multi-platform Docker images, without having to apply platform specific tags.">
+    <meta property="og:description" content="In this blog post, we&#39;ll explore the steps required to build and deploy multi-platform Docker images, without having to apply platform specific tags." />
+    <meta property="twitter:description" content="In this blog post, we&#39;ll explore the steps required to build and deploy multi-platform Docker images, without having to apply platform specific tags." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Cross-Platform Compatibility Made Easy with Multi-Platform Docker Images: Azure Data Explorer Sink Connector &amp; Kafka Connect | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2023-04-17-cross-platform-compatibility-made-easy-with-multi-platform-docker-images-azure-data-explorer-sink-connector--kafka-connect/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link href="https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css" rel="stylesheet" type="text/css">
+
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-18914734-2', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series/">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about/">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive/">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer/">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/multi-platform-docker-4.jpg')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/azure-data-explorer" title="Azure Data Explorer">
+                            Azure Data Explorer
+                        </a>
+                        
+                        <a class="tag" href="/tags/kusto" title="Kusto">
+                            Kusto
+                        </a>
+                        
+                        <a class="tag" href="/tags/kafka-connect" title="Kafka Connect">
+                            Kafka Connect
+                        </a>
+                        
+                        <a class="tag" href="/tags/docker" title="Docker">
+                            Docker
+                        </a>
+                        
+                    </div>
+                    <h1>Cross-Platform Compatibility Made Easy with Multi-Platform Docker Images: Azure Data Explorer Sink Connector &amp; Kafka Connect</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, April 17, 2023
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>As you may know, I am working on a blog-post series, <strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer</strong>. As the title implies, Kafka ingests data into <strong>Azure Data Explorer</strong> (ADX). This is done using the Azure Data Explorer Kusto Sink connector, where the connector runs in a JVM process in Kafka Connect. All this run in Docker containers.</p>
+<p>While writing (still writing) the fourth post in the series, I realised I had to create my own image for Kafka Connect and the Kusto Sink connector. You will find an explanation as to why below. Since I have partly gone over to the &ldquo;dark side&rdquo; (using Apple Silicon, ARM64), I thought it&rsquo;d be nice if the image I created targeted both AMD64 and ARM64. I.e. I wanted to create a multi-platform image. In my usual style, I thought: &ldquo;How hard can it be? What could possibly go wrong&rdquo; 😄.</p>
+<p>Well, it was a tad more difficult than I imagined, and in this post, I cover the steps I took to create my Kafka Connect and Kusto Sink connector image as a multi-platform Docker image. Oh, and if you are not interested in the Kusto Sink connector and Kafka Connect at all (you should be 😄), don&rsquo;t worry. The steps covered here work for any Docker Image you want to create as a multi-platform image.</p>
+<h2 id="pre-reqs-if-you-want-to-follow-along">Pre-Reqs (if you want to follow along)</h2>
+<p>The pre-reqs for this post are the same as in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</strong></a> post. When referring to that post later, I call it <strong>Leaderboard - I</strong>.</p>
+<p>You should further have a working ADX cluster as per <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">the post</a> mentioned above:</p>
+<ul>
+<li>The ADX cluster is enabled for streaming.</li>
+<li>You have a database and a table. In my case, <code>leaderboard</code> and <code>gameplay</code>.</li>
+<li>Either the database or the table is enabled for streaming ingestion (both are also fine).</li>
+<li>You have created an Azure Service Principal and added it as admin to the database.</li>
+<li>You have a JSON ingestion mapping for your table, mapping Kafka event fields to columns in the table.</li>
+<li>You have the URLs for querying and ingesting into ADX.</li>
+</ul>
+<h3 id="code">Code</h3>
+<p>All the required code (including the setup of ADX) is in the <a href="https://github.com/nielsberglund/kafkaconn-kustosink">kafkaconn-kustosink</a> GitHub repo. Clone the repo to somewhere on your machine, and you are good to go.</p>
+<h2 id="disclaimer"><strong>DISCLAIMER</strong></h2>
+<p>I better say this up-front: I am a Docker newbie, so there may be other ways of doing this. But, as they say, it works on my machine(s) 😄.</p>
+<p>But, seriously, if you know of better ways to do this - please let me know.</p>
+<h2 id="multi-platform-docker-images">Multi Platform Docker Images</h2>
+<p>Docker has revolutionised the way we package and deploy software applications. With its containerisation technology, we can create lightweight, portable, and self-contained environments that can run on any platform, from laptops to data centres, without compatibility issues. However, as more and more architectures and operating systems are emerging, it&rsquo;s becoming increasingly challenging to maintain a single image that can work across all of them. That&rsquo;s where multi-platform Docker images come in.</p>
+<p>Multi-platform Docker images allow you to build and distribute a single image that can run on different architectures and operating systems without any modifications. This approach simplifies the deployment process and ensures consistency and compatibility across different platforms.</p>
+<h2 id="background">Background</h2>
+<p>Above, I mentioned that I had to build my own Docker image containing Kafka Connect and the Kusto Sink connector. In the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">Leaderboard - </a> post, I loaded the Kusto Sink connector from Confluent Hub, and all was good. When writing the fourth post, this did not work anymore - I got an error that the connector couldn&rsquo;t be found (or something to that extent). I realised I had to build my own Kafka Connect and Kusto Sink Connector image. Once again: &ldquo;How hard can it be? What could possibly go wrong&rdquo;.</p>
+<h3 id="dockerfile">Dockerfile</h3>
+<p>So to build my image, I downloaded the latest version of the Kusto Sink connector from <a href="https://github.com/Azure/kafka-sink-azure-kusto/releases">here</a>. I then created the <code>Dockerfile</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>FROM confluentinc/cp-server-connect-base:latest
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ENV <span style="color:#268bd2">CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY</span>=All
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>COPY ./kafka-sink-azure-kusto-4.0.0-jar-with-dependencies.jar /usr/share/java
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Docker File</em></p>
+<p>What you see in <em>Code Snippet 1</em> is straight forward:</p>
+<ul>
+<li>I use the base image of Kafka Connect.</li>
+<li>I set an environment variable to override whatever policies I need (if any).</li>
+<li>I copy the Kusto <code>.jar</code> file to a &ldquo;well-known&rdquo; folder in the Connect container.</li>
+</ul>
+<p>The downloaded connector and the <code>Dockerfile</code> file are in the <code>kustosink-image</code> folder in the repo.</p>
+<h3 id="build">Build</h3>
+<p>Having created the <code>Dockerfile</code>, you can now build the image:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker build -t nielsb/kafkaconn-kustosink:latest .
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 2:</strong> <em>Docker Build</em></p>
+<p>You see in <em>Code Snippet 2</em> how I prefix the image with my Dockerhub username as I later will push it to Dockerhub. I also tag it with <code>latest</code>. To see that your image has been created, you run <code>docker images</code>:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-build-1.jpg" alt="">
+
+</p>
+<p><strong>Figure 1:</strong> <em>Created Image</em></p>
+<p>Cool, as shown in <em>Figure 1</em>, the image has been created. If you want, you can now test it.</p>
+<h4 id="test">Test</h4>
+<p>To ensure your connector image loads up correctly, you spin up your Docker containers using the <code>docker-compose.yml</code> file in the <code>docker</code> folder in the repo. The only difference between the <code>docker-compose.yml</code> here and the one in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">Leaderboard - I</a> post is the <code>connect</code> container:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-compose-1.jpg" alt="">
+
+</p>
+<p><strong>Figure 2:</strong> <em>Connect Container</em></p>
+<p>In the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">Leaderboard - I</a> post, I directly used the Confluent image <code>cp-server-connect-base:latest</code> and loaded the Kusto connector from Confluent Hub. As you see in <em>Figure 2</em>, here I reference my image instead, and I do not load anything from Confluent Hub.</p>
+<p>You can now use Postman (or <code>curl</code>) as in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">Leaderboard - I</a> post to check that the connector has been loaded:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-loaded-connector.jpg" alt="">
+
+</p>
+<p><strong>Figure 3:</strong> <em>Kusto Sink Connector Loaded</em></p>
+<p>Yay, it worked! In <em>Figure 3</em>, you see (outlined in blue) how you execute a <code>GET</code> against <code>http://localhost:8083/connector-plugins</code>, and the Kusto Sink connector is returned as being loaded (outlined in red).</p>
+<p>If you want, you can go on and configure the connector to ingest into your table using the Python app as in <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">Leaderboard - I</a>. I do, however, leave that up to you.</p>
+<h3 id="docker-hub">Docker Hub</h3>
+<p>Having built the image and confirmed it is working, you now push it to your Docker Hub image repo: <code>docker push &lt;your-name&gt;/kafkaconn-kustosink:latest</code>. After I have done that, and I browse to the <code>kafkaconn-kustosink</code> repo and click on the <em>Tags</em> tab, I see something like so:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-sink-tags.jpg" alt="">
+
+</p>
+<p><strong>Figure 4:</strong> <em>Kusto Connector Repo</em></p>
+<p>What is highlighted in green within the red outline is why this post came about. As I built the image on an Intel machine, it is expected to see that the platform is AMD64. What about if I want to run it on my MacBook Pro (M1)?</p>
+<h2 id="build-for-different-platforms---i">Build for Different Platforms - I</h2>
+<p>If I want an image that can be run on an ARM64 machine, I could build it on the machine in question. That is a bit cumbersome, so I want to build on my Intel box.</p>
+<p>Looking at the <a href="https://docs.docker.com/engine/reference/commandline/build/#options"><code>docker build</code> options</a>, I see a <code>--platform</code> option, where the description says: <em>Set platform if server is multi-platform capable</em>. That sounds interesting; let&rsquo;s try the following:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># first you build</span>
+</span></span><span style="display:flex;"><span>docker build --platform linux/arm64 -t nielsb/kafkaconn-kustosink:latest .
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># then you push</span>
+</span></span><span style="display:flex;"><span>docker push nielsb/kafkaconn-kustosink:latest
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 3:</strong> <em>Build and Push</em></p>
+<p>No errors when you execute the code in <em>Code Snippet 3</em> (remember to change <code>nielsb</code> to what your Docker user name is). However, when you browse to your repo as you did in <em>Figure 4</em> you see:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-sink-tags-2.jpg" alt="">
+
+</p>
+<p><strong>Figure 5:</strong> <em>Kusto Connector Repo - II</em></p>
+<p>Hmm, only one tag in <em>Figure 5</em>? I expected to see two, one for AMD64 and one for ARM64. And notice how the AMD64 tag has been overwritten. Not good!</p>
+<blockquote>
+<p><strong>NOTE:</strong> Above I wrote I could build the ARM64 image on my MacBook. Sure, that works, but it will behave like the above. As soon as I push it to my repo, whatever is there is overwritten.</p>
+</blockquote>
+<p>You can tag the images differently so they contain the platform information. That works, but now you need different compose files for different architectures, which is &ldquo;lame&rdquo; 😄.</p>
+<h2 id="build-for-different-platforms---ii">Build for Different Platforms - II</h2>
+<p>To solve the problem above, <strong>Docker Buildx</strong> comes to help. So what is Docker Buildx? From <a href="https://docs.docker.com/build/">Overview of Docker Build</a>:</p>
+<p><em>The new client Docker Buildx is a CLI plugin that extends the docker command with the full support of the features provided by BuildKit builder toolkit. <code>docker buildx build</code> command provides the same user experience as docker build with many new features.</em></p>
+<p>Part of the new features is the ability to build and push simultaneously, as well as building multi-platform images in one go.</p>
+<h3 id="buildx">buildx</h3>
+<p>To build multi-platform images, you <em>theoretically</em> do something like so:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker buildx build --platform linux/amd64,linux/arm64 -t nielsb/kafkaconn-kustosink:latest . --push
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 4:</strong> <em>Buildx Build and Push</em></p>
+<p>Notice how I above said <em>theoretically</em>. The reason is that when you run the code in <em>Code Snippet 4</em>, you get an error:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-multi-1.jpg" alt="">
+
+</p>
+<p><strong>Figure 6:</strong> <em>Driver Error</em></p>
+<p>When you build (<code>docker buildx</code>/<code>docker build</code>), the build uses a builder. The builder uses a driver, and the default builder/driver does not allow a multi-platform build, as the error in <em>Figure 6</em> tells you.</p>
+<h4 id="builders--drivers">Builders &amp; Drivers</h4>
+<p>To see what builders and drivers you have, run <code>docker buildx ls</code>:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-build-drivers-1.jpg" alt="">
+
+</p>
+<p><strong>Figure 7:</strong> <em>Builders &amp; Drivers</em></p>
+<p>When building through Docker Desktop, the driver is the default <code>docker</code> driver, which you see in <em>Figure 7</em>. The driver supports building for multiple platforms but not for multiple platforms simultaneously. For that, you need a builder using the <code>docker-container</code> driver.</p>
+<p>The way to get the <code>docker-container</code> driver is by creating a new &ldquo;builder&rdquo;:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker buildx create --name mybuilder --driver docker-container --bootstrap
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 5:</strong> <em>Creating New Builder</em></p>
+<p>The code in <em>Code Snippet 5</em> creates a new builder called  <code>mybuilder</code>, using the <code>docker-container</code> driver. You now have a new builder, but it is not &ldquo;enabled&rdquo; yet. To use it when building, you do: <code>docker buildx use mybuilder</code>.</p>
+<p>After switching to your builder, you can now run the code in <em>Code Snippet 4</em>. Beware that the first run can take a while. On my machine, it completed in around 5 minutes.</p>
+<p>When I now browse to my repo as in <em>Figure 4</em>, I see:</p>
+<p>
+  <img src="/images/posts/kafkaconn-kusto-multi-2.jpg" alt="">
+
+</p>
+<p><strong>Figure 8:</strong> <em>Multi Platform Images</em></p>
+<p>Whohoo, success, as <em>Figure 8</em> now shows images supporting both AMD64 and ARM64!</p>
+<h2 id="summary">Summary</h2>
+<p>In the beginning of this post I said I&rsquo;d cover the steps I did to build and deploy multi-platform Docker images.</p>
+<p>Here&rsquo;s what to do:</p>
+<ul>
+<li>You use the Docker Buildx CLI plugin (<code>docker buildx</code>).</li>
+<li>You create a new builder based on the <code>docker-container</code> driver (<code>docker buildx create --name mybuilder --driver docker-container --bootstrap</code>.</li>
+<li>You switch to that builder (<code>docker buildx use mybuilder</code>).</li>
+</ul>
+<p>Having done the above, you can now create and push a multi-platform image:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker buildx build --platform linux/amd64,linux/arm64 -t nielsb/kafkaconn-kustosink:latest . --push
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 6:</strong> <em>Buildx Build and Push</em></p>
+<p>There you have it! Oh, and as I said in the beginning - this is not specific to the Kusto Sink Connector. You follow the same steps for any image you want to create.</p>
+<h3 id="kusto-sink-connector--docker-hub">Kusto Sink Connector @ Docker Hub</h3>
+<p>Since I am partial to the Kusto Sink Connector I will try and keep AMD64 and ARM64 images up-to-date at my public <a href="https://hub.docker.com/r/nielsb/kafkaconn-kustosink"><code>kafkaconn-kustosink</code></a> repo.</p>
+<h2 id="-finally">~ Finally</h2>
+<p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2023-04-16-interesting-stuff---week-15-2023/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 15, 2023">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2023
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>
