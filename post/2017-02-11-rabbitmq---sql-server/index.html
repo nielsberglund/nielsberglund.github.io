@@ -232,15 +232,29 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>A week or two ago I came across a <a href="https://groups.google.com/forum/#!searchin/rabbitmq-users/sql$20server%7Csort:relevance/rabbitmq-users/T8fA1KdVtYE/bkRz3JkOCwAJ">post</a> on the <a href="https://groups.google.com/forum/#!forum/rabbitmq-users">RabbitMQ Users</a> forum, about how to communicate from SQL Server to RabbitMQ. Seeing that we do that a lot at <a href="/Derivco">Derivco</a>, I came with some suggestions, and also said that I was writing a blog-post about how it can be done. The part of writing was not entirely correct - at least not until now (sorry Jim, it&rsquo;s been hectic at work).</p>
+                <p>A week or two ago I came across a 
+
+<a href="https://groups.google.com/forum/#!searchin/rabbitmq-users/sql$20server%7Csort:relevance/rabbitmq-users/T8fA1KdVtYE/bkRz3JkOCwAJ" target="_blank" rel="noopener">post</a> on the 
+
+<a href="https://groups.google.com/forum/#!forum/rabbitmq-users" target="_blank" rel="noopener">RabbitMQ Users</a> forum, about how to communicate from SQL Server to RabbitMQ. Seeing that we do that a lot at 
+
+<a href="/Derivco">Derivco</a>, I came with some suggestions, and also said that I was writing a blog-post about how it can be done. The part of writing was not entirely correct - at least not until now (sorry Jim, it&rsquo;s been hectic at work).</p>
 <p><strong>SQL Server</strong> is awesome, and it is super easy to get data into the database. Getting data out is easy as well by querying the database. What is a bit tricker though is to get data out at the time the data is inserted or updated. Think real-time events; a purchase is made - someone needs to be notified about it at the very second it happens. We can arguable say that the data we are interested in should not be pushed out from the database, but from somewhere else. Sure, that is true - but quite often you don&rsquo;t have a choice.</p>
-<p>This was the case for <a href="/Derivco">us</a> - we needed to send events out of the database for some further processing, and the question was how to do it.</p>
+<p>This was the case for 
+
+<a href="/Derivco">us</a> - we needed to send events out of the database for some further processing, and the question was how to do it.</p>
 <h2 id="sql-server-and-external-communication">SQL Server and External Communication</h2>
-<p>There has been a couple of initiatives in SQL Server to allow for communication out of the database; <strong>SQL Server Notification Services</strong> (NS), which was introduced in SQL Server 2000, and more recently <strong>SQL Server Service Broker</strong> (SSB) introduced in SQL Server 2005. I covered both NS and SSB in the book I wrote together with Bob Beauchemin and Dan Sullivan - <a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A+First+Look+at+SQL+Server+2005+for+Developers"><em>A First Look at SQL Server 2005 for Developers</em></a>. NS was introduced in SQL Server 2000, as I mentioned, and had an overhaul in the beta releases for SQL Server 2005. However, NS was cut before SQL Server 2005 went RTM.</p>
+<p>There has been a couple of initiatives in SQL Server to allow for communication out of the database; <strong>SQL Server Notification Services</strong> (NS), which was introduced in SQL Server 2000, and more recently <strong>SQL Server Service Broker</strong> (SSB) introduced in SQL Server 2005. I covered both NS and SSB in the book I wrote together with Bob Beauchemin and Dan Sullivan - 
+
+<a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A&#43;First&#43;Look&#43;at&#43;SQL&#43;Server&#43;2005&#43;for&#43;Developers" target="_blank" rel="noopener"><em>A First Look at SQL Server 2005 for Developers</em></a>. NS was introduced in SQL Server 2000, as I mentioned, and had an overhaul in the beta releases for SQL Server 2005. However, NS was cut before SQL Server 2005 went RTM.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you read the <a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A+First+Look+at+SQL+Server+2005+for+Developers">book</a>, you can find us covering a couple of features that never made it to RTM.</p>
+<p><strong>NOTE:</strong> If you read the 
+
+<a href="https://www.amazon.com/First-Look-Server-2005-Developers/dp/0321180593/ref=sr_1_1?ie=UTF8&amp;qid=1486701050&amp;sr=8-1&amp;keywords=A&#43;First&#43;Look&#43;at&#43;SQL&#43;Server&#43;2005&#43;for&#43;Developers" target="_blank" rel="noopener">book</a>, you can find us covering a couple of features that never made it to RTM.</p>
 </blockquote>
-<p>SSB survived, and in SQL Server 2008 Feature Pack, Microsoft introduced <a href="https://blogs.msdn.microsoft.com/sql_service_broker/2008/11/21/announcing-service-broker-external-activator/"><strong>Service Broker External Activator</strong></a> (EA). This is a way through SSB to be able to communicate outside of the local database. The theory sounds good, but in reality, it is cumbersome and convoluted. We did some tests with it, but we quickly realized it didn&rsquo;t do what we wanted. Also, SSB did not give us the performance we needed, so we had to come up with something else.</p>
+<p>SSB survived, and in SQL Server 2008 Feature Pack, Microsoft introduced 
+
+<a href="https://blogs.msdn.microsoft.com/sql_service_broker/2008/11/21/announcing-service-broker-external-activator/" target="_blank" rel="noopener"><strong>Service Broker External Activator</strong></a> (EA). This is a way through SSB to be able to communicate outside of the local database. The theory sounds good, but in reality, it is cumbersome and convoluted. We did some tests with it, but we quickly realized it didn&rsquo;t do what we wanted. Also, SSB did not give us the performance we needed, so we had to come up with something else.</p>
 <h2 id="sqlclr">SQLCLR</h2>
 <p>What we came up with was based on <strong>SQLCLR</strong>. SQLCLR is where the .NET framework is embedded in the SQL engine, and you execute .NET code in the SQL Server process. Since you execute .NET code, you can <em>almost</em> do anything you can in a &ldquo;normal&rdquo; .NET application.</p>
 <blockquote>
@@ -305,15 +319,25 @@ if (!doNotTrack) {
 <blockquote>
 <p><strong>NOTE:</strong> When creating the procedure, the assembly name is not case sensitive, however the fully qualified type and method name are. There is no requirement that the procedure name being created are the same as the method name. However, the eventual data types for the parameters have to match.</p>
 </blockquote>
-<p>As I mentioned before, at <a href="/Derivco">Derivco</a> we have the requirement to send data out of SQL server, and for that we use SQLCLR and <strong><a href="http://www.rabbitmq.com/">RabbitMQ</a></strong> (RMQ).</p>
+<p>As I mentioned before, at 
+
+<a href="/Derivco">Derivco</a> we have the requirement to send data out of SQL server, and for that we use SQLCLR and <strong>
+
+<a href="http://www.rabbitmq.com/" target="_blank" rel="noopener">RabbitMQ</a></strong> (RMQ).</p>
 <h2 id="rabbitmq">RabbitMQ</h2>
 <p>RMQ is an open source message broker software that implements the Advanced Message Queuing Protocol (AMQP), and is written in the Erlang programming language. As the RMQ is  a message broker, you need AMQP client libraries to connect to the broker. Your application references the client libraries, opens a connection and send messages - think ADO.NET to SQL Server. As opposed to ADO.NET, where you most likely opens a connection each time you communicate with the database, you will keep the connection open for the lifetime of the application.</p>
 <p>So, in order to be able to communicate from the database to RabbitMQ we need an application and the .NET client library for RabbitMQ.</p>
 <blockquote>
-<p><strong>NOTE:</strong> In the rest of this post three will be some code snippets showing RabbitMQ code, but there won&rsquo;t be much explanation what they do. If you are new to RabbitMQ I suggest you have a look at the various <a href="http://www.rabbitmq.com/getstarted.html">RabbitMQ Tutorials</a>, to get a feel for what the code is doing. The <a href="http://www.rabbitmq.com/tutorials/tutorial-one-dotnet.html"><em>Hello World</em></a> tutorial for <em>C#</em> is a good place to start. One thing different between the tutorials and the demo code is that in the demo code no exchanges are declared. The expectation is that they are pre-defined.</p>
+<p><strong>NOTE:</strong> In the rest of this post three will be some code snippets showing RabbitMQ code, but there won&rsquo;t be much explanation what they do. If you are new to RabbitMQ I suggest you have a look at the various 
+
+<a href="http://www.rabbitmq.com/getstarted.html" target="_blank" rel="noopener">RabbitMQ Tutorials</a>, to get a feel for what the code is doing. The 
+
+<a href="http://www.rabbitmq.com/tutorials/tutorial-one-dotnet.html" target="_blank" rel="noopener"><em>Hello World</em></a> tutorial for <em>C#</em> is a good place to start. One thing different between the tutorials and the demo code is that in the demo code no exchanges are declared. The expectation is that they are pre-defined.</p>
 </blockquote>
 <h2 id="rabbitmqsqlserver">RabbitMQ.SqlServer</h2>
-<p><strong>RabbitMQ.SqlServer</strong> is an assembly that uses the .NET client library for RabbitMQ and exposes functionality to post messages from the database to one or more RabbitMQ endpoints (VHosts and Exchanges). The code can be downloaded/forked from my GitHub repository <a href="https://github.com/nberglund/RabbitMQ-SqlServer">RabbitMQ-SqlServer</a>. It contains source code of assemblies as well as install files (so you don&rsquo;t have to build from source).</p>
+<p><strong>RabbitMQ.SqlServer</strong> is an assembly that uses the .NET client library for RabbitMQ and exposes functionality to post messages from the database to one or more RabbitMQ endpoints (VHosts and Exchanges). The code can be downloaded/forked from my GitHub repository 
+
+<a href="https://github.com/nberglund/RabbitMQ-SqlServer" target="_blank" rel="noopener">RabbitMQ-SqlServer</a>. It contains source code of assemblies as well as install files (so you don&rsquo;t have to build from source).</p>
 <blockquote>
 <p><strong>NOTE: This is demo code, to give an idea how SQL Server can call RabbitMQ. This is NOT production ready code in any shape or form. If the code burns down your house and kills your cat - don&rsquo;t blame me - it is DEMO code.</strong></p>
 </blockquote>
@@ -598,10 +622,18 @@ if (!doNotTrack) {
 <p><strong>Figure 1:</strong> <em>Missing Assembly System.ServiceModel</em></p>
 <p>This version of the <code>RabbitMQ.Client</code> references an assembly which is not part of CLR inside SQL Server. It is a WCF assembly, and when I - above - wrote of certain limitations in SQLCR, this is one of them: that particular assembly are for all intents and purposes not allowed to run within SQL Server. The latest versions of <code>RabbitMQ.Client</code> does not have this reference, and can therefore be used without any issues - apart from that &ldquo;pesky&rdquo; CLR 4 requirement. What to do?</p>
 <p>Well, RabbitMQ is open source, and we are developers so, let&rsquo;s recompile from source. Before the latest releases of <code>RabbitMQ.Client</code> (i.e for versions &lt;3.5.0) I removed the <code>System.ServiceModel</code> reference, and re-compiled. I did have to change a couple of lines of code which used functionality from <code>System.ServiceModel</code>, but it was minor changes.</p>
-<p>For this demo code I did not use the 3.4.3 version, but grabbed the <a href="https://github.com/rabbitmq/rabbitmq-dotnet-client/tree/stable">3.6.6 stable release</a>, and recompiled using .NET 3.5 (CLR 2). That almost worked :), except for that later releases of <code>RabbitMQ.Client</code> uses <code>Task</code>&rsquo;s, which are not part of .NET 3.5 natively.</p>
-<p>Fortunately there is a version of <a href="https://www.nuget.org/packages/System.Threading.dll/"><code>System.Threading.dll</code></a> for .NET 3.5 which includes <code>Task</code>. I downloaded that, referenced it and all is good! The implication this has is that <code>System.Threading.dll</code> need to be installed as well as an assembly.</p>
+<p>For this demo code I did not use the 3.4.3 version, but grabbed the 
+
+<a href="https://github.com/rabbitmq/rabbitmq-dotnet-client/tree/stable" target="_blank" rel="noopener">3.6.6 stable release</a>, and recompiled using .NET 3.5 (CLR 2). That almost worked :), except for that later releases of <code>RabbitMQ.Client</code> uses <code>Task</code>&rsquo;s, which are not part of .NET 3.5 natively.</p>
+<p>Fortunately there is a version of 
+
+<a href="https://www.nuget.org/packages/System.Threading.dll/" target="_blank" rel="noopener"><code>System.Threading.dll</code></a> for .NET 3.5 which includes <code>Task</code>. I downloaded that, referenced it and all is good! The implication this has is that <code>System.Threading.dll</code> need to be installed as well as an assembly.</p>
 <blockquote>
-<p><strong>NOTE:</strong> The source for the <code>RabbitMQ.Client</code> from which I built the .NET 3.5 version is in my <a href="https://github.com/nberglund/rabbitmq-dotnet-client-3.6.6-stable_net_3.5"><strong>RabbitMQ Client 3.6.6 .NET 3.5</strong></a> GitHub repository. The compiled dll together with the <code>System.Threading.dll</code> for .NET 3.5 is also in the <em>lib\NET3.5</em> folder in the <a href="https://github.com/nberglund/RabbitMQ-SqlServer">demo code (RabbitMQ-SqlServer)</a> repo.</p>
+<p><strong>NOTE:</strong> The source for the <code>RabbitMQ.Client</code> from which I built the .NET 3.5 version is in my 
+
+<a href="https://github.com/nberglund/rabbitmq-dotnet-client-3.6.6-stable_net_3.5" target="_blank" rel="noopener"><strong>RabbitMQ Client 3.6.6 .NET 3.5</strong></a> GitHub repository. The compiled dll together with the <code>System.Threading.dll</code> for .NET 3.5 is also in the <em>lib\NET3.5</em> folder in the 
+
+<a href="https://github.com/nberglund/RabbitMQ-SqlServer" target="_blank" rel="noopener">demo code (RabbitMQ-SqlServer)</a> repo.</p>
 </blockquote>
 <p>To install the necessary assemblies (System.Threading, RabbitMQ.Client, and RabbitMQ.SqlServer) run the install scripts from <em>src\sql</em>, in following order:</p>
 <ol>
@@ -610,7 +642,11 @@ if (!doNotTrack) {
 <li><code>05.53.RabbitMQ.SqlServer.sql2k5-12.sql</code> - RabbitMQ.SqlServer</li>
 </ol>
 <h4 id="sql-server-2014">SQL Server 2014+</h4>
-<p>For SQL Server 2014 and later, you compile your assembly as .NET 4.xx (the demo code is 4.5.2), and you can reference any of the later <code>RabbitMQ.Client</code> versions, which you can get from <a href="https://www.nuget.org/packages/RabbitMQ.Client">NuGet</a>. For the demo code I use 4.1.1. The <code>RabbitMQ.Client</code> is also in the <em>lib\NET4</em> folder in the <a href="https://github.com/nberglund/RabbitMQ-SqlServer">demo code (RabbitMQ-SqlServer)</a> repo.</p>
+<p>For SQL Server 2014 and later, you compile your assembly as .NET 4.xx (the demo code is 4.5.2), and you can reference any of the later <code>RabbitMQ.Client</code> versions, which you can get from 
+
+<a href="https://www.nuget.org/packages/RabbitMQ.Client" target="_blank" rel="noopener">NuGet</a>. For the demo code I use 4.1.1. The <code>RabbitMQ.Client</code> is also in the <em>lib\NET4</em> folder in the 
+
+<a href="https://github.com/nberglund/RabbitMQ-SqlServer" target="_blank" rel="noopener">demo code (RabbitMQ-SqlServer)</a> repo.</p>
 <p>To install you run the install scripts from <em>src\sql</em>, in following order:</p>
 <ol>
 <li><code>05.141.RabbitMQ.Client.sql2k14+.sql</code> - RabbitMQ.Client</li>
@@ -626,7 +662,9 @@ if (!doNotTrack) {
 <p>The script also creates a &ldquo;pure&rdquo; T-SQL procedure - <code>rmq.pr_PostRabbitMsg</code> - which executes against the <code>rmq.pr_clr_PostRabbitMsg</code>. This procedure is a &ldquo;wrapper&rdquo;, which knows what to do with the data and handles errors etc. In production we have multiple procedures like this, handling different types of messages. More about that in <strong>Usage</strong> below.</p>
 <h3 id="usage">Usage</h3>
 <p>From all of the above we can see that to post a message to RabbitMQ we call the <code>rmq.pr_PostRabbitMsg</code> or <code>rmq.pr_clr_PostRabbitMsg</code> with an endpoint id and the message in string format. That is cool, but how would it be used in the &ldquo;real world&rdquo;.</p>
-<p>What <a href="/Derivco">we</a> do in the production systems - in the stored procedures that processes data and the data should be sent to RabbitMQ - is to build up the data we want to send and then in a &ldquo;hook point&rdquo; we call the equivalent of <code>rmq.pr_PostRabbitMsg</code>. Below is a very simplified example of such a procedure:</p>
+<p>What 
+
+<a href="/Derivco">we</a> do in the production systems - in the stored procedures that processes data and the data should be sent to RabbitMQ - is to build up the data we want to send and then in a &ldquo;hook point&rdquo; we call the equivalent of <code>rmq.pr_PostRabbitMsg</code>. Below is a very simplified example of such a procedure:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -704,7 +742,9 @@ if (!doNotTrack) {
 <li>Execute <code>EXEC dbo.pr_SomeProcessingStuff @id = 101</code> (use any id value you want).</li>
 </ul>
 <p>If no errors happened you should now see a message in your bound queue in the RabbitMQ broker! Congratulations, you have now used SQLCLR to send a message to a RabbitMQ broker.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

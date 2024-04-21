@@ -240,9 +240,17 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the fourth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the third post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In the previous internals posts <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">here</a> and <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">here</a> we have looked at what goes on inside SQL Server when executing an R script, and what happens in the launchpad service when executing.</p>
-<p>This post was initially to be about the R runtime, and what other parts are involved when executing R scripts in SQL Server. However, during my &ldquo;spelunking&rdquo; around I realized that I did not really understand what happens when we create the processes for the R runtime from the launchpad service and the launcher (which is what I covered in the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>).</p>
+                <p>This is the fourth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the third post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the previous internals posts 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">here</a> and 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">here</a> we have looked at what goes on inside SQL Server when executing an R script, and what happens in the launchpad service when executing.</p>
+<p>This post was initially to be about the R runtime, and what other parts are involved when executing R scripts in SQL Server. However, during my &ldquo;spelunking&rdquo; around I realized that I did not really understand what happens when we create the processes for the R runtime from the launchpad service and the launcher (which is what I covered in the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>).</p>
 <p>So, instead of looking at the R runtime and the other R related components, we&rsquo;ll look at what happens when creating external processes. A subsequent blog-post will cover the R runtime and components.</p>
 <p>To begin with, the code we use in this post to execute R scripts are the same as we have used in the other posts:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
@@ -266,14 +274,18 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 1:</strong> <em>Execute sp_execute_external_script</em></p>
 <p>The code in <em>Code Snippet 1</em> doesn&rsquo;t do much, but it is quite sufficient for our purposes. Having said that, let us get on with it.</p>
 <h2 id="recap">Recap</h2>
-<p>Let us refresh our memories about what the two previous internals posts covered, by looking at some images from those two posts. In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I</a> we said that the following happened when executing what <em>Code Snippet 1</em> shows:</p>
+<p>Let us refresh our memories about what the two previous internals posts covered, by looking at some images from those two posts. In 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I</a> we said that the following happened when executing what <em>Code Snippet 1</em> shows:</p>
 <p>
   <img src="/images/posts/sql-launchpad_post.png" alt="">
 
 </p>
 <p><strong>Figure 1:</strong> <em>Call Flow Executing sp_execute_external_script</em></p>
 <p>In <em>Figure 1</em> we see how an named pipe connection is opened from the SQL Server engine into the launchpad service, and eventually the routine <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> writes a message to the service. The message will at one stage or another cause the <code>launchpad!CLaunchContext::Launch</code> routine in the launchpad service to be called.</p>
-<p><em>Figure 2</em> below, from the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II</a> shows the flow the call in <em>Figure 1</em> enters the launchpad service:</p>
+<p><em>Figure 2</em> below, from the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II</a> shows the flow the call in <em>Figure 1</em> enters the launchpad service:</p>
 <p>
   <img src="/images/posts/sql-launchpad-r-post.png" alt="">
 
@@ -303,7 +315,9 @@ if (!doNotTrack) {
 <p><strong>Figure 5:</strong> <em>Members in User Group</em></p>
 <p>The installation of SQL Server R Services creates by default 20 user accounts, named MSSQLSERVER01&hellip;20 for the default instance, and InstanceName01&hellip;20 for named instances. When executing external scripts the executing user will be mapped to one of these accounts by the launchpad service.</p>
 <blockquote>
-<p><strong>NOTE:</strong> The number of accounts created can be altered. See this <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/modify-the-user-account-pool-for-sql-server-r-services">MSDN post</a> for information about that.</p>
+<p><strong>NOTE:</strong> The number of accounts created can be altered. See this 
+
+<a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/modify-the-user-account-pool-for-sql-server-r-services" target="_blank" rel="noopener">MSDN post</a> for information about that.</p>
 </blockquote>
 <p>While executing external scripts, there may be a need to store script objects, intermediate results, etc. For this reason the installation of SQL Server R Services not only creates the user accounts as per above, but it also creates folders for each account where to store the objects, results etc. The folders are created at: <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code>, and are named as the user account. In <em>Figure 6</em> below you see an example of this:</p>
 <p>
@@ -352,7 +366,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 2:</strong> <em>Execute with Sys.Sleep</em></p>
 <p>As you can see in <em>Figure 2</em>, the code looks almost the same as in <em>Code Snippet 1</em>, apart from that we have injected a <code>Sys.sleep(120)</code>, which will make the execution stop for 2 minutes. That should give us ample time to do some &ldquo;spelunking&rdquo;.</p>
 <blockquote>
-<p><strong>NOTE:</strong> For this investigation I use <strong>Sysinternals</strong> <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><em>Process Explorer</em></a>.</p>
+<p><strong>NOTE:</strong> For this investigation I use <strong>Sysinternals</strong> 
+
+<a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx" target="_blank" rel="noopener"><em>Process Explorer</em></a>.</p>
 </blockquote>
 <p>So:</p>
 <ol>
@@ -388,14 +404,20 @@ if (!doNotTrack) {
 <p>It looks like we have answered the question above about correlation between the sub-folders and the RTerm processes, but what about the question why? Well, in my opinion it is for performance reasons. By having a pool of processes for a user, it should be quicker to to execute multiple scripts: a new process does not have to be &ldquo;spun up&rdquo; for the execution but can be taken from the process pool.</p>
 <p>So how does this work under the covers?</p>
 <h3 id="process-pools">Process Pools</h3>
-<p>In the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a> I covered how an external runtime is launched. However we are not launching a runtime as such, we are launching multiple runtime processes (in this case <code>RTerm.exe</code>). So even if the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">previous post</a> is correct, there are more things going on that what was covered there, and that is related to the multiple processes and the process pool I mentioned above. The way I came across this was due to me pondering why there are multiple RTerm processes launched, and if there was any logic behind the number. I quite often saw 5 processes, and 5 or 6 sub-folders.</p>
+<p>In the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a> I covered how an external runtime is launched. However we are not launching a runtime as such, we are launching multiple runtime processes (in this case <code>RTerm.exe</code>). So even if the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">previous post</a> is correct, there are more things going on that what was covered there, and that is related to the multiple processes and the process pool I mentioned above. The way I came across this was due to me pondering why there are multiple RTerm processes launched, and if there was any logic behind the number. I quite often saw 5 processes, and 5 or 6 sub-folders.</p>
 <p>My initial thought was that this is stored in some config file, and the obvious file would be for the launcher(s), and we looked at this file in the previous post:</p>
 <p>
   <img src="/images/posts/sql_r_services_rlauncher_config.png" alt="">
 
 </p>
 <p><strong>Figure 11:</strong> <em>RLauncher Configuration</em></p>
-<p>However, the file doesn&rsquo;t contain that much, and nothing that seems to relate to number of processes. There is the <code>USER_POOL_SIZE</code> setting, but it is set to 0, so I guess it is not that. When looking at the file, I saw the <code>TRACE_LEVEL</code> setting, and I browsed through the web and came across <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/configure-and-manage-advanced-analytics-extensions">this post</a>, which briefly discusses <code>rlauncher.config</code>, In that post they mention the <code>TRACE_LEVEL</code> setting which is used to configure the trace verbosity level of the launchpad service, and the traces stored in the log file for the launchers:</p>
+<p>However, the file doesn&rsquo;t contain that much, and nothing that seems to relate to number of processes. There is the <code>USER_POOL_SIZE</code> setting, but it is set to 0, so I guess it is not that. When looking at the file, I saw the <code>TRACE_LEVEL</code> setting, and I browsed through the web and came across 
+
+<a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r-services/configure-and-manage-advanced-analytics-extensions" target="_blank" rel="noopener">this post</a>, which briefly discusses <code>rlauncher.config</code>, In that post they mention the <code>TRACE_LEVEL</code> setting which is used to configure the trace verbosity level of the launchpad service, and the traces stored in the log file for the launchers:</p>
 <ul>
 <li>1 = Error (default)</li>
 <li>2 = Performance</li>
@@ -441,7 +463,9 @@ if (!doNotTrack) {
 <li>Aha, settings about size of the pool.</li>
 </ol>
 <p>From the above we can see that the number of processes are not a random number. I still can&rsquo;t find where the actual number is stored, so my assumption is that it is hard coded into respective launcher.</p>
-<p>If you remember from the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internal II post</a>, I said that I believe that the launcher(s) are loaded when the launchpad service starts up. At the end of the log-file we see some entries that points to that as well:</p>
+<p>If you remember from the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internal II post</a>, I said that I believe that the launcher(s) are loaded when the launchpad service starts up. At the end of the log-file we see some entries that points to that as well:</p>
 <pre tabindex="0"><code>SQLSatellite_InitLauncher(600000, 1, 1, 
     C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\LOG\ExtensibilityLog, 
     C:\&lt;path_to_sql_server_Instance&gt;\MSSQL\Binn\sqlsatellite.dll, 
@@ -569,9 +593,13 @@ Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74)
 <li>The session is removed and deleted.</li>
 </ol>
 <p>From the above we can see how processes are created and then being pooled. The processes will eventually be torn down if they are not in use, as per the <code>StaleProcessTime</code> in <em>Code Snippet 3</em>.</p>
-<p>How does all this now fit into what we covered in the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, and <em>Figure 2</em> above?</p>
+<p>How does all this now fit into what we covered in the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, and <em>Figure 2</em> above?</p>
 <h2 id="windbg">WinDbg</h2>
-<p>Well, let us try to find out. For this we use our trusty WinDbg (go back to the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a> if you need a re-fresher about WinDbg):</p>
+<p>Well, let us try to find out. For this we use our trusty WinDbg (go back to the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a> if you need a re-fresher about WinDbg):</p>
 <ol>
 <li>Stop the launchpad service.</li>
 <li>Delete any sub folders of the user account folders in the <code>C:\&lt;path_to_sql_server_instance&gt;\MSSQL\ExtensibilityData</code> directory. Do <strong>NOT</strong> delete the user account folders themselves.</li>
@@ -579,7 +607,9 @@ Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74)
 <li>Restart the launchpad service.</li>
 <li>Attach WinDbg to the launchpad process.</li>
 </ol>
-<p>As we did in the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>, let&rsquo;s hunt for routines from the symbols. When looking at the log files above we see some references to <code>SQLSatellite</code> and in previous posts we have also seen satellite references. So, let us do a very coarse search: <code>x /n launchpad!*Satellite*</code>. By using the <code>/n</code> flag you sort everything by name, which can make things a bit more readable. Looking through what was returned, I have below listed some classes that looks interesting as well a couple of independent routines:</p>
+<p>As we did in the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>, let&rsquo;s hunt for routines from the symbols. When looking at the log files above we see some references to <code>SQLSatellite</code> and in previous posts we have also seen satellite references. So, let us do a very coarse search: <code>x /n launchpad!*Satellite*</code>. By using the <code>/n</code> flag you sort everything by name, which can make things a bit more readable. Looking through what was returned, I have below listed some classes that looks interesting as well a couple of independent routines:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -743,7 +773,9 @@ Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74)
 <p><strong>NOTE:</strong> While the code executes we may see six RTerm processes.</p>
 </blockquote>
 <h2 id="summary">Summary</h2>
-<p>So, what does all this come to then? We have <em>Figure 2</em> which originates from the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, where we looked into what is going on in the launchpad service. In this post we have seen the log files in <em>Code Snippet 3, 4, 5</em> and then we have the WinDbg output in <em>Code Snippet 7</em>. In <em>Figure 12</em> I try to summarize what we have discussed in this post:</p>
+<p>So, what does all this come to then? We have <em>Figure 2</em> which originates from the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, where we looked into what is going on in the launchpad service. In this post we have seen the log files in <em>Code Snippet 3, 4, 5</em> and then we have the WinDbg output in <em>Code Snippet 7</em>. In <em>Figure 12</em> I try to summarize what we have discussed in this post:</p>
 <p>
   <img src="/images/posts/sql-launchpad_processes_post.png" alt="">
 
@@ -767,8 +799,12 @@ Session(3291DD7C-4451-48E1-9838-C5A0DF67FA74)
 </ul>
 </li>
 </ul>
-<p>As was the case in the <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, some parts of this post is educated guesswork. If anyone have more information I wild be more than happy to correct any inaccuracies. In either case, I hope you have enjoyed this journey in the &ldquo;bowels&rdquo; of the launchpad service.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>As was the case in the 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">internals II post</a>, some parts of this post is educated guesswork. If anyone have more information I wild be more than happy to correct any inaccuracies. In either case, I hope you have enjoyed this journey in the &ldquo;bowels&rdquo; of the launchpad service.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

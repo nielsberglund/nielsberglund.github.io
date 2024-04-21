@@ -228,19 +228,35 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>At the <a href="https://www.microsoft.com/en-us/ignite/agenda"><strong>Microsoft Ignite 2018</strong></a> conference back in September Microsoft released <strong>SQL Server 2019</strong> for public preview, and I wrote two short blog posts about it:</p>
+                <p>At the 
+
+<a href="https://www.microsoft.com/en-us/ignite/agenda" target="_blank" rel="noopener"><strong>Microsoft Ignite 2018</strong></a> conference back in September Microsoft released <strong>SQL Server 2019</strong> for public preview, and I wrote two short blog posts about it:</p>
 <ul>
-<li><a href="/post/2018-09-24-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a>.</li>
-<li><a href="/post/sql-server-2019-for-linux-in-docker-on-windows/">SQL Server 2019 for Linux in Docker on Windows</a>.</li>
+<li>
+
+<a href="/post/2018-09-24-sql-server-2019-public-preview/">What is New in SQL Server 2019 Public Preview</a>.</li>
+<li>
+
+<a href="/post/sql-server-2019-for-linux-in-docker-on-windows/">SQL Server 2019 for Linux in Docker on Windows</a>.</li>
 </ul>
-<p>What Microsoft also announced was <strong>SQL Server 2019 Big Data Clusters</strong>, which combines the SQL Server database engine, Spark, and HDFS into a unified data platform! Yes, you read that right: SQL Server, Spark, and Hadoop right out of the box. Seeing that both Spark and Hadoop are mainly Linux based, what makes the Big Data Cluster possible is <strong>SQL Server on Linux</strong>. When you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>, you deploy it as containers on <strong>Kubernetes</strong>, where the Kubernetes cluster can be in the cloud, such as <a href="https://azure.microsoft.com/en-us/services/kubernetes-service/"><strong>Azure Kubernetes Service</strong></a>, or on-prem like <a href="https://www.openshift.com/learn/topics/kubernetes/"><strong>Red Hat OpenShift</strong></a> or even on a local dev-box/laptop using <a href="https://kubernetes.io/docs/setup/minikube/"><strong>Minikube</strong></a>.</p>
+<p>What Microsoft also announced was <strong>SQL Server 2019 Big Data Clusters</strong>, which combines the SQL Server database engine, Spark, and HDFS into a unified data platform! Yes, you read that right: SQL Server, Spark, and Hadoop right out of the box. Seeing that both Spark and Hadoop are mainly Linux based, what makes the Big Data Cluster possible is <strong>SQL Server on Linux</strong>. When you deploy a <strong>SQL Server 2019 Big Data Cluster</strong>, you deploy it as containers on <strong>Kubernetes</strong>, where the Kubernetes cluster can be in the cloud, such as 
+
+<a href="https://azure.microsoft.com/en-us/services/kubernetes-service/" target="_blank" rel="noopener"><strong>Azure Kubernetes Service</strong></a>, or on-prem like 
+
+<a href="https://www.openshift.com/learn/topics/kubernetes/" target="_blank" rel="noopener"><strong>Red Hat OpenShift</strong></a> or even on a local dev-box/laptop using 
+
+<a href="https://kubernetes.io/docs/setup/minikube/" target="_blank" rel="noopener"><strong>Minikube</strong></a>.</p>
 <p>Initially, this post was about <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube, but after quite a few failed installation attempts I realised I did not have enough memory on my development box, so I decided to try it on <strong>Azure Kubernetes Service</strong> (AKS) instead.</p>
 <blockquote>
 <p><strong>NOTE:</strong> If you want to run <strong>SQL Server 2019 Big Data Clusters</strong> on Minikube it is suggested that your host machine (Minikube is essentially a VM) has at least 32Gb of memory, and you allocate at least 22Gb to the Minikube VM.</p>
 </blockquote>
-<p>Since I am a complete novice when it comes to Kubernetes, this post covers both how I set up AKS as well as the deployment of <strong>SQL Server 2019 Big Data Clusters</strong> to AKS, and the post is somewhat a summary of the official <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/big-data-cluster-overview?view=sqlallproducts-allversions">documentation</a>.</p>
+<p>Since I am a complete novice when it comes to Kubernetes, this post covers both how I set up AKS as well as the deployment of <strong>SQL Server 2019 Big Data Clusters</strong> to AKS, and the post is somewhat a summary of the official 
+
+<a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/big-data-cluster-overview?view=sqlallproducts-allversions" target="_blank" rel="noopener">documentation</a>.</p>
 <blockquote>
-<p><strong>NOTE:</strong> SQL Server 2019 is in public preview, but the preview does not contain the Big Data Cluster parts. To deploy <strong>SQL Server 2019 Big Data Clusters</strong> you need to be part of the SQL Server 2019 Early Adoption Program, for which you can sign up for <a href="https://sqlservervnexteap.azurewebsites.net/">here</a>.</p>
+<p><strong>NOTE:</strong> SQL Server 2019 is in public preview, but the preview does not contain the Big Data Cluster parts. To deploy <strong>SQL Server 2019 Big Data Clusters</strong> you need to be part of the SQL Server 2019 Early Adoption Program, for which you can sign up for 
+
+<a href="https://sqlservervnexteap.azurewebsites.net/" target="_blank" rel="noopener">here</a>.</p>
 </blockquote>
 <h2 id="pre-reqs">Pre-reqs</h2>
 <p>Apart from having an Azure subscription and being enrolled in the SQL Server 2019 EAP, there are a couple of other pre-reqs needed.</p>
@@ -264,10 +280,14 @@ if (!doNotTrack) {
 <li>Cloud Shell from within the portal.</li>
 <li>Azure CLI.</li>
 </ul>
-<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. In this post I mainly use the Azure CLI, so if you want to follow along download it from <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?view=azure-cli-latest">here</a>.</p>
+<p>The Azure CLI is Microsoft&rsquo;s cross-platform command-line experience for managing Azure resources, and you install it on your local machine. In this post I mainly use the Azure CLI, so if you want to follow along download it from 
+
+<a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?view=azure-cli-latest" target="_blank" rel="noopener">here</a>.</p>
 <h4 id="kubectl">Kubectl</h4>
 <p>The <code>kubernetes-cli</code> (Kubernetes command line tool), gives you an executable <code>kubectl.exe</code> which you use to manage your Kubernetes cluster. Using <code>kubectl</code>, you can inspect cluster resources; create, delete, and update components; etc.</p>
-<p>You can install <code>kubectl</code> in different ways, and I installed it from <a href="https://chocolatey.org/packages/kubernetes-cli">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
+<p>You can install <code>kubectl</code> in different ways, and I installed it from 
+
+<a href="https://chocolatey.org/packages/kubernetes-cli" target="_blank" rel="noopener">Chocolatey</a>: <code>choco install kubernetes-cli</code>.</p>
 <h2 id="azure-kubernetes-cluster">Azure Kubernetes Cluster</h2>
 <p>Ok, so having &ldquo;sorted&rdquo; out the pre-reqs, let us start with creating an Azure Kubernetes cluster through the Azure CLI.</p>
 <h4 id="login">Login</h4>
@@ -339,13 +359,17 @@ if (!doNotTrack) {
 <blockquote>
 <p><strong>NOTE:</strong> You do not need to create a new resource group as such. When you create the Kubernetes cluster, you can create it in an existing group.</p>
 </blockquote>
-<p>To create the Kubernetes cluster I continue to use the Azure CLI, and I use the <code>az aks create</code> command. The command has quite a few parameters, which you can read about <a href="https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az-aks-create">here</a>, but I use only a few of them:</p>
+<p>To create the Kubernetes cluster I continue to use the Azure CLI, and I use the <code>az aks create</code> command. The command has quite a few parameters, which you can read about 
+
+<a href="https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az-aks-create" target="_blank" rel="noopener">here</a>, but I use only a few of them:</p>
 <ul>
 <li><code>--name</code>: name of the cluster.</li>
 <li><code>--resource-group</code>: name of the resource group.</li>
 <li><code>--disable-rbac</code>: disables Kubernetes Role-Based Access Control.</li>
 <li><code>--generate-ssh-keys</code>: if no SSH keys exist, generate both public and private key files.</li>
-<li><code>--node-vm-size</code>: the size of the VM&rsquo;s used for the nodes in the Kubernetes cluster. For a <strong>SQL Server 2019 Big Data Cluster</strong> you need a VM with at least 32Gb of memory. You can see a list of VM sizes and their features in the portal <a href="https://portal.azure.com/#create/microsoft.aks">here</a>. I use &ldquo;Standard E4s_v3&rdquo;.</li>
+<li><code>--node-vm-size</code>: the size of the VM&rsquo;s used for the nodes in the Kubernetes cluster. For a <strong>SQL Server 2019 Big Data Cluster</strong> you need a VM with at least 32Gb of memory. You can see a list of VM sizes and their features in the portal 
+
+<a href="https://portal.azure.com/#create/microsoft.aks" target="_blank" rel="noopener">here</a>. I use &ldquo;Standard E4s_v3&rdquo;.</li>
 <li><code>--node-count</code>: number of nodes in the Kubernetes node pool. I use 3.</li>
 <li><code>--kubernetes-version</code>: the version of Kubernetes to use for creating the cluster. The <strong>SQL Server 2019 Big Data Cluster</strong> requires at minimum the Kubernetes v1.10 version.</li>
 </ul>
@@ -407,7 +431,9 @@ if (!doNotTrack) {
 <p><strong>Figure 7:</strong> <em>Get Credentials</em></p>
 <p>The <code>config</code> file we see outlined in red in <em>Figure 7</em> holds, among other things, the keys for the Kubernetes cluster. To ensure that I can connect to the cluster I call <code>kubectl get nodes</code>, and I see some information about the cluster nodes.</p>
 <h4 id="dashboard--namespaces">Dashboard &amp; Namespaces</h4>
-<p>To monitor and manage a Kubernetes cluster you do not have to rely on <code>kubectl</code> solely, as you can also use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>. In Azure you access the Dashboard by the <code>az aks browse</code> command, and - as with <code>get-credentials</code> - you pass in the names of the resource group and cluster: <code>az aks browse --resource-group kubernetes-rg --name sqlkubecluster</code>, and a new tab opens in your browser:</p>
+<p>To monitor and manage a Kubernetes cluster you do not have to rely on <code>kubectl</code> solely, as you can also use the 
+
+<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/" target="_blank" rel="noopener">Kubernetes Dashboard</a>. In Azure you access the Dashboard by the <code>az aks browse</code> command, and - as with <code>get-credentials</code> - you pass in the names of the resource group and cluster: <code>az aks browse --resource-group kubernetes-rg --name sqlkubecluster</code>, and a new tab opens in your browser:</p>
 <p>
   <img src="/images/posts/sql_2k19_bdc_az_dashboard.png" alt="">
 
@@ -422,7 +448,9 @@ if (!doNotTrack) {
 <p>When we look at <em>Figure 9</em> we see following <em>namespaces</em>:</p>
 <ul>
 <li><code>default</code>: A default, (duh), namespace to hold the default set of Pods, Services, and Deployments used by the cluster.</li>
-<li><code>kube-public</code>: A namespace readable by everyone for public <a href="https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/configure-pod-container/configmap/">ConfigMap&rsquo;s</a>.</li>
+<li><code>kube-public</code>: A namespace readable by everyone for public 
+
+<a href="https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/configure-pod-container/configmap/" target="_blank" rel="noopener">ConfigMap&rsquo;s</a>.</li>
 <li><code>kube-system</code>: A namespace for objects created by the Kubernetes system.</li>
 </ul>
 <p>So, coming back to Dashboard: when we want to monitor a deployment with Dashboard, we monitor a specific namespace. Enough of this, let us deploy!</p>
@@ -443,19 +471,29 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 7:</strong> <em>Download and Install mssqlctl</em></p>
 <p>We download and install <code>mssqlctl</code> from a Microsoft repository as we see in <em>Code Snippet 7</em>. After download the source is located in <code>&lt;python_path&gt;\lib\site-packages</code> and the executable - <code>mssqlctl.exe</code> - is at: <code>&lt;python_path&gt;\Scripts</code>.</p>
 <h4 id="environment-variables">Environment Variables</h4>
-<p>When you deploy the <strong>SQL Server 2019 Big Data Cluster</strong> using <code>mssqlctl</code> you customise the cluster configuration via environment variables read by <code>mssqlctl</code>. To see all available environment variables you go <a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/deployment-guidance?view=sqlallproducts-allversions">here</a>. Below I list the ones I use:</p>
+<p>When you deploy the <strong>SQL Server 2019 Big Data Cluster</strong> using <code>mssqlctl</code> you customise the cluster configuration via environment variables read by <code>mssqlctl</code>. To see all available environment variables you go 
+
+<a href="https://docs.microsoft.com/en-us/sql/big-data-cluster/deployment-guidance?view=sqlallproducts-allversions" target="_blank" rel="noopener">here</a>. Below I list the ones I use:</p>
 <ul>
 <li>SET ACCEPT_EULA=Y - to accept the SQL Server license agreement.</li>
 <li>SET CLUSTER_PLATFORM=aks - the Kubernetes platform you deploy to: Azure - <code>aks</code>, Kubernetes - <code>kubernetes</code>, Minikube - <code>minikube</code>.</li>
 <li>SET CONTROLLER_USERNAME=admin - the user name for the cluster administrator. You can set this to anything.</li>
 <li>SET CONTROLLER_PASSWORD=&lt;some_secret_password&gt; - the password for the cluster administrator.</li>
-<li>SET KNOX_PASSWORD=&lt;some_secret_password&gt; - the password for the Knox user. <a href="https://knox.apache.org/">Knox</a> is an application gateway for interacting with the REST API&rsquo;s and UI&rsquo;s of Apache Hadoop deployments.</li>
+<li>SET KNOX_PASSWORD=&lt;some_secret_password&gt; - the password for the Knox user. 
+
+<a href="https://knox.apache.org/" target="_blank" rel="noopener">Knox</a> is an application gateway for interacting with the REST API&rsquo;s and UI&rsquo;s of Apache Hadoop deployments.</li>
 <li>SET MSSQL_SA_PASSWORD=&lt;some_secret_password&gt; - the <code>sa</code> password for the master SQL instance. It needs to meet password complexity requirements.</li>
 <li>SET DOCKER_REGISTRY=private-repo.microsoft.com - the registry for the images being pulled.</li>
 <li>SET DOCKER_REPOSITORY=mssql-private-preview - the repository within the registry.</li>
-<li>SET DOCKER_USERNAME=&lt;docker_username&gt; - user name to access the images. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
-<li>SET DOCKER_PASSWORD=&lt;some_secret_password&gt; - the password for the above user. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
-<li>SET DOCKER_EMAIL=&lt;email_for_the_docker_user&gt; - the email associated with the registry. You get this when you sign up for the <a href="https://sqlservervnexteap.azurewebsites.net/">EAP</a>.</li>
+<li>SET DOCKER_USERNAME=&lt;docker_username&gt; - user name to access the images. You get this when you sign up for the 
+
+<a href="https://sqlservervnexteap.azurewebsites.net/" target="_blank" rel="noopener">EAP</a>.</li>
+<li>SET DOCKER_PASSWORD=&lt;some_secret_password&gt; - the password for the above user. You get this when you sign up for the 
+
+<a href="https://sqlservervnexteap.azurewebsites.net/" target="_blank" rel="noopener">EAP</a>.</li>
+<li>SET DOCKER_EMAIL=&lt;email_for_the_docker_user&gt; - the email associated with the registry. You get this when you sign up for the 
+
+<a href="https://sqlservervnexteap.azurewebsites.net/" target="_blank" rel="noopener">EAP</a>.</li>
 <li>SET DOCKER_PRIVATE_REGISTRY=1 - this has to be set to 1.</li>
 </ul>
 <p>Before you deploy the environment variables, need to be set, and if you are on Windows, you need to do it from a command prompt (not Powershell). Instead of having to enter these variables individually, I have a <code>bat</code> file I run before deploying: <code>set_env_variables_aks.bat</code>.</p>
@@ -583,7 +621,9 @@ if (!doNotTrack) {
 <li>Hadoop/Spark: <code>service-security-lb</code>.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

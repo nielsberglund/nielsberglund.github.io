@@ -248,11 +248,17 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the 18:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 17:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>The last <em>Internals</em> posts have discussed the transport of data between SQL Server and the SqlSatellite. In <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at how data came back from the SqlSatellite, and what the data looked like.</p>
+                <p>This is the 18:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 17:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>The last <em>Internals</em> posts have discussed the transport of data between SQL Server and the SqlSatellite. In 
+
+<a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at how data came back from the SqlSatellite, and what the data looked like.</p>
 <p>This post is a continuation of that post, and here we&rsquo;ll look at what happens inside SQL Server when data is returned from the SqlSatellite and the R engine.</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at the packets being sent back to SQL Server from the SqlSatellite when a dataset is returned. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
+<p>In 
+
+<a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> we looked at the packets being sent back to SQL Server from the SqlSatellite when a dataset is returned. We saw how there were actually two packets coming back, one small and one bigger, we deduced that those packets were:</p>
 <ul>
 <li>The smaller packet had something to do with column meta-data. We&rsquo;ll try and see what we can find out about this packet in this post.</li>
 <li>The bigger packet held the actual data.</li>
@@ -319,15 +325,25 @@ if (!doNotTrack) {
 </tbody>
 </table>
 <p><strong>Table 1:</strong> <em>Packet Sizes from SqlSatellite</em></p>
-<p>Part of the overhead is the 32 bytes column overhead as we discussed in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and a 28 bytes end-sequence, where the end-sequence appears once per data-set, and is not per column. It is somewhat like a row in the data-set. Part of this post is trying to figure out what goes on with this end-sequence.</p>
-<p>When looking at the various sizes coming back, we see it is a lot less than what we saw in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, sending data to SqlSatellite. This is due to R supporting a lot less data-types than SQL Server, and therefore the data might be implicitly converted to a compatible data type.</p>
+<p>Part of the overhead is the 32 bytes column overhead as we discussed in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, and a 28 bytes end-sequence, where the end-sequence appears once per data-set, and is not per column. It is somewhat like a row in the data-set. Part of this post is trying to figure out what goes on with this end-sequence.</p>
+<p>When looking at the various sizes coming back, we see it is a lot less than what we saw in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, sending data to SqlSatellite. This is due to R supporting a lot less data-types than SQL Server, and therefore the data might be implicitly converted to a compatible data type.</p>
 <h2 id="housekeeping">Housekeeping</h2>
 <p>Housekeeping in this context is talking about the tools we&rsquo;ll use, as well as the code. This section is here here for those of who want to follow along in what we&rsquo;re doing in the posts.</p>
 <h4 id="helper-tools">Helper Tools</h4>
 <p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WinDbg</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
-<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> a my debugger, but in this post I am reverting back to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, that is covered in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
 </ul>
 <h4 id="code">Code</h4>
 <p>The code below sets up the database and creates some tables with some data. It is more or less the same as we&rsquo;ve used in the last posts:</p>
@@ -426,7 +442,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 2:</strong> <em>Base Code to Execute</em></p>
 <p>The reason there is a <code>Sys.sleep</code> in the code in <em>Code Snippet 2</em>, is so we can more easily determine at about what time data should be coming back from the SqlSatellite.</p>
 <h2 id="windbg-debugging">WinDbg Debugging</h2>
-<p>In <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we used <em>WinDbg</em>, and we saw the routines involved when sending data to the SqlSatellite:</p>
+<p>In 
+
+<a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we used <em>WinDbg</em>, and we saw the routines involved when sending data to the SqlSatellite:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -446,7 +464,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 3:</strong> <em>Routines Used when Sending Data</em></p>
-<p>Now we&rsquo;ll aim to do the same thing here, and we&rsquo;ll start with trying to find routines being used when receiving data, and we&rsquo;ll start with trying to find the &ldquo;main&rdquo; routine for receiving results. Remember in <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we saw how <code>sqllang!CUDXR_ExternalScript::PushRow</code> where were things &ldquo;started&rdquo;, when sending data. Perhaps there is something similar in the <code>CUDXR_ExternalScript</code> when receiving? So:</p>
+<p>Now we&rsquo;ll aim to do the same thing here, and we&rsquo;ll start with trying to find routines being used when receiving data, and we&rsquo;ll start with trying to find the &ldquo;main&rdquo; routine for receiving results. Remember in 
+
+<a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, we saw how <code>sqllang!CUDXR_ExternalScript::PushRow</code> where were things &ldquo;started&rdquo;, when sending data. Perhaps there is something similar in the <code>CUDXR_ExternalScript</code> when receiving? So:</p>
 <ul>
 <li>Start up <em>WinDbg</em> as admin.</li>
 <li>Attach to the SQL Server process.</li>
@@ -486,7 +506,9 @@ if (!doNotTrack) {
 </ul>
 <p>There should, after completing the execution, be four files, let&rsquo;s compare these four files.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you haven&rsquo;t done the <code>wt</code> as above, you can download the four files, plus a couple of others from <a href="/downloads/misc/sql_r_services_internal17.zip">here</a>.</p>
+<p><strong>NOTE:</strong> If you haven&rsquo;t done the <code>wt</code> as above, you can download the four files, plus a couple of others from 
+
+<a href="/downloads/misc/sql_r_services_internal17.zip">here</a>.</p>
 </blockquote>
 <p>What we see is that the first file is bigger than the others, it has ~165 lines whereas the others are between 65 - 70 lines. The last third part of the first file (from about line 104), looks very much like the second and third files. We can also see that the fourth file is not similar to the other tree.</p>
 <p>Now what we&rsquo;ll do is to look at the similarities between the three first files and try to understand what is happening. In the files we see some interesting routines:</p>
@@ -612,7 +634,9 @@ if (!doNotTrack) {
 <ul>
 <li>Disabling all break-point in <em>WinDbg</em> except for the breakpoint at <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
 <li>Set a breakpoint at <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>, but disable it.</li>
-<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in 
+
+<a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
 </ul>
 <p>Execute the code in <em>Code Snippet 2</em>, and when you hit the <code>ProcessResultRows</code> breakpoint, look at the output from <em>Process Monitor</em>. You should see something like so:</p>
 <p>
@@ -669,7 +693,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 7:</strong> <em>Routines from Last ProcessResultRows</em></p>
-<p>From the code in <em>Code Snippet 7</em> we see how there is a <code>ReceiveOneDataChunk</code> call, which indicates data is being read after having  been received from a socket. It also looks like that this last <code>ProcessResultRows</code> indicates that there are no more data: <code>sqllang!CUDXR_ExternalScript::EndOutput</code>, <code>sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl</code> and <code>sqllang!SendDoneWarnings</code>. The question is what indicates this in the packets SQL Server receives from the SqlSatellite? This is now some speculation from my side, but I strongly suspect this originates from one of the 28 byte packets coming back from SqlSatellite after SQL Server sent the ack message above. I also think that the end-sequence that we mentioned in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> as well as in the <em>Recap</em> above, has something to do with this.</p>
+<p>From the code in <em>Code Snippet 7</em> we see how there is a <code>ReceiveOneDataChunk</code> call, which indicates data is being read after having  been received from a socket. It also looks like that this last <code>ProcessResultRows</code> indicates that there are no more data: <code>sqllang!CUDXR_ExternalScript::EndOutput</code>, <code>sqllang!CTdsConn&lt;0&gt;::EndResultSetImpl</code> and <code>sqllang!SendDoneWarnings</code>. The question is what indicates this in the packets SQL Server receives from the SqlSatellite? This is now some speculation from my side, but I strongly suspect this originates from one of the 28 byte packets coming back from SqlSatellite after SQL Server sent the ack message above. I also think that the end-sequence that we mentioned in 
+
+<a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> as well as in the <em>Recap</em> above, has something to do with this.</p>
 <p>Now we should be able to answer the question above about why there are one more <code>ProcessResultRows</code> than rows returned, and we should also have a fairly good grasp of what happens when processing rows returned from the SqlSatellite:</p>
 <ul>
 <li>Rows are processed by <code>sqllang!CUDXR_ExternalScript::ProcessResultRows</code>.</li>
@@ -887,7 +913,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 3:</strong> <em>Code Flow Receiving Data from SqlSatellite</em></p>
-<p>If you have read <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, you see how <em>Figure 3</em> is similar. I have however &ldquo;compacted&rdquo; the sending data to SqlSatellite somewhat. The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens:</p>
+<p>If you have read 
+
+<a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">Internals - XV</a>, you see how <em>Figure 3</em> is similar. I have however &ldquo;compacted&rdquo; the sending data to SqlSatellite somewhat. The numbered arrows shows the communication out to and in from SQL Server, and in what order it happens:</p>
 <ol>
 <li>SQL Server opens named pipe connection to the launchpad service.</li>
 <li>Message sent to the launchpad service.</li>
@@ -902,7 +930,9 @@ if (!doNotTrack) {
 </ol>
 <p>There are still a couple of things to discuss about data coming back to SQL Server, as well a how errors are handled, and we&rsquo;ll do that in a future post.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

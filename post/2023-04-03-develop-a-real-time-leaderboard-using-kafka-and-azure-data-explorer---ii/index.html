@@ -228,13 +228,21 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>Don&rsquo;t be fooled by the &quot; - II&quot; in the title, as this is the third post in the series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. This (&quot; - II&quot;) is because the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka. Posts in the series are:</p>
+                <p>Don&rsquo;t be fooled by the &quot; - II&quot; in the title, as this is the third post in the series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. This (&quot; - II&quot;) is because the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka. Posts in the series are:</p>
 <ul>
-<li><a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - Prelude</strong></a></li>
-<li><a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</strong></a></li>
+<li>
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - Prelude</strong></a></li>
+<li>
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</strong></a></li>
 <li><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong> (this post)</li>
 </ul>
-<p>The <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a> was all about ingesting data into ADX from Kafka. In this post, you will see more about ingesting data into ADX and some &ldquo;cool stuff&rdquo; related to that. Specifically, what to do if you need to update/transform the data you ingest.</p>
+<p>The 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a> was all about ingesting data into ADX from Kafka. In this post, you will see more about ingesting data into ADX and some &ldquo;cool stuff&rdquo; related to that. Specifically, what to do if you need to update/transform the data you ingest.</p>
 <h2 id="background">Background</h2>
 <p>The premise of this series of posts is that the requirements of analysis are changing:</p>
 <ul>
@@ -262,8 +270,12 @@ if (!doNotTrack) {
 <li>The event is ingested into ADX using Kafka Connect and the Kusto Sink connector.</li>
 <li>In ADX, you have written queries which process the ingested data. When called, these queries return leaderboard standings to a web page using ADX REST APIs.</li>
 </ol>
-<p>In the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, you did step 1 above. You looked at ingesting data into Kafka topics using supplied Docker containers for Kafka and a Python application generating and publishing events.</p>
-<p>The <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">second post</a> covered step 2. The pertinent parts of that post were:</p>
+<p>In the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, you did step 1 above. You looked at ingesting data into Kafka topics using supplied Docker containers for Kafka and a Python application generating and publishing events.</p>
+<p>The 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">second post</a> covered step 2. The pertinent parts of that post were:</p>
 <ul>
 <li>Create an Azure Service Principal to be used by the Kusto connector when ingesting data into ADX.</li>
 <li>Enable the ADX cluster and the database/table for streaming ingestion.</li>
@@ -275,22 +287,38 @@ if (!doNotTrack) {
 <p>That&rsquo;s about it - that is what has been covered so far.</p>
 <p>When I started this post, I planned to go onto step 3 in <em>Figure 1</em>, querying using KQL and ADX REST APIs. However, I realized that to see ADX &ldquo;goodness&rdquo;, I would need more data in the database than what step 2 does. So, instead of going straight to step 3, I took a &ldquo;detour&rdquo; and covered more about ingestion and transformation of ingested data.</p>
 <h2 id="pre-reqs">Pre-Reqs</h2>
-<p>However, before that, let us look at the pre-reqs if you want to follow along. They are pretty much the same as in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, but here goes:</p>
+<p>However, before that, let us look at the pre-reqs if you want to follow along. They are pretty much the same as in the 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, but here goes:</p>
 <ul>
 <li>Docker Desktop. We use Docker to &ldquo;spin up&rdquo; containers for Kafka and a Python application. The Python application generates and publishes events to Kafka. Caveat: If you are on an Apple Silicon (M1 or M2), you need Python installed on your machine, as the container for the event generation application won&rsquo;t build on Apple Silicon. Subsequently, you must install the Python Confluent Kafka client on your Mac: <code>pip install confluent-kafka</code>.</li>
-<li>An Azure Data Explorer cluster and a leaderboard database. You should already have it if you followed along in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a>. If not, go back and read the post and create the cluster, the database and the other necessary &ldquo;stuff&rdquo;.</li>
+<li>An Azure Data Explorer cluster and a leaderboard database. You should already have it if you followed along in the 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a>. If not, go back and read the post and create the cluster, the database and the other necessary &ldquo;stuff&rdquo;.</li>
 </ul>
 <h3 id="code">Code</h3>
-<p>The code for this post is in the <a href="https://github.com/nielsberglund/leaderboard-kql">leaderboard-KQL</a> GitHub repo. To follow along, clone the repo somewhere on your machine. All the required KQL code is in the <code>kql-queries-II.kql</code> file in the <code>kql</code> folder.</p>
+<p>The code for this post is in the 
+
+<a href="https://github.com/nielsberglund/leaderboard-kql" target="_blank" rel="noopener">leaderboard-KQL</a> GitHub repo. To follow along, clone the repo somewhere on your machine. All the required KQL code is in the <code>kql-queries-II.kql</code> file in the <code>kql</code> folder.</p>
 <h2 id="prep">Prep</h2>
-<p>Now you have an ADX cluster with a <code>leaderboard</code> database and the <code>GamePlay</code> table. You have it, either from following along in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a> or you have just created it.</p>
-<p>The table may have data from the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last</a> post, and if it does, you should clean it out: <code>.clean GamePlay data</code>, as you will a little bit later ingest new data in the table.</p>
+<p>Now you have an ADX cluster with a <code>leaderboard</code> database and the <code>GamePlay</code> table. You have it, either from following along in the 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">previous post</a> or you have just created it.</p>
+<p>The table may have data from the 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last</a> post, and if it does, you should clean it out: <code>.clean GamePlay data</code>, as you will a little bit later ingest new data in the table.</p>
 <h3 id="azure-data-explorer-web-ui">Azure Data Explorer Web UI</h3>
-<p>When you wrote (and executed) KQL code in the last post, you used the <em>Query</em> editor for ADX in the Azure Portal. The query editor is handy, making it very simple to get up and running with ADX. However, for what you will do in this post, you need an editor which offers a bit more than the <em>Query</em> editor. That editor is the <a href="https://dataexplorer.azure.com">Azure Data Explorer Web UI</a>.</p>
+<p>When you wrote (and executed) KQL code in the last post, you used the <em>Query</em> editor for ADX in the Azure Portal. The query editor is handy, making it very simple to get up and running with ADX. However, for what you will do in this post, you need an editor which offers a bit more than the <em>Query</em> editor. That editor is the 
+
+<a href="https://dataexplorer.azure.com" target="_blank" rel="noopener">Azure Data Explorer Web UI</a>.</p>
 <blockquote>
-<p><strong>NOTE:</strong> To query Azure Data Explorer, you are not limited to the Web UI or the <em>Query</em> editor. You can also use Azure Data Studio (ADS) or <a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/tools/kusto-explorer">Kusto Explorer</a>.</p>
+<p><strong>NOTE:</strong> To query Azure Data Explorer, you are not limited to the Web UI or the <em>Query</em> editor. You can also use Azure Data Studio (ADS) or 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/tools/kusto-explorer" target="_blank" rel="noopener">Kusto Explorer</a>.</p>
 </blockquote>
-<p>Ok, so let&rsquo;s get going. Browse to the Web UI&rsquo;s URL: <a href="https://dataexplorer.azure.com"><code>https://dataexplorer.azure.com</code></a>, and you see something like so:</p>
+<p>Ok, so let&rsquo;s get going. Browse to the Web UI&rsquo;s URL: 
+
+<a href="https://dataexplorer.azure.com" target="_blank" rel="noopener"><code>https://dataexplorer.azure.com</code></a>, and you see something like so:</p>
 <p>
   <img src="/images/posts/dataexplorer-1.png" alt="">
 
@@ -348,7 +376,11 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Add User</em></p>
-<p>In <em>Code Snippet 1</em>, you see how to add a user as an admin to the database. You can read more about users and principals <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">here</a> and <a href="https://azure.microsoft.com/en-us/free/">here</a>.</p>
+<p>In <em>Code Snippet 1</em>, you see how to add a user as an admin to the database. You can read more about users and principals 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">here</a> and 
+
+<a href="https://azure.microsoft.com/en-us/free/" target="_blank" rel="noopener">here</a>.</p>
 <p>You can now add your cluster to the Web UI, having added the user. After adding the cluster, refresh it in the Web UI, and you should see your database. Oh, and open the <code>kql-queries-II.kql</code> file in <em>Data Explorer</em>.</p>
 <blockquote>
 <p><strong>NOTE:</strong> The <code>msauser</code> is per database. If you add a database to a cluster added to the <em>Data Explorer</em>, you must add the <code>msauser</code> to that database before it becomes visible in the cluster connections pane.</p>
@@ -390,7 +422,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 6:</strong> <em>Update Policy</em></p>
-<p>What you see in <em>Figure 6</em> is &ldquo;taken&rdquo; from Microsoft&rsquo;s documentation about <a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/updatepolicy">Update Policy</a>. In the figure, you see:</p>
+<p>What you see in <em>Figure 6</em> is &ldquo;taken&rdquo; from Microsoft&rsquo;s documentation about 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/updatepolicy" target="_blank" rel="noopener">Update Policy</a>. In the figure, you see:</p>
 <ul>
 <li>Data being ingested into a source table.</li>
 <li>Two update policy queries (outlined in red) insert the data into two target tables. An update policy query is just that - a query, but you usually create a function to execute when the policy triggers.</li>
@@ -419,8 +453,12 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 2:</strong> <em>Staging Table</em></p>
 <p>The only difference between the original <code>GamePlay</code> table and the table in <em>Code Snippet 2</em> is the <code>OriginalEventTime</code> column. That&rsquo;s the column you will transform (actually, update the data in), and the transformation is easier if it has a different name.</p>
 <h3 id="ingestion-policy">Ingestion Policy</h3>
-<p>When ingesting data into ADX, you - in most cases - use a data mapping policy which maps incoming data to columns inside tables. You saw this in the <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, where you created a policy for mapping the Kafka gameplay event to the <code>GamePlay</code> table.</p>
-<p>In this post, you use the Ingestion Wizard to ingest data into the staging table. The wizard is a wizard and can create the underlying tables and ingestion policies. It uses the schema of the source and, based on that, creates the tables and policies. In this case, the schema is somewhat different in that the source file has a column named <code>EventTime</code>, but your underlying table has the <code>OriginalEventTime</code> column. You need to indicate to the wizard what the mapping should be and, as in <a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, you do it using an ingestion policy:</p>
+<p>When ingesting data into ADX, you - in most cases - use a data mapping policy which maps incoming data to columns inside tables. You saw this in the 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, where you created a policy for mapping the Kafka gameplay event to the <code>GamePlay</code> table.</p>
+<p>In this post, you use the Ingestion Wizard to ingest data into the staging table. The wizard is a wizard and can create the underlying tables and ingestion policies. It uses the schema of the source and, based on that, creates the tables and policies. In this case, the schema is somewhat different in that the source file has a column named <code>EventTime</code>, but your underlying table has the <code>OriginalEventTime</code> column. You need to indicate to the wizard what the mapping should be and, as in 
+
+<a href="/post/2023-03-19-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---i/">last post</a>, you do it using an ingestion policy:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -583,7 +621,9 @@ if (!doNotTrack) {
 <p>I ran the ingestion at around 09:52 on April 2, 2023, so what I see in <em>Figure 12</em> matches up!</p>
 <p>You have now seen how to load &ldquo;old&rdquo; data into ADX and treat it as newly ingested.</p>
 <h3 id="real-time-ingestion">Real-Time Ingestion</h3>
-<p>You can now do what you did in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
+<p>You can now do what you did in the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
 <ul>
 <li>Spin up the Docker containers.</li>
 <li>Configure and deploy the Kusto connector.</li>

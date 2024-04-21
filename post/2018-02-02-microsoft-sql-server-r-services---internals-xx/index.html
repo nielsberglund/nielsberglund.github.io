@@ -258,12 +258,20 @@ if (!doNotTrack) {
                 
                 <p>This is the 21:th post in a series about <strong>Microsoft SQL Server R Services</strong>, (it is now called <strong>Microsoft SQL Server Machine Learning Services</strong>), and the 20:th post that drills down into the internal of how it works.</p>
 <p>Wow, 20 posts about internals - when I started this <strong>Microsoft SQL Server R Services</strong> series, I thought I might achieve five or six posts. I would never have - in my wildest fantasies - thought I would reach twenty!</p>
-<p>To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>We are however now coming closer to the end of this whole series, and this post is the last for <strong>Internals</strong>. After this post, I foresee one, possibly two, more posts about other things related to <strong>Microsoft SQL Server R Services</strong>  - and then we are done!</p>
-<p>In the last post: <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> we discussed how &ldquo;print&rdquo; statements and acks came back to SQL Server from the external engine. When I started writing that post, I intended to cover error messages as well, but as I was investigating what happens, I realised it was more to error messages than what I initially thought. So in this post, we talk about how SQL Server and the launchpad service handle errors.</p>
+<p>In the last post: 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> we discussed how &ldquo;print&rdquo; statements and acks came back to SQL Server from the external engine. When I started writing that post, I intended to cover error messages as well, but as I was investigating what happens, I realised it was more to error messages than what I initially thought. So in this post, we talk about how SQL Server and the launchpad service handle errors.</p>
 <h2 id="recap">Recap</h2>
-<p>Before we go into the details about errors, let us do a recap of the <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post, as there are many similarities between the handling of error messages and &ldquo;print&rdquo;/ack messages are.</p>
-<p>The easiest way to recap is to use the two figures we had in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> which illustrated the flow of the launchpad service as well as SQL Server.</p>
+<p>Before we go into the details about errors, let us do a recap of the 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post, as there are many similarities between the handling of error messages and &ldquo;print&rdquo;/ack messages are.</p>
+<p>The easiest way to recap is to use the two figures we had in 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> which illustrated the flow of the launchpad service as well as SQL Server.</p>
 <h4 id="launchpad-service">Launchpad Service</h4>
 <p>This is the flow (on a high level) in the launchpad service:</p>
 <p>
@@ -311,9 +319,17 @@ if (!doNotTrack) {
 <h4 id="helper-tools">Helper Tools</h4>
 <p>To help us figure out the things we want, we use <em>Process Monitor</em>, <em>WinDbg</em> and <em>WireShark</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
-<li>In the last few posts I have used <em>WinDbg preview</em> as my debugger, but in this post, I am reverting to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, I covered that in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
-<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>In the last few posts I have used <em>WinDbg preview</em> as my debugger, but in this post, I am reverting to <em>WinDbg</em> &ldquo;classic&rdquo;. If you need help with setting it up, I covered that in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
 </ul>
 <h4 id="code">Code</h4>
 <p>In this post we won&rsquo;t need a specific database, we&rsquo;ll just some basic code:</p>
@@ -418,7 +434,9 @@ if (!doNotTrack) {
 <ul>
 <li>Start up two instances of <em>WinDbg</em> as admin.</li>
 <li>Attach <em>WinDbg</em> to the SQL Server process (<code>sqlservr.exe</code>), and the launchpad process (<code>launchpad.exe</code>) - <strong>DO NOT DO THIS ON A PRODUCTION SERVER</strong>.</li>
-<li>In both instances of <em>WinDbg</em> enable an <em>Event Filter</em> for <code>C++ EH Exception</code>. If you need to refresh you memory about how to do it, <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> goes into the details.</li>
+<li>In both instances of <em>WinDbg</em> enable an <em>Event Filter</em> for <code>C++ EH Exception</code>. If you need to refresh you memory about how to do it, 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> goes into the details.</li>
 <li>Execute the code in <em>Code Snippet 2</em>.</li>
 </ul>
 <p>When you execute, you see how you just continue through in the launchpad service, but you break with an exception in SQL Server. It looks like exceptions in the external engine does not affect the launchpad service at all. So let us start looking more in detail what happens in SQL Server.</p>
@@ -484,10 +502,14 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 6:</strong> <em>Return Packets</em></p>
-<p>We saw <em>Figure 6</em> in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and we discussed in that post, how the SqlSatellite returns the three packets outlined in red above to SQL Server. The first packet contains metadata information about potential result-sets returned, and if there is no result-set, we still get the packet. The second packet is a packet indicating the end of the result-set, and the third packet can potentially contain values of output parameters. Rows returned for a result-set, appear in packets, between the first and second packet in the figure above.</p>
+<p>We saw <em>Figure 6</em> in 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and we discussed in that post, how the SqlSatellite returns the three packets outlined in red above to SQL Server. The first packet contains metadata information about potential result-sets returned, and if there is no result-set, we still get the packet. The second packet is a packet indicating the end of the result-set, and the third packet can potentially contain values of output parameters. Rows returned for a result-set, appear in packets, between the first and second packet in the figure above.</p>
 <p>So, in the case of an error, like in <em>Figure 3</em> above, are there any changes in what the SqlSatellite returns? By now, you probably realise that if I ask a question like that - there is a difference, but let us find out regardless:</p>
 <ul>
-<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in 
+
+<a href="/post/2017-12-24--microsoft-sql-server-r-services---internals-xvi/">Internals - XVI</a> where we filtered for <code>TCP Send</code> and <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
 <li>Execute the code in <em>Code Snippet 2</em> (without the <code>Sys.sleep</code> if you want) and look at the output from <em>Process Monitor</em>:</li>
 </ul>
 <p>
@@ -499,7 +521,9 @@ if (!doNotTrack) {
 <p>So, let us switch over to <em>WireShark</em>:</p>
 <ul>
 <li>Run <em>WireShark</em> as admin.</li>
-<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
 <li>Set a display filter on the port SQL Server listens on (what you saw in the <code>Path</code> column). In this case we want to sniff incoming packets, and if we did it based on what we saw in <em>Figure 7</em> the filter should be: <code>tcp.dstport==55538</code>.</li>
 <li>Apply the filter.</li>
 </ul>
@@ -544,8 +568,12 @@ if (!doNotTrack) {
 <li>SQL Server receives one 28 bytes data packet back from the SqlSatellite.</li>
 <li>The four last bytes always are <code>12 00 2a 00</code>.</li>
 </ul>
-<p>Let&rsquo;s go back to the call-stack we see in <em>Code Snippet 6</em> and try to figure out what happens in the code. We have already said the error happens in <code>sqlmin!CQScanUdx::GetRow</code>. We have not spoken much about <code>GetRow</code> at all, but if you remember in <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals- XVII</a> we discussed about how <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> called <code>sqllang!CUDXR_ExternalScript::PullRow</code>. In fact <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> calls <code>sqlmin!CQueryScan::GetRow</code> which in turn calls <code>sqlmin!CQScanUdx::GetRow</code> and it calls <code>PullRow</code>.</p>
-<p>In <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> we traced the <code>PullRow</code> call and saw how SQL Server handled returning data. To see what happens during an error, let us do the trace one step up - in <code>sqlmin!CQScanUdx::GetRow</code>. We start with the code that works (<em>Code Snippet 1</em>):</p>
+<p>Let&rsquo;s go back to the call-stack we see in <em>Code Snippet 6</em> and try to figure out what happens in the code. We have already said the error happens in <code>sqlmin!CQScanUdx::GetRow</code>. We have not spoken much about <code>GetRow</code> at all, but if you remember in 
+
+<a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals- XVII</a> we discussed about how <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> called <code>sqllang!CUDXR_ExternalScript::PullRow</code>. In fact <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> calls <code>sqlmin!CQueryScan::GetRow</code> which in turn calls <code>sqlmin!CQScanUdx::GetRow</code> and it calls <code>PullRow</code>.</p>
+<p>In 
+
+<a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> we traced the <code>PullRow</code> call and saw how SQL Server handled returning data. To see what happens during an error, let us do the trace one step up - in <code>sqlmin!CQScanUdx::GetRow</code>. We start with the code that works (<em>Code Snippet 1</em>):</p>
 <ul>
 <li>Change the <code>Sys.sleep</code> in the script in *Code Snippet 1` to 30 seconds.</li>
 <li>Set a break-point in the SQL Server process at <code>sqlmin!CQScanUdx::GetRow</code>.</li>
@@ -578,7 +606,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 9:</strong> <em>wt Output at Sys.sleep</em></p>
-<p>The code in <em>Code Snippet 9</em> is what precedes the code we saw in <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> where the execution waited for a signal. After the trace has finished, copy it to a text file to make it easier to investigate what happens. Then execute the code in <em>Code Snippet 2</em> and do a new trace, and copy that result into a new file as well. When you then compare the two files you see how the first part is identical:</p>
+<p>The code in <em>Code Snippet 9</em> is what precedes the code we saw in 
+
+<a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> where the execution waited for a signal. After the trace has finished, copy it to a text file to make it easier to investigate what happens. Then execute the code in <em>Code Snippet 2</em> and do a new trace, and copy that result into a new file as well. When you then compare the two files you see how the first part is identical:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -642,7 +672,11 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 10:</strong> <em>Common Code Path</em></p>
-<p>In <em>Code Snippet 10</em> we recognise from <a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> the calls to retrieve rows, and they are the same in both trace files up until around line 50, after the <code>ReadAllPackets</code> in the next to last line above. Continuing,  what we see in the files change. In the no error trace file nothing out of the ordinary happens, and eventually, the trace ends with the call to <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code>, which we discussed in <a href="/post/2018-01-10-microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a>. The error trace file looks completely different though from after the last <code>ReadAllPackets</code> above:</p>
+<p>In <em>Code Snippet 10</em> we recognise from 
+
+<a href="/post/2018-01-03-microsoft-sql-server-r-services---internals-xvii/">Internals - XVII</a> the calls to retrieve rows, and they are the same in both trace files up until around line 50, after the <code>ReadAllPackets</code> in the next to last line above. Continuing,  what we see in the files change. In the no error trace file nothing out of the ordinary happens, and eventually, the trace ends with the call to <code>sqllang!CUDXR_ExternalScript::ProcessOutputArguments</code>, which we discussed in 
+
+<a href="/post/2018-01-10-microsoft-sql-server-r-services---internals-xviii/">Internals - XVIII</a>. The error trace file looks completely different though from after the last <code>ReadAllPackets</code> above:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -715,9 +749,15 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 8:</strong> <em>Substitution Text</em></p>
-<p>So, where do the substitution outlined in <em>Figure 8</em> come from, and what is the text outlined in blue in the same figure? We know that the actual error-text is not part of the 28 bytes packet from the SqlSatellite, as no matter how long the error message is, the length of the packet is always the same. So where have we seen messages being passed back to SQL Server, without being in any data packets from the SqlSatellite? Well, we saw it in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> where the launchpad service did send &ldquo;print&rdquo; messages as well as ack messages from the external engine to SQL Server. So, let us go to the launchpad service and <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunk&rdquo;</a> around a bit:</p>
+<p>So, where do the substitution outlined in <em>Figure 8</em> come from, and what is the text outlined in blue in the same figure? We know that the actual error-text is not part of the 28 bytes packet from the SqlSatellite, as no matter how long the error message is, the length of the packet is always the same. So where have we seen messages being passed back to SQL Server, without being in any data packets from the SqlSatellite? Well, we saw it in 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> where the launchpad service did send &ldquo;print&rdquo; messages as well as ack messages from the external engine to SQL Server. So, let us go to the launchpad service and 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">&ldquo;spelunk&rdquo;</a> around a bit:</p>
 <h4 id="launchpad">Launchpad</h4>
-<p>We know, from <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, that the two routines used when sending messages are:</p>
+<p>We know, from 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, that the two routines used when sending messages are:</p>
 <ul>
 <li><code>launchpad!CSatelliteCargoContext::SendLogMessage</code></li>
 <li><code>launchpad!CSQLSatelliteCommunication::SendAckMessage</code></li>
@@ -729,7 +769,9 @@ if (!doNotTrack) {
 </ul>
 <p>You see how the code executes all the way through, and the breakpoint is not hit. However, the execution breaks at the break-point when you run  <em>Code Snippet 2</em> (error)! The only difference between the two code snippets is the error in <em>Code Snippet 2</em>, so it looks like the launchpad service sends a message to SQL Server with the error text from the external engine.</p>
 <h4 id="sql-server-ii">SQL Server II</h4>
-<p>We know from <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> that <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> handles messages that are sent through <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>. I wonder if that is the case when there is an exception as well:</p>
+<p>We know from 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> that <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> handles messages that are sent through <code>launchpad!CSatelliteCargoContext::SendLogMessage</code>. I wonder if that is the case when there is an exception as well:</p>
 <ul>
 <li>Disable the break-points in the launchpad <em>WinDbg</em> instance.</li>
 <li>Disable any break-points in the SQL Server <em>WinDbg</em> instance.</li>
@@ -783,7 +825,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 12:</strong> <em>HandleLogMessage Call Stack</em></p>
-<p>The call-stack we see in <em>Code Snippet 12</em> indicates a similar code path for <code>HandleLogMessage</code> as we saw in <em>Code Snippet 12</em> in the <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post . They are similar, but there are some differences which becomes clear when we compare the code paths between the two call-stacks. In a no error scenario we have a code path like this:</p>
+<p>The call-stack we see in <em>Code Snippet 12</em> indicates a similar code path for <code>HandleLogMessage</code> as we saw in <em>Code Snippet 12</em> in the 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a> post . They are similar, but there are some differences which becomes clear when we compare the code paths between the two call-stacks. In a no error scenario we have a code path like this:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -849,7 +893,9 @@ if (!doNotTrack) {
 <li><code>sqllang!CXStmtQuery::ShutdownOnException</code></li>
 <li><code>sqlmin!CQueryScan::DestroyQueryOnException</code></li>
 </ul>
-<p>The question now is how the message received from the external engine via the launchpad service is &ldquo;hooked&rdquo; up to the actual exception. The assumption is that the answer to that has something to do with <code>HandleLogMessage</code>. So, let us compare what happens in <code>HandleLogMessage</code> when we run code that logs a message (as we did in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>), with running code that causes an exception.</p>
+<p>The question now is how the message received from the external engine via the launchpad service is &ldquo;hooked&rdquo; up to the actual exception. The assumption is that the answer to that has something to do with <code>HandleLogMessage</code>. So, let us compare what happens in <code>HandleLogMessage</code> when we run code that logs a message (as we did in 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>), with running code that causes an exception.</p>
 <p>This is the code with no exception:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -868,7 +914,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 15:</strong> <em>Code with Print</em></p>
-<p>The code in <em>Code Snippet 15</em> is the same code we used in <a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and this is what we do:</p>
+<p>The code in <em>Code Snippet 15</em> is the same code we used in 
+
+<a href="/post/2018-01-20-microsoft-sql-server-r-services---internals-xix/">Internals - XIX</a>, and this is what we do:</p>
 <ul>
 <li>Set a breakpoint at <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code>.</li>
 <li>Run the code in <em>Code Snippet 15</em>.</li>
@@ -1148,7 +1196,9 @@ if (!doNotTrack) {
 <li>SQL Server handles the message in <code>sqllang!CUDXR_ExternalScript::HandleLogMessage</code> and related routines.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

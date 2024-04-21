@@ -248,13 +248,19 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the fourteenth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the thirteenth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>Sorry guys, in my last post <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> I said we&rsquo;d - in this post - look into the <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>) which is used when sending data from SQL Server to the SqlSatellite. The protocol is also involved when we send  one row of data containing 5 integers, and the packet size for that ends up being 6300 bytes.</p>
+                <p>This is the fourteenth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the thirteenth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>Sorry guys, in my last post 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> I said we&rsquo;d - in this post - look into the <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>) which is used when sending data from SQL Server to the SqlSatellite. The protocol is also involved when we send  one row of data containing 5 integers, and the packet size for that ends up being 6300 bytes.</p>
 <p>Well, we won&rsquo;t look at that in this post, I was once again led astray when researching how data is sent.</p>
 <p>What we will look into however is something we haven&rsquo;t really discussed at all before, and that is: when is the <code>SELECT</code> statement for the <code>@input_data_1</code> parameter executed?</p>
 <p>However, before we get into all this, let us do a recap.</p>
 <h2 id="recap">Recap</h2>
-<p>In he last two &ldquo;episodes&rdquo; in the internals we have looked what packets are being sent between SQL server and the SqlSatellite. In <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we looked at how SQL Server connected to the launchpad process, and how that caused the SqlSatellite to open a socket connection to SqlServer. Connection of the socket caused two authentication packages to be sent to the SqlSatellite from SQL Server. The process was illustrated as in this figure:</p>
+<p>In he last two &ldquo;episodes&rdquo; in the internals we have looked what packets are being sent between SQL server and the SqlSatellite. In 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we looked at how SQL Server connected to the launchpad process, and how that caused the SqlSatellite to open a socket connection to SqlServer. Connection of the socket caused two authentication packages to be sent to the SqlSatellite from SQL Server. The process was illustrated as in this figure:</p>
 <p>
   <img src="/images/posts/sql_r_services_11_calls.png" alt="">
 
@@ -268,7 +274,9 @@ if (!doNotTrack) {
 <li>During <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> SQL Server sends the first packet to the SQL Satellite. The packet has something to do with authentication.</li>
 <li>After the first packet is sent, a second packet (still within <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>), which also is related to authentication, is sent on a separate thread to SqlSatellite.</li>
 </ol>
-<p>In essence, <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> was all about connection and authentication. In [Internals - XII] we looked at what data packages were sent to the SqlSatellite from SQL Server, and we saw how both script as well as any result for <code>@input_data_1</code> was sent. We used following figure to illustrate how the data was sent, and from what routines:</p>
+<p>In essence, 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> was all about connection and authentication. In [Internals - XII] we looked at what data packages were sent to the SqlSatellite from SQL Server, and we saw how both script as well as any result for <code>@input_data_1</code> was sent. We used following figure to illustrate how the data was sent, and from what routines:</p>
 <p>
   <img src="/images/posts/sql_r_services_12_calls.png" alt="">
 
@@ -289,8 +297,16 @@ if (!doNotTrack) {
 <h2 id="helper-tools">Helper Tools</h2>
 <p>To help us figure out the things we want, we will use <em>WinDbg</em> and <em>Process Monitor</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
-<li>In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> I mentioned about the new and more modern <a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86">WinDbg</a>, and how I&rsquo;d be using it going forward. Well, when writing this post I came across a scenario where I couldn&rsquo;t do what I wanted to do in the new <em>WinDbg</em>, so in this post I&rsquo;ll be using only the old version. If you need help with setting it up, that is covered in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li>In 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> I mentioned about the new and more modern 
+
+<a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86" target="_blank" rel="noopener">WinDbg</a>, and how I&rsquo;d be using it going forward. Well, when writing this post I came across a scenario where I couldn&rsquo;t do what I wanted to do in the new <em>WinDbg</em>, so in this post I&rsquo;ll be using only the old version. If you need help with setting it up, that is covered in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>.</li>
 </ul>
 <blockquote>
 <p><strong>NOTE:</strong> What I wanted to do in the new <em>WinDbg</em> was to set event filters. For the life of me I could not find out where and how to do it.</p>
@@ -390,7 +406,9 @@ if (!doNotTrack) {
 </div><p><em>Code Snippet 1:</em>* <em>Setup of Database</em></p>
 <p>I haven&rsquo;t listed any execute statements, as they will differ throughout this post.</p>
 <h2 id="execution-of-select-statement-for-input_data_1">Execution of <code>SELECT</code> Statement for <code>@input_data_1</code></h2>
-<p>So in quite a few installments of the Internals series, data for the parameter <code>@input_data_1</code> has been sent to the SqlSatellite, and in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we saw what routines were involved when sending it. What we haven&rsquo;t discussed however, is at what stage in the flow the statement in the parameter gets executed. The few times I have thought about it, I assumed it was sometime after the external script has opened, as I saw it being part of the script. Let&rsquo;s find out.</p>
+<p>So in quite a few installments of the Internals series, data for the parameter <code>@input_data_1</code> has been sent to the SqlSatellite, and in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we saw what routines were involved when sending it. What we haven&rsquo;t discussed however, is at what stage in the flow the statement in the parameter gets executed. The few times I have thought about it, I assumed it was sometime after the external script has opened, as I saw it being part of the script. Let&rsquo;s find out.</p>
 <p>To do this you need to run the old version of <em>WinDbg</em>, as we&rsquo;ll enable an event-filter so the debugger breaks at an <code>C++ EH</code> exception. In the <em>Event Filters</em> dialog you can set how that particular exception should be handled. We want it to be enabled, but not handled:</p>
 <p>
   <img src="/images/posts/sql_r_services_windbg_eventfilters_enable.png" alt="">
@@ -529,7 +547,11 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 5:</strong> <em>Call Stack at Divide by Zero</em></p>
 <p>When we compare the call-stacks in <em>Code Snippet 3</em> and <em>Code Snippet 5</em> we see how the paths are different. It seems that when having <code>@input_data_1</code>, some optimization and compilation of the statement happens first, and the statement is actually executed when the connection to the satellite has happened, and it looks like that happens inside <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code>.</p>
-<p>If we think back to what we covered in Internals <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a> and <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a>, and we &ldquo;merge&rdquo; that what we have seen so far in this post, it seems that <code>sp_execute_external_script</code> has three distinct phases:</p>
+<p>If we think back to what we covered in Internals 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a> and 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a>, and we &ldquo;merge&rdquo; that what we have seen so far in this post, it seems that <code>sp_execute_external_script</code> has three distinct phases:</p>
 <ol>
 <li>Compilation and optimizing the <code>@input_data_1</code> statement</li>
 <li>Connecting to launchpad and SqlSatellite and sending the script to the SqlSatellite</li>
@@ -542,7 +564,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 4:</strong> <em>Error Message from SqlSatellite</em></p>
 <p>When looking at <em>Figure 4</em> it seems that SqlSatellite is confused about something, almost like it would have received a packet/something which it couldn&rsquo;t handle. That would make sense if a packet actually were sent to the SqlSatellite with the result from the <code>SELECT</code>, and potentially the data was corrupted due to the null exception.</p>
-<p>Let&rsquo;s start with looking at what packages are being sent to the SqlSatellite when executing the code in <em>Code Snippet 4</em>. For this we&rsquo;ll use <em>Process Monitor</em> and set it up as we did in [Internals - X], as well as in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, to filter TCP packets. When you have set up <em>Process Monitor</em> you are ready to execute the code in <em>Code Snippet 4</em>, but before you do that, disable all breakpoints in <em>WinDbg</em>. Execute the code and look at what <em>Process Monitor</em> outputs:</p>
+<p>Let&rsquo;s start with looking at what packages are being sent to the SqlSatellite when executing the code in <em>Code Snippet 4</em>. For this we&rsquo;ll use <em>Process Monitor</em> and set it up as we did in [Internals - X], as well as in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, to filter TCP packets. When you have set up <em>Process Monitor</em> you are ready to execute the code in <em>Code Snippet 4</em>, but before you do that, disable all breakpoints in <em>WinDbg</em>. Execute the code and look at what <em>Process Monitor</em> outputs:</p>
 <p>
   <img src="/images/posts/sql_r_services_13_error_procmon.png" alt="">
 
@@ -555,7 +579,11 @@ if (!doNotTrack) {
 </ul>
 <p>But after the script package we see a packet with the length of 28, what is that? Also, we do not see any packet that would be related to the data, so the idea that the SqlSatellite received a packet it could not handle may not be correct. So, where does the message about the SqlSatellite and data chunks in <em>Figure 4</em> come from?</p>
 <h4 id="packet-with-length-28">Packet with Length 28</h4>
-<p>We&rsquo;ll start with the packet with a length of 28. In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we saw how packets with a length of 28 were sent as end of script, and end of data packets. Perhaps it is something similar here. We saw in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> how the end packets were sent in a flow looking something like so:</p>
+<p>We&rsquo;ll start with the packet with a length of 28. In 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we saw how packets with a length of 28 were sent as end of script, and end of data packets. Perhaps it is something similar here. We saw in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> how the end packets were sent in a flow looking something like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -593,7 +621,9 @@ if (!doNotTrack) {
 <li><code>sqllang!CUDXR_ExternalScript::PushRow</code> followed by</li>
 <li><code>(1a54.23c8): C++ EH exception - code e06d7363 (first chance)</code></li>
 </ul>
-<p>After the second <code>PushRow</code> we break at the exception, and when we let the code continue, we get the error message back, but we also see that a packet with a length of 28 is sent to the SqlSatellite. So, if the packet is not coming from the <code>SendChunkEndMessage</code> routine, where does it come from then? Let&rsquo;s do what we did in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> when we did not know from where a packet was sent - set a breakpoint at <code>mswsock!WSPSend</code>. The theory behind this is that, at one stage or another, a low level socket call needs to take place. After you have set the breakpoint, execute again and now the breakpoints are hit as follows:</p>
+<p>After the second <code>PushRow</code> we break at the exception, and when we let the code continue, we get the error message back, but we also see that a packet with a length of 28 is sent to the SqlSatellite. So, if the packet is not coming from the <code>SendChunkEndMessage</code> routine, where does it come from then? Let&rsquo;s do what we did in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> when we did not know from where a packet was sent - set a breakpoint at <code>mswsock!WSPSend</code>. The theory behind this is that, at one stage or another, a low level socket call needs to take place. After you have set the breakpoint, execute again and now the breakpoints are hit as follows:</p>
 <ul>
 <li><code>mswsock!WSPSend</code> three times in a row (the two authentication packets and the script packet)</li>
 <li><code>sqlmin!CQScanUdx::PushNextChildRow</code> followed by</li>
@@ -653,13 +683,17 @@ if (!doNotTrack) {
 <p>Ah, from the call-stack in <em>Code Snippet 7</em> we can see how the exception brings us back to <code>sqllang!CMsqlExecContext::FExecute</code> and from there we go down a code path which eventually comes into the <code>sqllang!CSQLSatelliteCommunication::SendAbort</code> routine, which sends the packet with a length of 28.</p>
 <p>We have now an explanation to the packet with a length of 28, it is SQL Server telling the SqlSatellite, that it aborts the process. The question about the message we see about SqlSatellite not being able to read the data chunk is not as straight forward though.</p>
 <h4 id="sqlsatellite-data-chunk-message">SqlSatellite Data Chunk Message</h4>
-<p>Initially I thought the message came from inside SQL Server, but based on some tests I did, I believe the message originates in the SqlSatellite after the satellite has received the abort message. Reasoning behind this is based on that the message does not &ldquo;smell&rdquo; like a SQL Server Error message; it doesn&rsquo;t have an error number attached and it looks a lot like the output you&rsquo;d get from the external script engine. Remember from <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> where we discussed files and sub-directories created by the launchpad service as well as the external engine, how - by default - two files are created by the launchpad service:</p>
+<p>Initially I thought the message came from inside SQL Server, but based on some tests I did, I believe the message originates in the SqlSatellite after the satellite has received the abort message. Reasoning behind this is based on that the message does not &ldquo;smell&rdquo; like a SQL Server Error message; it doesn&rsquo;t have an error number attached and it looks a lot like the output you&rsquo;d get from the external script engine. Remember from 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> where we discussed files and sub-directories created by the launchpad service as well as the external engine, how - by default - two files are created by the launchpad service:</p>
 <ul>
 <li><code>stdout0.txt</code> - for <code>cat</code> and <code>print</code> output from the engine.</li>
 <li><code>stderr0.txt</code> - for error logging from the engine.</li>
 </ul>
 <p>The tests I did was based on my thinking that if the message originates from SQL Server, then neither <code>stdout0.txt</code> nor <code>stderr0.txt</code> would contain anything. However if the message originated from the external engine, then I should see something in either of those two files.</p>
-<p>To be able to investigate this, I did what we did in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>:</p>
+<p>To be able to investigate this, I did what we did in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>:</p>
 <ol>
 <li>Stop the launchpad service.</li>
 <li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
@@ -702,7 +736,9 @@ if (!doNotTrack) {
 </ul>
 <p>We also saw that if an error happens after the satellite has been initialized, SQL Server sends an abort message to the satellite in the <code>sqllang!CSQLSatelliteCommunication::SendAbort</code> routine.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

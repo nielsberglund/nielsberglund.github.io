@@ -234,13 +234,19 @@ if (!doNotTrack) {
                 
                 <p><code>SET XACT_ABORT</code> defines whether a transaction is automatically rolled back when a T-SQL statement raises a run-time exception, and when you read posts from prominent SQL bloggers you quite often see that they recommend to always have <code>XACT_ABORT</code> set to <code>ON</code>. From the title of this post you may get the impression that I do not necessarily agree, and to an extent you may be right. So, let us see &hellip;</p>
 <h2 id="background">Background</h2>
-<p>First of all; as with a post a while ago about <a href="/post/2016-12-31-sql-server-error-handling-gotchas/"><strong>SQL Server Error Handling Gotcha&rsquo;s</strong></a>, this post is based on real world experiences based on the production OLTP databases we have here at <a href="/derivco"><strong>Derivco</strong></a>.</p>
+<p>First of all; as with a post a while ago about 
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/"><strong>SQL Server Error Handling Gotcha&rsquo;s</strong></a>, this post is based on real world experiences based on the production OLTP databases we have here at 
+
+<a href="/derivco"><strong>Derivco</strong></a>.</p>
 <blockquote>
 <p>Derivco&rsquo;s main OLTP production database has around 5,000 stored procedures, where a small procedure has about 600 - 800 LOC, and a big procedure can have 3,000 - 4,000 LOC. The procedures are also quite heavily nested, where it is not uncommon to have a call chain of 10 - 15 procedures. It is not only one team working on the procedures, but multiple teams are maintaining and developing procedures.</p>
 </blockquote>
 <p>So, back to the issue at hand, and let&rsquo;s begin looking at why we have <code>XACT_ABORT</code> in the first place? That has to do with transactions and SQL exceptions; remember back before SQL Server 2005 and <code>TRY</code> <code>CATCH</code>, an exception did not normally stop execution of a batch, even though the execution of the statement stopped. Let us look at some code for this, and let&rsquo;s start with creating a couple of tables with a foreign key constraint between them:</p>
 <blockquote>
-<p><strong>Note:</strong> Most of the code in this post can be downloaded from <a href="/downloads/code/xact_abort.zip">here</a></p>
+<p><strong>Note:</strong> Most of the code in this post can be downloaded from 
+
+<a href="/downloads/code/xact_abort.zip">here</a></p>
 </blockquote>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -472,7 +478,9 @@ if (!doNotTrack) {
 <strong>Figure 4:</strong> <em>Result After XACT_ABORT</em></p>
 <p>No rows coming back, <code>XACT_ABORT</code> rolled back the transaction as well as terminating the batch! That is fairly cool! What about something - somewhat (not much) - more realistic than just a batch execution; like <code>XACT_ABORT</code> and stored procedures. Below in <em>Code Snippet 4</em>, is code to create three stored procedures. The top level procedure (<code>dbo.pr_1</code>) switches <code>XACT_ABORT</code> and then goes on to start a transaction, do an insert and call <code>dbo.pr_2</code>, which in turns calls <code>dbo.pr_3</code>. The last procedure - <code>dbo.pr_3</code> - generates a foreign key exception:</p>
 <blockquote>
-<p><strong>NOTE:</strong> The transaction handling in all the procs, in all examples, is very much simplified, whereby the procs being called by the top-level proc is not doing anything with transactions, as the transaction should only be committed/rolled back by the proc that started the transaction. See my <a href="/post/2011-09-11-transactions-in-sql-server-take-2956/">blog post</a> from a couple of years ago about <em>proper</em> transaction handling.</p>
+<p><strong>NOTE:</strong> The transaction handling in all the procs, in all examples, is very much simplified, whereby the procs being called by the top-level proc is not doing anything with transactions, as the transaction should only be committed/rolled back by the proc that started the transaction. See my 
+
+<a href="/post/2011-09-11-transactions-in-sql-server-take-2956/">blog post</a> from a couple of years ago about <em>proper</em> transaction handling.</p>
 </blockquote>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -713,7 +721,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6:</strong> <em>Procedures with Old Style Error Handling</em></p>
-<p>They do not look much different than the procedures in my <a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> a while ago about &ldquo;gotcha&rsquo;s&rdquo; in error handling. The procedures are being &ldquo;good citizens&rdquo;, and check for errors after executing something that could go wrong, and if there is an error, they re-wind, clean up, and raise the exception up the call-chain. When executing <code>dbo.pr_1</code>, as in <em>Code Snippet 5</em>, you would see something like so:</p>
+<p>They do not look much different than the procedures in my 
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> a while ago about &ldquo;gotcha&rsquo;s&rdquo; in error handling. The procedures are being &ldquo;good citizens&rdquo;, and check for errors after executing something that could go wrong, and if there is an error, they re-wind, clean up, and raise the exception up the call-chain. When executing <code>dbo.pr_1</code>, as in <em>Code Snippet 5</em>, you would see something like so:</p>
 <p>
   <img src="/images/posts/exec_proc_old_error_handling.png" alt="">
 
@@ -803,12 +813,16 @@ if (!doNotTrack) {
 <h3 id="raiserror">RAISERROR</h3>
 <p>So far the errors we have seen are errors from T-SQL statements, what if we were to raise an exception through <code>RAISERROR</code>? The answer to that is that <code>RAISERROR</code> will not cause <code>XACT_ABORT</code> to trigger! This means we can be in a very messed up state transaction wise. So if we use <code>XACT_ABORT</code> we need to be very careful how we handle exceptions, and we cannot solely rely on it to automatically do a <code>ROLLBACK</code>.</p>
 <blockquote>
-<p><strong>NOTE:</strong> Using <code>THROW</code> would cause <code>XACT_ABORT</code> to work as intended, however that would require SQL Server 2012, and <code>THROW</code> in itself adds its own issues. See my <a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> for more around that.</p>
+<p><strong>NOTE:</strong> Using <code>THROW</code> would cause <code>XACT_ABORT</code> to work as intended, however that would require SQL Server 2012, and <code>THROW</code> in itself adds its own issues. See my 
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> for more around that.</p>
 </blockquote>
 <h3 id="try--catch">TRY &hellip; CATCH</h3>
 <p>What happens if we are in a <code>TRY ... CATCH</code> situation; e.g. using somewhere in the call-chain the exception handling capabilities introduced in SQL Server 2005?</p>
 <blockquote>
-<p>See my <a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> about what issues you can run into with mixing and matching error-handling styles.</p>
+<p>See my 
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">blog post</a> about what issues you can run into with mixing and matching error-handling styles.</p>
 </blockquote>
 <p>So let us edit <code>dbo.pr_3</code> to do &ldquo;new&rdquo; error-handling, and let the other procs stay the same:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
@@ -939,7 +953,9 @@ if (!doNotTrack) {
 <li>It does not play well with <code>TRY ... CATCH</code></li>
 <li><strong>Non-vital exceptions causes the whole transaction to roll back!</strong></li>
 </ul>
-<p><a href="/downloads/code/xact_abort.zip">Download the demo code from here</a></p>
+<p>
+
+<a href="/downloads/code/xact_abort.zip">Download the demo code from here</a></p>
 
                 
 

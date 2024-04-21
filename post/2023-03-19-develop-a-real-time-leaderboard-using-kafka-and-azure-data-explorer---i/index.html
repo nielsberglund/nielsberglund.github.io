@@ -240,11 +240,17 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the second post in a series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. Hmm, the second post you say - why is it that the post title says &quot; - I&quot;? Good question; that is because the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka. Posts in the series are:</p>
+                <p>This is the second post in a series about using Kafka and <strong>Azure Data Explorer</strong> (ADX) to develop a real-time leaderboard for online gaming. Hmm, the second post you say - why is it that the post title says &quot; - I&quot;? Good question; that is because the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">initial post</a> was more of an intro, where I introduced a framework for generating and publishing events to Kafka. Posts in the series are:</p>
 <ul>
-<li><a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - Prelude</strong></a></li>
+<li>
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - Prelude</strong></a></li>
 <li><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - I</strong> (this post)</li>
-<li><a href="/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong></a></li>
+<li>
+
+<a href="/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong></a></li>
 </ul>
 <p>Anyway, in this post, you will learn more about ADX and why it is an excellent choice for near real-time applications, how to &ldquo;hook up&rdquo; Kafka to ADX and how to ingest data into an ADX database.</p>
 <h2 id="background">Background</h2>
@@ -255,18 +261,32 @@ if (!doNotTrack) {
 <li>Ability to handle thousands and thousands of queries per second.</li>
 <li>Low latency (milliseconds).</li>
 </ul>
-<p>So in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I said that the chosen technologies are Kafka and ADX. In that post, I looked at Kafka and ingesting event data into a topic. In this post, I look closer into ADX and how to ingest data from Kafka into ADX.</p>
+<p>So in the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I said that the chosen technologies are Kafka and ADX. In that post, I looked at Kafka and ingesting event data into a topic. In this post, I look closer into ADX and how to ingest data from Kafka into ADX.</p>
 <h2 id="pre-reqs">Pre-Reqs</h2>
 <p>This section is here to list what you need if you want to follow along (they look more or less as in the last post):</p>
 <ul>
 <li>Docker Desktop. We use Docker to &ldquo;spin up&rdquo; containers for Kafka and a Python application. The Python application generates and publishes events to Kafka. Caveat: If you are on an Apple Silicon Mac (M1 or M2), you need Python installed on your machine, as the container for the event generation application won&rsquo;t build on Apple Silicon. Subsequently, you must install the Python Confluent Kafka client on your Mac: <code>pip install confluent-kafka</code>.</li>
-<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
-<li>Azure CLI. The Azure CLI is a cross-platform command-line tool connecting to Azure and executing administrative commands on Azure resources. You find downloads and install instructions <a href="https://learn.microsoft.com/en-us/cli/azure/install-azure-cli">here</a>.</li>
-<li>An Azure Data Explorer cluster and database. To set up an ADX cluster and a database, look here: <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">Quickstart: Create an Azure Data Explorer cluster and database</a>. You can name the database as you like. My database is called <code>leaderboard</code>. Please note that there may be a cost associated with the ADX cluster, so be sure to tear it down when you are done. The assumption is that you now have a running ADX cluster or you set it up as per the instructions in the <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">link</a>.</li>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a 
+
+<a href="https://azure.microsoft.com/en-us/free/" target="_blank" rel="noopener">free account</a>.</li>
+<li>Azure CLI. The Azure CLI is a cross-platform command-line tool connecting to Azure and executing administrative commands on Azure resources. You find downloads and install instructions 
+
+<a href="https://learn.microsoft.com/en-us/cli/azure/install-azure-cli" target="_blank" rel="noopener">here</a>.</li>
+<li>An Azure Data Explorer cluster and database. To set up an ADX cluster and a database, look here: 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal" target="_blank" rel="noopener">Quickstart: Create an Azure Data Explorer cluster and database</a>. You can name the database as you like. My database is called <code>leaderboard</code>. Please note that there may be a cost associated with the ADX cluster, so be sure to tear it down when you are done. The assumption is that you now have a running ADX cluster or you set it up as per the instructions in the 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal" target="_blank" rel="noopener">link</a>.</li>
 </ul>
-<p>You may have seen how ADX offers <a href="https://learn.microsoft.com/en-us/azure/data-explorer/start-for-free-web-ui">free clusters</a>. A free cluster allows you to explore the platform&rsquo;s features, experiment with data analytics queries, and develop proofs of concept without incurring any cost. This would have been ideal for our purposes, but unfortunately, a free cluster does not allow streaming ingestion, which we will be using here.</p>
+<p>You may have seen how ADX offers 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/start-for-free-web-ui" target="_blank" rel="noopener">free clusters</a>. A free cluster allows you to explore the platform&rsquo;s features, experiment with data analytics queries, and develop proofs of concept without incurring any cost. This would have been ideal for our purposes, but unfortunately, a free cluster does not allow streaming ingestion, which we will be using here.</p>
 <h3 id="code">Code</h3>
-<p>The code for this post is in the <a href="https://github.com/nielsberglund/leaderboard-adx.git">leaderboard-ADX</a> GitHub repo. To follow along, clone the repo somewhere on your machine.</p>
+<p>The code for this post is in the 
+
+<a href="https://github.com/nielsberglund/leaderboard-adx.git" target="_blank" rel="noopener">leaderboard-ADX</a> GitHub repo. To follow along, clone the repo somewhere on your machine.</p>
 <p>Now is the time to look at what to build.</p>
 <h2 id="online-gaming-leaderboard">Online Gaming Leaderboard</h2>
 <p>Your &ldquo;mission&rdquo; (as mentioned in the previous post) is to build a leaderboard system for a company that promotes/runs different online games. This company wants to set up promotions/campaigns where each campaign can have its own leaderboard.</p>
@@ -313,7 +333,9 @@ if (!doNotTrack) {
 <p>In the previous post, you implemented step 1 - generating and publishing events to Kafka. Logically you would now work on the ADX ingestion. However, before ingesting, you have to set up ADX.</p>
 <h2 id="azure-data-explorer">Azure Data Explorer</h2>
 <p>Before setting up ADX, let&rsquo;s briefly look at what ADX is and why it fits our purposes.</p>
-<p><a href="https://docs.microsoft.com/en-us/azure/data-explorer/">Azure Data Explorer</a> is a fully managed data exploration service provided by Microsoft Azure. It is designed for big data scenarios and allows users to quickly and easily analyze large amounts of data using a SQL-like language. ADX can handle structured and unstructured data and can be used to perform tasks such as data exploration, real-time analytics, and visualization.</p>
+<p>
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/" target="_blank" rel="noopener">Azure Data Explorer</a> is a fully managed data exploration service provided by Microsoft Azure. It is designed for big data scenarios and allows users to quickly and easily analyze large amounts of data using a SQL-like language. ADX can handle structured and unstructured data and can be used to perform tasks such as data exploration, real-time analytics, and visualization.</p>
 <p>It uses a distributed columnar storage system and a query engine designed to handle complex queries and perform well even with massive datasets. Additionally, ADX uses advanced indexing and caching techniques to speed up queries and reduce the need for full table scans. It also allows for near real-time data ingestion and supports complex data types such as JSON and Avro.</p>
 <p>
   <img src="/images/posts/adx-arch-orig-black.png" alt="">
@@ -353,7 +375,9 @@ if (!doNotTrack) {
 <li>Kafka Connect worker with sink connectors. Source and sink connectors can be in the same Kafka Connect worker. The sink connectors know how to consume and ingest events from Kafka topics into sink systems.</li>
 <li>Sink systems. These are systems we ingest data into. As with source systems, these can be databases, Hadoop, filesystems, etc.</li>
 </ul>
-<p>In the leaderboard system, you use the <a href="https://github.com/Azure/kafka-sink-azure-kusto">Kusto sink connector</a>, which reads data from a Kafka topic(s) and ingests it into ADX tables.</p>
+<p>In the leaderboard system, you use the 
+
+<a href="https://github.com/Azure/kafka-sink-azure-kusto" target="_blank" rel="noopener">Kusto sink connector</a>, which reads data from a Kafka topic(s) and ingests it into ADX tables.</p>
 <h2 id="adx-setup">ADX Setup</h2>
 <p>At last, it is time to set up ADX. After reading the Pre-Reqs above, you should have a running ADX cluster and a database. What you need to do now is:</p>
 <ul>
@@ -519,7 +543,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 5:</strong> <em>Ingestion Mapping</em></p>
 <p>The code in <em>Code Snippet 5</em> shows how you create a JSON ingestion mapping, naming it <code>gameplay_json_mapping</code>.</p>
 <p>After running the code in <em>Code Snippet 5</em>, you can check that the mapping exists executing: <code>.show table GamePlay ingestion mappings</code>, which returns all mappings for that table.</p>
-<p>The page <a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/show-ingestion-mapping-command">.show ingestion mapping</a> from the ADX documentation covers ingestion mapping in more detail.</p>
+<p>The page 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/show-ingestion-mapping-command" target="_blank" rel="noopener">.show ingestion mapping</a> from the ADX documentation covers ingestion mapping in more detail.</p>
 <p>You now have all the &ldquo;pieces of the puzzle&rdquo;. Let us put it together!</p>
 <h2 id="kafka-connect--kusto-sink-connector">Kafka Connect &amp; Kusto Sink Connector</h2>
 <p>What is left to do is to set up the Kusto Sink connector in Kafka Connect.</p>
@@ -688,13 +714,19 @@ if (!doNotTrack) {
 <p>Everything is OK (<em>it works on my machine</em>)! Let&rsquo;s test it!</p>
 <h2 id="testing-the-connector">Testing the Connector</h2>
 <p>Let us start in ADX <em>Query</em> editor and ensure that the <code>GamePlay</code> table is empty: <code>GamePlay | count</code>. That should return <code>0</code>.</p>
-<p>You can now start publishing events to the topic. In the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, you saw how to publish events one-by-one or in a loop. To keep things simple, you start by publishing one-by-one.</p>
+<p>You can now start publishing events to the topic. In the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, you saw how to publish events one-by-one or in a loop. To keep things simple, you start by publishing one-by-one.</p>
 <h3 id="publish-single-events">Publish Single Events</h3>
-<p>If you haven&rsquo;t read the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I suggest you go back and read, at least, the part about publishing events and the different command line parameters.</p>
+<p>If you haven&rsquo;t read the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">first post</a>, I suggest you go back and read, at least, the part about publishing events and the different command line parameters.</p>
 <blockquote>
 <p><strong>NOTE:</strong> If you are on Apple Silicon (M1, M2), note how you need to run the Python application independently, not from the Docker container.</p>
 </blockquote>
-<p>To publish events, follow the &ldquo;instructions&rdquo; in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
+<p>To publish events, follow the &ldquo;instructions&rdquo; in the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>:</p>
 <ul>
 <li>From the command line, you <code>docker exec</code> into the <code>event-gen</code> container: <code>docker exec -it event-gen bash</code>.</li>
 <li>Execute the <code>runProducer.py</code> script.</li>
@@ -718,7 +750,9 @@ if (!doNotTrack) {
 <p>Yay, it works! In <em>Figure 11</em> you see the result (outlined in yellow) of the query (outlined in red).</p>
 <p>You are now ready to do a more realistic test where you emulate online gameplay by generating and publishing events in a loop. However, before that, clear out the <code>GamePlay</code> table, so you start afresh: <code>.clear table GamePlay data</code>.</p>
 <h3 id="publish-in-a-loop">Publish in a Loop</h3>
-<p>To recap what was said in the <a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, to publish in a loop, you set - at minimum - the following command line parameters:</p>
+<p>To recap what was said in the 
+
+<a href="/post/2023-02-26-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---prelude/">previous post</a>, to publish in a loop, you set - at minimum - the following command line parameters:</p>
 <ul>
 <li><code>-t</code>: The topic to publish to.</li>
 <li><code>-l</code>: Flag to indicate you want to loop.</li>
@@ -768,7 +802,9 @@ if (!doNotTrack) {
 </ul>
 <p>After having done the above, you published some events to Kafka. You saw that your setup worked.</p>
 <p>Finally, you published events in a loop and had a KQL query calculating the highest win/stake ratio for the individual players in real-time.</p>
-<p>The <a href="/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/">next post</a> will cover more about KQL and how to use Azure Data Explorer&rsquo;s REST API to query ADX.</p>
+<p>The 
+
+<a href="/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/">next post</a> will cover more about KQL and how to use Azure Data Explorer&rsquo;s REST API to query ADX.</p>
 <h2 id="-finally">~ Finally</h2>
 <p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
 

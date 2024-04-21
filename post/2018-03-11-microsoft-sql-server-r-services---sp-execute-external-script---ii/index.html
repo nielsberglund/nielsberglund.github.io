@@ -248,10 +248,16 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This post is the 23:rd post about <strong>Microsoft SQL Server R Services</strong>, and a continuation of <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a>. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+                <p>This post is the 23:rd post about <strong>Microsoft SQL Server R Services</strong>, and a continuation of 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a>. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>I honestly thought this post would be the last in the series (I have thought quite a few times), but alas, that is not the case. There will be at least one more post about <code>sp_execute_external_script</code> after this.</p>
 <h2 id="recap">Recap</h2>
-<p>In the last <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">post</a> we started looking at <code>sp_execute_external_script</code>, and we said that <code>sp_execute_external_script</code> is the bridge between SQL Server and external execution engines, like R or Python. The signature for the procedure looks like so:</p>
+<p>In the last 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">post</a> we started looking at <code>sp_execute_external_script</code>, and we said that <code>sp_execute_external_script</code> is the bridge between SQL Server and external execution engines, like R or Python. The signature for the procedure looks like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -294,17 +300,27 @@ if (!doNotTrack) {
 <h2 id="housekeeping">Housekeeping</h2>
 <p>Before we &ldquo;dive&rdquo; into today&rsquo;s topics let us look at the code and the tools we use today. This section is here for those who want to follow along in what we are doing in the post.</p>
 <h4 id="code">Code</h4>
-<p>In this post we use the same database and database objects as in <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a>, so go there and grab the code if you need to create the database again.</p>
+<p>In this post we use the same database and database objects as in 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a>, so go there and grab the code if you need to create the database again.</p>
 <h4 id="helper-tools">Helper Tools</h4>
 <p>To help us figure out the things we want, we use <em>Process Monitor</em>, and <em>WireShark</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
-<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li><em>Process Monitor</em>, is used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> as well as in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</li>
+<li>I use <em>WireShark</em> for network packet sniffing. If you want a refresher about <em>WireShark</em>, we covered the setup and so forth in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
 </ul>
 <p>Now then, let us start.</p>
 <h2 id="params--parameter1"><code>@params</code> &amp; <code>@parameter1</code></h2>
 <p>Yeah, yeah - I know, in <em>Code Snippet 1</em> above, the <code>@parallel</code> parameter comes before the <code>@params</code> parameter. However, it makes more sense for me to cover <code>@params</code> before <code>@parallel</code>.</p>
-<p>The <code>@params</code> parameter is an optional parameter and when defined, it contains the definitions of all parameters embedded in the values for the <code>@input_data_1</code> and the <code>@script</code> parameters. The string must be either a Unicode constant or a Unicode variable. Each parameter definition consists of a parameter name and a data type. In <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> we had code looking like so:</p>
+<p>The <code>@params</code> parameter is an optional parameter and when defined, it contains the definitions of all parameters embedded in the values for the <code>@input_data_1</code> and the <code>@script</code> parameters. The string must be either a Unicode constant or a Unicode variable. Each parameter definition consists of a parameter name and a data type. In 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> we had code looking like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -448,7 +464,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6:</strong> <em>Use Parameter and Variable</em></p>
-<p>So that is parameters for the <code>@input_data_1</code> query. How about parameters in the script, where we want to send in values for those? In <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> we had code that looked like this:</p>
+<p>So that is parameters for the <code>@input_data_1</code> query. How about parameters in the script, where we want to send in values for those? In 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> we had code that looked like this:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -585,7 +603,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 1:</strong> <em>Resultsets Coming Back</em></p>
-<p>The last thing to discuss related to parameters are how it works internally, similar to how we in <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> discussed how the script knew about the input and output datasets. Here we discuss how the script and the engine know about parameters and their values. Oh, in [Internals - XVIII] we discussed the mechanism with which the value(s) of the output parameter(s) come back, so, therefore, we do not cover return values of output parameters in this post.</p>
+<p>The last thing to discuss related to parameters are how it works internally, similar to how we in 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">sp_execute_external_script - I</a> discussed how the script knew about the input and output datasets. Here we discuss how the script and the engine know about parameters and their values. Oh, in [Internals - XVIII] we discussed the mechanism with which the value(s) of the output parameter(s) come back, so, therefore, we do not cover return values of output parameters in this post.</p>
 <p>To begin with, in what packets are the parameters passed? To find this out, we use some much-simplified code from what we have used so far:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -622,7 +642,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 10:</strong> <em>Execution with and without Parameters</em></p>
 <p>As we see in <em>Code Snippet 10</em> there are two instances of <code>sp_execute_external_script</code>, both are very similar, and both generate the same result. What differs is that the first one has the value <code>42</code> hard-coded where the other pass the value via a parameter. The idea is now to initially to use <em>Process Monitor</em> and compare the packets SQL Server sends to the SqlSatellite to see if we can figure out what packet passes the parameter(s). So:</p>
 <ul>
-<li>Run <em>Process Monitor</em> as admin and load the filter we used in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> where we filtered for <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
+<li>Run <em>Process Monitor</em> as admin and load the filter we used in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> where we filtered for <code>TCP Receive</code> for <code>BxlServer.exe</code>.</li>
 <li>Run the two <code>EXECUTE</code> statements in <em>Code Snippet 10</em> and compare the output from <em>Process Monitor</em>. Make also a note of the <code>Path</code> column and the last value. That value is the port number of the TCP port with which SQL Server communicates with the SqlSatellite. We use the port value in <em>WireShark</em> when we &ldquo;sniff&rdquo; network packets later.</li>
 </ul>
 <p>When we execute the two statements in <em>Code Snippet 10</em>, <em>Process Monitor</em> outputs this:</p>
@@ -634,7 +656,9 @@ if (!doNotTrack) {
 <p>The black line in <em>Figure 2</em> separates the two executions, and we see how the third packet in each run differs in size (outlined in blue and red respectively). The packet outlined in red is bigger and comes from the second run - where we used the <code>@multip</code> parameter. The third packet is the packet where SQL Server sends the script to the SqlSatellite, and from what we can see so far it looks like some parameter information is part of this packet. Let us switch over to <em>WireShark</em> and see what goes on.</p>
 <ul>
 <li>Run <em>WireShark</em> as admin.</li>
-<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
+<li>Choose the network adapter to &ldquo;sniff&rdquo; on. See 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> for discussion around loop-back adapters etc.</li>
 <li>Set a display filter on the port SQL Server communicates with SqlSatellite on (the port you saw in the <code>Path</code> column). In this case, we want to sniff outgoing packets, and - if we used what we saw in <em>Figure 2</em> - the filter should subsequently be: <code>tcp.srcport==50858</code>.</li>
 <li>Apply the filter.</li>
 </ul>
@@ -752,7 +776,9 @@ if (!doNotTrack) {
 <li>In the &ldquo;script&rdquo; packet, preceding the values and the parameter names are hex values indicating the size of the parameter value (data type) and the parameter name.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

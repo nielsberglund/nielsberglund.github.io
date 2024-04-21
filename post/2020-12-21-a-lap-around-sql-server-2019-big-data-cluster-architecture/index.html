@@ -241,9 +241,13 @@ if (!doNotTrack) {
 
                 
                 <p>This post is the second in series about <strong>SQL Server 2019 Big Data Cluster</strong> based on a presentation I do: <strong>A Lap Around SQL Server 2019 Big Data Cluster</strong>.</p>
-<p>In the first post <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> we looked at - as the title implies - the background of SQL Server 2019 Big Data Cluster, (BDC), and the technology behind it.</p>
+<p>In the first post 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> we looked at - as the title implies - the background of SQL Server 2019 Big Data Cluster, (BDC), and the technology behind it.</p>
 <p>In this post, we look at the architecture and components of a BDC.</p>
-<p>Before we dive into the architecture, let&rsquo;s refresh our memories around what we covered in the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous</a> post.</p>
+<p>Before we dive into the architecture, let&rsquo;s refresh our memories around what we covered in the 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous</a> post.</p>
 <h2 id="recap">Recap</h2>
 <p>We are getting more and more data, and the data comes in all types and sizes. We need a system to be able to manage, integrate, and analyze all this data. That&rsquo;s where SQL Server comes into the picture.</p>
 <p>SQL Server has continuously evolved from its very humble beginnings based on Ashton Tate/Sybase code-base to where it is now:</p>
@@ -283,7 +287,9 @@ if (!doNotTrack) {
 </ul>
 <p>In this post, looking at the architecture, we use the tools above, so ensure you have them installed if you want to follow along.</p>
 <h2 id="architecture">Architecture</h2>
-<p>How can we figure out what the architecture looks like? Well, in the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> post, we discussed k8s pods and how we could get information about the pod by executing some <code>kubectl</code> commands.</p>
+<p>How can we figure out what the architecture looks like? Well, in the 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/"><strong>A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</strong></a> post, we discussed k8s pods and how we could get information about the pod by executing some <code>kubectl</code> commands.</p>
 <p>So let us go back to the pod we looked at briefly in the last post: <code>master-0</code>, which is the pod containing the SQL Server master instance. We look at that pod to see if we can get some information from it, which will help us in gaining insight into the architecture of a BDC. The code we use looks like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -340,9 +346,13 @@ if (!doNotTrack) {
 <p>In <em>Figure 3</em> we see the result from executing the code in <em>Code Snippet 2</em> and we see all pods in the <code>sqlbdc-cluster</code> namespace, i.e. all pods in the BDC. From the <code>PLANE</code> column we see how the BDC has two planes, the control plane and the data plane.</p>
 <h4 id="control--data-plane">Control &amp; Data Plane</h4>
 <p>Let us make a short diversion here and talk a bit about control and data planes.</p>
-<p>In distributed systems/services, we need a way to manage and monitor our services, and that is the role of the control plane. In the previous <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> we spoke about the master node in a k8s cluster and how we interact with the master node for management of the cluster.</p>
+<p>In distributed systems/services, we need a way to manage and monitor our services, and that is the role of the control plane. In the previous 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> we spoke about the master node in a k8s cluster and how we interact with the master node for management of the cluster.</p>
 <p>However, k8s has no idea about a SQL Server 2019 Big Data Cluster; in which order pods should be deployed etc. This is where the BDC control plane comes in. It knows about the BDC, so whenever there needs to be an interaction between the Kubernetes cluster and the BDC the k8s master node interacts with the BDC&rsquo;s control plane. Take a deployment as an example; when deploying to the BDC, the control plane acts as the coordinator and ensures services, etc., are &ldquo;spun up&rdquo; in the correct order.</p>
-<p>That is, however, not the only thing the control plane does. Remember from my previous <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> how we briefly discussed monitoring of a BDC and how we said we use Grafana, and Kibana together with the underlying InfluxDB and EleasticSearch as persistent stores. Well, the control plane is also responsible for monitoring, and in <em>Figure 3</em> you see some examples of this, where there are <code>APP</code>&rsquo;s related to logs and metrics.</p>
+<p>That is, however, not the only thing the control plane does. Remember from my previous 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">post</a> how we briefly discussed monitoring of a BDC and how we said we use Grafana, and Kibana together with the underlying InfluxDB and EleasticSearch as persistent stores. Well, the control plane is also responsible for monitoring, and in <em>Figure 3</em> you see some examples of this, where there are <code>APP</code>&rsquo;s related to logs and metrics.</p>
 <p>The data plane is what we communicate with when working with the BDC, doing queries etc. - the application traffic. In addition to that, the data plane is also responsible for:</p>
 <ul>
 <li>Routing.</li>
@@ -353,7 +363,9 @@ if (!doNotTrack) {
 <h4 id="role">role</h4>
 <p>In Kubernetes, you have the notion of a <code>Role</code>, and that has to do with security: a <code>Role</code> sets permissions within a namespace. The <code>role</code> I refer to here has nothing to do with that. No, a <code>role</code> in this context is a label attributed to a pod in a k8s cluster.</p>
 <blockquote>
-<p><strong>NOTE:</strong> In <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/">k8s documentation Labels</a> are described as follows: &ldquo;Labels are key/value pairs that are attached to objects, such as pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.&rdquo;</p>
+<p><strong>NOTE:</strong> In 
+
+<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/" target="_blank" rel="noopener">k8s documentation Labels</a> are described as follows: &ldquo;Labels are key/value pairs that are attached to objects, such as pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.&rdquo;</p>
 </blockquote>
 <p>Seeing the description about Labels above, we can deduce that a <code>role</code> describes the &ldquo;role&rdquo; of a Kubernetes component, i.e. what it does or belongs to. With that in mind, we can get some information/insight around the architecture of the BDC from it.</p>
 <p>So let us once again look at the pods in the cluster and see what the <code>role</code> labels tell us:</p>
@@ -410,7 +422,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 5:</strong> <em>Containers in Master Pod</em></p>
-<p>We see in <em>Figure 5</em> that the <code>master-0</code> pod is part of the <code>master-pool</code>, and it consists of three containers. From the <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous post</a> we already know about <code>collectd</code> and <code>fluentbit</code>. It is the third container, (first in the list), that is interesting - <code>mssql-server</code>, (highlighted in yellow).</p>
+<p>We see in <em>Figure 5</em> that the <code>master-0</code> pod is part of the <code>master-pool</code>, and it consists of three containers. From the 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">previous post</a> we already know about <code>collectd</code> and <code>fluentbit</code>. It is the third container, (first in the list), that is interesting - <code>mssql-server</code>, (highlighted in yellow).</p>
 <p>To find out some more about the container we change the code in <em>Code Snippet 4</em> to the following:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -523,7 +537,9 @@ if (!doNotTrack) {
 <p><strong>Figure 15:</strong> <em>Application Proxy</em></p>
 <p>What we see in <em>Figure 15</em> is an example of the application pool where we have a user, outlined in red, interacting with the applications in the pool.</p>
 <h2 id="summary">Summary</h2>
-<p>This is the second post in a series about SQL Server 2019 Big Data Cluster. In the first post: <a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</a> we looked at the reason why SQL Server 2019 Big Data Cluster came about and the tech behind it.</p>
+<p>This is the second post in a series about SQL Server 2019 Big Data Cluster. In the first post: 
+
+<a href="/post/2020-04-26-a-lap-around-sql-server-2019-big-data-cluster/">A Lap Around SQL Server 2019 Big Data Cluster: Background &amp; Technology</a> we looked at the reason why SQL Server 2019 Big Data Cluster came about and the tech behind it.</p>
 <p>In this post, we looked at the architecture of the BDC. We discussed in this post about:</p>
 <ul>
 <li>Master Pool: the master instance of SQL Server, which also acts as an entry point into the BDC.</li>
@@ -534,7 +550,9 @@ if (!doNotTrack) {
 </ul>
 <p>In future posts, we will look at data virtualization, and how the various pools work.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

@@ -232,18 +232,28 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the second post in a series about <strong>Microsoft SQL Server R Services</strong>, and the first post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+                <p>This is the second post in a series about <strong>Microsoft SQL Server R Services</strong>, and the first post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>In this post, and one or two more we will look at what goes on under the covers when we execute some R code inside SQL Server. This post looks at quite in detail what happens in the SQL engine when we execute <code>sp_execute_external_script</code>.</p>
-<p>To try and get an understanding we&rsquo;ll do something that we did quite a lot back in the day when I worked at Developmentor; we&rsquo;ll <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunk&rdquo;</a> the SQL Server code via <em>WinDbg</em>. This can be really useful when trying to understand and get to grips with new technology/functionality.</p>
+<p>To try and get an understanding we&rsquo;ll do something that we did quite a lot back in the day when I worked at Developmentor; we&rsquo;ll 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">&ldquo;spelunk&rdquo;</a> the SQL Server code via <em>WinDbg</em>. This can be really useful when trying to understand and get to grips with new technology/functionality.</p>
 <blockquote>
-<p><strong>NOTE:</strong> Developmentor were back in the day THE training company to go to if you wanted highly, highly technical training about COM, .NET, SQL Server, etc. <a href="http://www.javaworld.com/article/2073792/core-java/a-eulogy--developmentor--rip.html">This article</a> by my old colleague <a href="http://blogs.tedneward.com/">Ted Neward</a> (@tedneward) sums DM up quite accurately (apart from the fact that DM hadn&rsquo;t closed its doors when the article was written, ooops).</p>
+<p><strong>NOTE:</strong> Developmentor were back in the day THE training company to go to if you wanted highly, highly technical training about COM, .NET, SQL Server, etc. 
+
+<a href="http://www.javaworld.com/article/2073792/core-java/a-eulogy--developmentor--rip.html" target="_blank" rel="noopener">This article</a> by my old colleague 
+
+<a href="http://blogs.tedneward.com/" target="_blank" rel="noopener">Ted Neward</a> (@tedneward) sums DM up quite accurately (apart from the fact that DM hadn&rsquo;t closed its doors when the article was written, ooops).</p>
 </blockquote>
 <h2 id="overview">Overview</h2>
 <p>The first post in the series discussed how to install and enable SQL Server R Services. In there I mentioned how the SQL Server R Services are different from SQLCLR in that the R engine is external to SQL Server, whereas in SQLCLR, CLR is loaded into the same process as the SQL Server engine.</p>
 <p>So in SQL Server R Services, there must be a way to communicate out of the SQL engine, and into the R engine/runtime, and back into the SQL Server process. Before we&rsquo;ll start trying to figure out what is going on, let&rsquo;s make sure WinDbg is set up.</p>
 <h2 id="windbg">WinDbg</h2>
 <p>If you want to follow along with what I did, and you haven&rsquo;t used WinDbg before, this section talks about how to attach to a process etc. If you are used to this, please skip it.</p>
-<p>In order to use WinDbg, we need to ensure we have the symbol file path set. The easiest is to have the symbol path pointing to Microsoft&rsquo;s Symbol Server. To set things up and also get an introduction to debugging SQL Server with WinDbg, go and read <a href="http://www.sqlpassion.at/archive/2014/05/05/sql-server-debugging-with-windbg-an-introduction/">Klaus Aschenbrenner&rsquo;s (@Aschenbrenner) excellent introduction</a> to the subject.</p>
+<p>In order to use WinDbg, we need to ensure we have the symbol file path set. The easiest is to have the symbol path pointing to Microsoft&rsquo;s Symbol Server. To set things up and also get an introduction to debugging SQL Server with WinDbg, go and read 
+
+<a href="http://www.sqlpassion.at/archive/2014/05/05/sql-server-debugging-with-windbg-an-introduction/" target="_blank" rel="noopener">Klaus Aschenbrenner&rsquo;s (@Aschenbrenner) excellent introduction</a> to the subject.</p>
 <p>When you want to debug and having the symbol path set you can attach to the SQL Server process, either by doing it as in Klaus&rsquo; post, or you can attach from within WinDbg:</p>
 <p>
   <img src="/images/posts/sql_r_services_windbg_attach_menu.png" alt="">
@@ -333,7 +343,9 @@ if (!doNotTrack) {
 <p><strong>Figure 9:</strong> <em>Calls Being Made by SpExecuteExternalScript</em></p>
 <p>When looking at the calls, there is nothing really that stands out, apart from the <code>sqllang!CSQLSource::Execute (00007ff9 ee237ec0)</code> call. We can assume that, that call takes us further down the &ldquo;rabbit-hole&rdquo;, and we eventually could figure out what is going on. Tracing down could however take quite a while, so let us try another angle.</p>
 <blockquote>
-<p><strong>NOTE:</strong> When you have hit a breakpoint in WinDbg you can use a trace command <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497(v=vs.85).aspx"><code>wt</code></a> to continue the execution and at the same time print out the calls being made. For a call like <code>SpExecuteExternalScript</code> the output will get very, very large, and also not completely easy to interpret, so we will not use it for <code>SpExecuteExternalScript</code>. We will use it a bit later though .</p>
+<p><strong>NOTE:</strong> When you have hit a breakpoint in WinDbg you can use a trace command 
+
+<a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497%28v=vs.85%29.aspx" target="_blank" rel="noopener"><code>wt</code></a> to continue the execution and at the same time print out the calls being made. For a call like <code>SpExecuteExternalScript</code> the output will get very, very large, and also not completely easy to interpret, so we will not use it for <code>SpExecuteExternalScript</code>. We will use it a bit later though .</p>
 </blockquote>
 <p>What we will do instead is to go back and look at symbols. The assumption is that calls further down the call-chain will have something to do with external scripts, and most likely be executed from within the <code>sqllang</code> module.</p>
 <p>So let us execute a variant of what we did when finding <code>SpExecuteExternalScript</code>; we&rsquo;ll execute <code>x sqllang!*ExternalScript*</code>. Quite a few routines comes back, I have copied some of the ones that might be of interest to us into the code snippet below:</p>
@@ -371,7 +383,9 @@ if (!doNotTrack) {
 <li>sqllang!CUDXR_ExternalScript::ConnectToSatellite:</li>
 </ul>
 <p>No surprise we hit <code>SpExecuteExternalScript</code> first, and I guess at one stage the script has to <code>Open</code>. The question is what the other three routines are doing?</p>
-<p>In the <em>Overview</em> section in the beginning of this post I wrote how we need to communicate out of SQL Server in order to get to the R runtime. In my [previous post] <a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">1</a>, I mentioned the <em>Launchpad</em> service, and how it acts as a &ldquo;routing&rdquo; mechanism between SQL Server and external languages/runtimes.</p>
+<p>In the <em>Overview</em> section in the beginning of this post I wrote how we need to communicate out of SQL Server in order to get to the R runtime. In my [previous post] 
+
+<a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">1</a>, I mentioned the <em>Launchpad</em> service, and how it acts as a &ldquo;routing&rdquo; mechanism between SQL Server and external languages/runtimes.</p>
 <p>So, somehow SQL Server calls into the launchpad service in order to have the R engine execute the R code. The routines <code>SetupService</code> and <code>PrepareLauncherInfo</code>, has to do with the launchpad service., and we&rsquo;ll shortly have a closer look at what <code>SetupService</code> does. The <code>ConnectToSatellite</code> routine is for when results are coming back into SQL Server from the external runtime.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Before we go any further, make sure that you are not sitting at a break-point, e.g. hit F5 to let the debugger run.</p>
@@ -410,7 +424,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 3:</strong> <em>Interesting Calls in SetupService</em></p>
 <p>When looking at the call in <em>Code Snippet 3</em> we can see the <code>sqllang!CSQLSatelliteCommunication::Init</code> call. That is a call to initialize communication with the launchpad service. Then, somewhat later, there is an <code>OpenNpConnection</code> call. That call opens a named pipe connection to the launchpad service.</p>
 <p>The <code>WriteMessage</code> call finally sends the message packet to the launchpad service, and <code>FreePackets</code> releases the message packet. To further see what is going on, let&rsquo;s trace what <code>WriteMessage</code> is doing.</p>
-<p>If you are at a breakpoint right now, F5 out of there and then break into the debugger again, and set a breakpoint at <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>. Execute your T-SQL code again and continue until you hit the breakpoint you just set. When you hit the breakpoint enter the trace command <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497(v=vs.85).aspx"><code>wt</code></a>. This will now run through the whole function and display what is being called as well as statistics about how many times etc., routines were called. In the code snippet below I have chosen some of the more interesting calls:</p>
+<p>If you are at a breakpoint right now, F5 out of there and then break into the debugger again, and set a breakpoint at <code>sqllang!CSQLSatelliteConnection::WriteMessage</code>. Execute your T-SQL code again and continue until you hit the breakpoint you just set. When you hit the breakpoint enter the trace command 
+
+<a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497%28v=vs.85%29.aspx" target="_blank" rel="noopener"><code>wt</code></a>. This will now run through the whole function and display what is being called as well as statistics about how many times etc., routines were called. In the code snippet below I have chosen some of the more interesting calls:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -496,7 +512,9 @@ if (!doNotTrack) {
 </ol>
 <p>In between the calls mentioned, a lot of other calls are also made, but from a high level - this is what happens.</p>
 <p>If you have followed along, you can now go off and do your own &ldquo;spelunking&rdquo;. In next post in this series we will look at what happens in the launchpad service in more detail.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

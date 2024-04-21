@@ -240,21 +240,47 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>If you follow my blog, you probably know that I am a huge fan of <strong>Apache Kafka</strong> and event streaming/stream processing. Recently <strong>Azure Data Explorer</strong> (<strong>ADX</strong>) has caught my eye. In fact, in the last few weeks, I did two conference sessions about ADX. A month ago, I published a blog post related to Kafka and ADX: <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/"><strong>Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</strong></a>.</p>
+                <p>If you follow my blog, you probably know that I am a huge fan of <strong>Apache Kafka</strong> and event streaming/stream processing. Recently <strong>Azure Data Explorer</strong> (<strong>ADX</strong>) has caught my eye. In fact, in the last few weeks, I did two conference sessions about ADX. A month ago, I published a blog post related to Kafka and ADX: 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/"><strong>Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</strong></a>.</p>
 <p>As the title of that post implies, it looked at the ADX Kafka sink connector and how to run it in Azure. What the post did not look at was how to configure the connector and connect it to ADX. That is what we will do in this post (and maybe in a couple of more posts).</p>
 <h2 id="pre-reqs">Pre-Reqs</h2>
 <p>This section is here if you want to follow along. This is what you need:</p>
 <ul>
-<li>Docker desktop. If you are on Windows and don&rsquo;t have it, you download it from <a href="https://docs.docker.com/desktop/windows/install/">here</a>.</li>
-<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
-<li>Azure CLI. The Azure CLI is a cross-platform command-line tool connecting to Azure and executing administrative commands on Azure resources. You find downloads and install instructions <a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli">here</a>.</li>
-<li>An Azure Data Explorer cluster and database. To see how to set up a cluster and a database, look here: <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">Quickstart: Create an Azure Data Explorer cluster and database</a>.</li>
-<li>Kafka cluster. You can either run the cluster &ldquo;on-prem&rdquo; or in the cloud. I wrote a blog post about how to run Confluent Platform using Docker <a href="/post/2019-06-18-confluent-platform--kafka-for-the-windows--net-developer/">here</a> and running Confluent Cloud on Azure <a href="/post/2021-08-14-run-confluent-cloud--serverless-apache-kafka-on-azure/">here</a>. In this post, I use Confluent Cloud in Azure.</li>
-<li>You need to download the Kusto connector from <a href="https://github.com/Azure/kafka-sink-azure-kusto/releases">here</a>. In the <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/"><strong>Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</strong></a> post, I downloaded and used the 2.0 version. In this post, we will use the <a href="https://github.com/Azure/kafka-sink-azure-kusto/releases/download/v2.2.0/kafka-sink-azure-kusto-2.2.0-jar-with-dependencies.jar">2.2 version</a>.</li>
+<li>Docker desktop. If you are on Windows and don&rsquo;t have it, you download it from 
+
+<a href="https://docs.docker.com/desktop/windows/install/" target="_blank" rel="noopener">here</a>.</li>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a 
+
+<a href="https://azure.microsoft.com/en-us/free/" target="_blank" rel="noopener">free account</a>.</li>
+<li>Azure CLI. The Azure CLI is a cross-platform command-line tool connecting to Azure and executing administrative commands on Azure resources. You find downloads and install instructions 
+
+<a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli" target="_blank" rel="noopener">here</a>.</li>
+<li>An Azure Data Explorer cluster and database. To see how to set up a cluster and a database, look here: 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal" target="_blank" rel="noopener">Quickstart: Create an Azure Data Explorer cluster and database</a>.</li>
+<li>Kafka cluster. You can either run the cluster &ldquo;on-prem&rdquo; or in the cloud. I wrote a blog post about how to run Confluent Platform using Docker 
+
+<a href="/post/2019-06-18-confluent-platform--kafka-for-the-windows--net-developer/">here</a> and running Confluent Cloud on Azure 
+
+<a href="/post/2021-08-14-run-confluent-cloud--serverless-apache-kafka-on-azure/">here</a>. In this post, I use Confluent Cloud in Azure.</li>
+<li>You need to download the Kusto connector from 
+
+<a href="https://github.com/Azure/kafka-sink-azure-kusto/releases" target="_blank" rel="noopener">here</a>. In the 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/"><strong>Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</strong></a> post, I downloaded and used the 2.0 version. In this post, we will use the 
+
+<a href="https://github.com/Azure/kafka-sink-azure-kusto/releases/download/v2.2.0/kafka-sink-azure-kusto-2.2.0-jar-with-dependencies.jar" target="_blank" rel="noopener">2.2 version</a>.</li>
 </ul>
 <h4 id="confluent-cloud-cli">Confluent Cloud CLI</h4>
-<p>We need a way to post messages/events to Kafka, and usually, I do it using a .NET Core application. Since in this post I only will send a few messages, I am going to use the <a href="https://docs.confluent.io/ccloud-cli/current/overview.html"><strong>Confluent Cloud CLI</strong></a> (ccloud) tool.</p>
-<p>This tool is a must for anyone using Confluent Cloud as it enables developers to create, manage, and deploy their Confluent components. You find download and install instructions <a href="https://docs.confluent.io/ccloud-cli/current/install.html#tarball-or-zip-installation">here</a> and some examples of how to use it <a href="https://docs.confluent.io/platform/current/tutorials/examples/clients/docs/ccloud.html">here</a>.</p>
+<p>We need a way to post messages/events to Kafka, and usually, I do it using a .NET Core application. Since in this post I only will send a few messages, I am going to use the 
+
+<a href="https://docs.confluent.io/ccloud-cli/current/overview.html" target="_blank" rel="noopener"><strong>Confluent Cloud CLI</strong></a> (ccloud) tool.</p>
+<p>This tool is a must for anyone using Confluent Cloud as it enables developers to create, manage, and deploy their Confluent components. You find download and install instructions 
+
+<a href="https://docs.confluent.io/ccloud-cli/current/install.html#tarball-or-zip-installation" target="_blank" rel="noopener">here</a> and some examples of how to use it 
+
+<a href="https://docs.confluent.io/platform/current/tutorials/examples/clients/docs/ccloud.html" target="_blank" rel="noopener">here</a>.</p>
 <p>If your Kafka is &ldquo;bare metal&rdquo;, or Docker based, there are commands based on script files for various operations. In this post, the following commands are what you need if you are not using Confluent Cloud:</p>
 <ul>
 <li><code>/kafka-topics</code>: handle topics; list, create, etc.</li>
@@ -263,7 +289,9 @@ if (!doNotTrack) {
 </ul>
 <p>Having sorted out the pre-reqs, and some Kafka tools, let us move on.</p>
 <h2 id="scene-setting">Scene Setting</h2>
-<p>Before we go further, let&rsquo;s see what data we are working with. Since I am working at <a href="/derivco">Derivco</a>, an online gaming company, I guess it is only natural that my sample data is gameplay-related (fictitious gameplay that is). The idea is that, in this post, we have online players playing various types of games, and the games are submitting game events to a Kafka topic. The event looks something like so:</p>
+<p>Before we go further, let&rsquo;s see what data we are working with. Since I am working at 
+
+<a href="/derivco">Derivco</a>, an online gaming company, I guess it is only natural that my sample data is gameplay-related (fictitious gameplay that is). The idea is that, in this post, we have online players playing various types of games, and the games are submitting game events to a Kafka topic. The event looks something like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -390,7 +418,9 @@ if (!doNotTrack) {
 <li>As I want to connect to a Kafka cluster requiring authentication, I set some security settings.</li>
 </ul>
 <p>The last bullet point above is really &ldquo;glossing over&rdquo; what we are doing, so let me explain in a bit more detail. When we use a Kafka connector, the connector consumes from one or more Kafka topics or publishes to one or more Kafka topics. The necessary connection details to the Kafka instance is set up in the individual connector&rsquo;s configuration, which we&rsquo;ll see an example of later.</p>
-<p>However, in the <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>, we said how Kafka Connect is a JVM process (a worker) that loads and runs individual connectors such as our Kusto connector. The worker process needs to store configurations of the respective connectors and their state, and it stores this in Kafka. It doesn&rsquo;t have to store it in the Kafka instance the connector(s) consumes from or publishes to - it can use a completely separate Kafka instance and potentially a separate instance per connector. So when we want to use a connector, we need to set that information before configuring the connector. We see that in <em>Figure 1</em> lines 5 - 10, we set the security information to connect to the Kafka cluster where we want to store state and configuration.</p>
+<p>However, in the 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>, we said how Kafka Connect is a JVM process (a worker) that loads and runs individual connectors such as our Kusto connector. The worker process needs to store configurations of the respective connectors and their state, and it stores this in Kafka. It doesn&rsquo;t have to store it in the Kafka instance the connector(s) consumes from or publishes to - it can use a completely separate Kafka instance and potentially a separate instance per connector. So when we want to use a connector, we need to set that information before configuring the connector. We see that in <em>Figure 1</em> lines 5 - 10, we set the security information to connect to the Kafka cluster where we want to store state and configuration.</p>
 <p>That is it. We now have created a Docker file.</p>
 <h4 id="build-the-image">Build the Image</h4>
 <p>Having the Docker file, we can now go ahead and build the image:</p>
@@ -405,11 +435,15 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 3:</strong> <em>Kusto Docker Image</em></p>
-<p>It definitely looks like we are in business as we in <em>Figure 3</em> see the newly built image. The image is now available locally, but we can also push it to the likes of Dockerhub, or - as I did in the <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>  - to Azure Container Instances.</p>
+<p>It definitely looks like we are in business as we in <em>Figure 3</em> see the newly built image. The image is now available locally, but we can also push it to the likes of Dockerhub, or - as I did in the 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>  - to Azure Container Instances.</p>
 <h2 id="run-the-connector">Run the Connector</h2>
 <p>For now, we will not push the image anywhere but run it locally, using Docker Compose.</p>
 <h4 id="docker-compose-configuration">Docker Compose Configuration</h4>
-<p>In the <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous</a> post, we did a quick run of the connector using Docker Compose. Here we will use almost the same Docker Compose file, but look a little bit more in detail what it consists of:</p>
+<p>In the 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous</a> post, we did a quick run of the connector using Docker Compose. Here we will use almost the same Docker Compose file, but look a little bit more in detail what it consists of:</p>
 <p>
   <img src="/images/posts/kusto-conn-docker-compose.png" alt="">
 
@@ -421,7 +455,9 @@ if (!doNotTrack) {
 <li><code>container_name</code>: arbitrary name of the container.</li>
 <li><code>ports</code>: this tells the container to listen on this particular port, and how to map the internal IP to external.</li>
 <li><code>CONNECT_BOOTSTRAP_SERVERS</code>: host:port pair for the initial connection to the Kafka cluster. You can define multiple servers with a comma-separated host:port pairs.</li>
-<li><code>CONNECT_REST_ADVERTISED_HOST_NAME</code>: hostname for other workers to connect to when we run a distributed Kafka Connect cluster. The <a href="https://rmoff.net/2019/11/22/common-mistakes-made-when-configuring-multiple-kafka-connect-workers/"><strong>Common mistakes made when configuring multiple Kafka Connect workers</strong></a> post by Kafka guru Robin Moffat talks more about this.</li>
+<li><code>CONNECT_REST_ADVERTISED_HOST_NAME</code>: hostname for other workers to connect to when we run a distributed Kafka Connect cluster. The 
+
+<a href="https://rmoff.net/2019/11/22/common-mistakes-made-when-configuring-multiple-kafka-connect-workers/" target="_blank" rel="noopener"><strong>Common mistakes made when configuring multiple Kafka Connect workers</strong></a> post by Kafka guru Robin Moffat talks more about this.</li>
 <li><code>CONNECT_REST_PORT</code>: port for the REST API endpoint. It is <code>8083</code> by default, so I would not have had to define it in my compose file. Make sure that whatever port number you use is reflected in the <code>ports</code> entry in point 3. You use this port to manage and administer your connector.</li>
 <li><code>CONNECT_GROUP_ID</code>: a string that identifies the Kafka Connect cluster group this worker belongs to.</li>
 <li><code>CONNECT_CONFIG_STORAGE_TOPIC</code>: name of the topic in which to store connector and task configuration data.</li>
@@ -459,7 +495,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 7:</strong> <em>Connector Plugins</em></p>
 <p>As I run the Docker container on my machine, we see in <em>Figure 7</em> (outlined in red) how I make a <code>GET</code> request against <code>localhost:8083</code> and the <code>connector-plugins</code> endpoint. We also see in <em>Figure 7</em> that the request is successful. It returns an array of connector plugins, of which our plugin (outlined in yellow) is one.</p>
-<p>This is awesome; we have now built a Docker image of the Kusto sink connector and &ldquo;spun&rdquo; it up on our local machine. Basically, we are at the same point as at the end of the <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>, apart from the container is not in Azure Container Registry.</p>
+<p>This is awesome; we have now built a Docker image of the Kusto sink connector and &ldquo;spun&rdquo; it up on our local machine. Basically, we are at the same point as at the end of the 
+
+<a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/">previous post</a>, apart from the container is not in Azure Container Registry.</p>
 <p>Now it is almost time to &ldquo;hook&rdquo; the connector up to Kafka and Azure Data Explorer. However, we need to do some configuration of the ADX cluster and the database before hooking up the connector.</p>
 <h2 id="setup-adx--properties">Setup ADX &amp; Properties</h2>
 <p>The configuration we need to do of ADX is:</p>
@@ -566,7 +604,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 7:</strong> <em>Ingestion Mapping</em></p>
-<p>The code in <em>Code Snippet 7</em> shows how we create a JSON ingestion mapping, naming it <code>gameplay_json_mapping</code>. We further see how the columns are mapped against the event fields, where <code>$</code> represents the event&rsquo;s root. After running the code in <em>Code Snippet 7</em>, we can check that the mapping exists executing: <code>.show table GamePlay ingestion mappings</code>, which returns all mappings for that table. The page <a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/show-ingestion-mapping-command">.show ingestion mapping</a> from ADX documentation covers ingestion mappings in more detail.</p>
+<p>The code in <em>Code Snippet 7</em> shows how we create a JSON ingestion mapping, naming it <code>gameplay_json_mapping</code>. We further see how the columns are mapped against the event fields, where <code>$</code> represents the event&rsquo;s root. After running the code in <em>Code Snippet 7</em>, we can check that the mapping exists executing: <code>.show table GamePlay ingestion mappings</code>, which returns all mappings for that table. The page 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/show-ingestion-mapping-command" target="_blank" rel="noopener">.show ingestion mapping</a> from ADX documentation covers ingestion mappings in more detail.</p>
 <p>Above I said that we had to do one more thing in the database, which was the ingestion mapping we just saw. Actually, there is another thing to do. It is not 100% necessary, but it impacts the ingestion latency. We should create an ingestion policy.</p>
 <h4 id="ingestion-policy">Ingestion Policy</h4>
 <p>A future blog post, will talk in detail about ADX various ingestion options, and what an ingestion policy is. For now, let us just &ldquo;roll&rdquo; with this, and take it for what it is worth. So to create an ingestion batching policy you:</p>
@@ -600,7 +640,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 13:</strong> <em>Connector Config</em></p>
-<p>Some of the properties we see in <em>Figure 13</em> is heavily cut, but don&rsquo;t worry; below is an explanation of the most important ones. For an explanation of all of them, see <a href="https://github.com/Azure/kafka-sink-azure-kusto#5-sink-properties">5. Sink properties</a>.</p>
+<p>Some of the properties we see in <em>Figure 13</em> is heavily cut, but don&rsquo;t worry; below is an explanation of the most important ones. For an explanation of all of them, see 
+
+<a href="https://github.com/Azure/kafka-sink-azure-kusto#5-sink-properties" target="_blank" rel="noopener">5. Sink properties</a>.</p>
 <p>The numbers in <em>Figure 13</em> and their related properties:</p>
 <ol>
 <li>The <code>topics</code> property points to the topic(s) the connector consumes. It is defined as a comma-delimited string.</li>

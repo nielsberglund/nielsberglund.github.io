@@ -248,30 +248,42 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the 15:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 14:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+                <p>This is the 15:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 14:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>Finally, after a couple of false starts this post will look into the protocol used when transferring data back and forth between SQL Server and the SqlSatellite: <strong>Binary eXchange Language</strong> (<strong>BXL</strong>). Why write about it at all? Well, the big reason why I wanted to know more about it, was due to the strange packet sizes I saw when inspecting data being sent from SQL Server to the SqlSatellite: one row with 5 numeric columns had a packet size of 6300 bytes!!!</p>
 <p>Before we dive down, let us recap</p>
 <h2 id="recap">Recap</h2>
 <p>That last few Internals blog-posts have all had the same thing in common, discussing data packets going from SQL Server to the SqlSatellite.</p>
-<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we saw how both the external script as well as data from <code>@input_data_1</code> was sent over a TCP/IP connection to the SqlSatellite from SQL Server, as in the figure below where we see output from <em>Process Monitor</em>:</p>
+<p>In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we saw how both the external script as well as data from <code>@input_data_1</code> was sent over a TCP/IP connection to the SqlSatellite from SQL Server, as in the figure below where we see output from <em>Process Monitor</em>:</p>
 <p>
   <img src="/images/posts/sql_r_services_10_procmon_output3.png" alt="">
 
 </p>
 <p><strong>Figure 1:</strong> <em>Process Monitor Output Data Select</em></p>
-<p>We see in <em>Figure 1</em> the script packet with a length of 350, and the data packet with a length of 6300 being sent. We also see two packets with a size of 217 and 17 being sent (before the 350 and 6300) and we did not know what those packets were. In <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we figured out that they were authentication packets sent while the SqlSatelliteConnection was established, and we presented the flow like so:</p>
+<p>We see in <em>Figure 1</em> the script packet with a length of 350, and the data packet with a length of 6300 being sent. We also see two packets with a size of 217 and 17 being sent (before the 350 and 6300) and we did not know what those packets were. In 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we figured out that they were authentication packets sent while the SqlSatelliteConnection was established, and we presented the flow like so:</p>
 <p>
   <img src="/images/posts/sql_r_services_11_calls.png" alt="">
 
 </p>
 <p><strong>Figure 2:</strong> <em>Flow in SQL Server</em></p>
-<p>In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we looked at at from where the script and data packets are sent (what routines), and we determined that the script packet was sent while the <code>sqllang!CSatelliteProxy::PostSetupMessage</code> routine was called, and the data packet(s) was sent during the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. In <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a> we also explained the two packets with a length of 28 we see in <em>Figure 1</em> (being sent after the two data packets), as end packets. Packets used to tell SqlSatellite that no more data is coming. We illustrated the internal SQL Server flow like this:</p>
+<p>In 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> we looked at at from where the script and data packets are sent (what routines), and we determined that the script packet was sent while the <code>sqllang!CSatelliteProxy::PostSetupMessage</code> routine was called, and the data packet(s) was sent during the <code>sqllang!CSatelliteCargoContext::SendPackets</code> routine. In 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a> we also explained the two packets with a length of 28 we see in <em>Figure 1</em> (being sent after the two data packets), as end packets. Packets used to tell SqlSatellite that no more data is coming. We illustrated the internal SQL Server flow like this:</p>
 <p>
   <img src="/images/posts/sql_r_services_12_calls.png" alt="">
 
 </p>
 <p><strong>Figure 3:</strong> <em>Flow in SQL Server</em></p>
-<p>Finally in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we tried to figure out where and when the <code>SELECT</code> statement for <code>@input_data_1</code> is executed, and we saw the following:</p>
+<p>Finally in 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we tried to figure out where and when the <code>SELECT</code> statement for <code>@input_data_1</code> is executed, and we saw the following:</p>
 <ul>
 <li>Before the SqlSatellite was initialized the statement is compiled.</li>
 <li>After the satellite has been initialized the statement is executed.</li>
@@ -283,11 +295,21 @@ if (!doNotTrack) {
 <h4 id="helper-tools">Helper Tools</h4>
 <p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>Microsoft Message Analyzer</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
-<li>In this post we will use <a href="https://www.microsoft.com/en-za/download/details.aspx?id=44226"><strong>Microsoft Message Analyzer</strong></a> to &ldquo;sniff&rdquo; and capture network packets. In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we used <em>WireShark</em>, but when writing this post I had some issues capturing TDS packets (they were marked as malformed) so I switched to <em>Message Analyzer</em> instead. There is a tutorial <a href="https://technet.microsoft.com/en-us/library/jj649776.aspx">here</a> how to use it.</li>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li>In this post we will use 
+
+<a href="https://www.microsoft.com/en-za/download/details.aspx?id=44226" target="_blank" rel="noopener"><strong>Microsoft Message Analyzer</strong></a> to &ldquo;sniff&rdquo; and capture network packets. In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we used <em>WireShark</em>, but when writing this post I had some issues capturing TDS packets (they were marked as malformed) so I switched to <em>Message Analyzer</em> instead. There is a tutorial 
+
+<a href="https://technet.microsoft.com/en-us/library/jj649776.aspx" target="_blank" rel="noopener">here</a> how to use it.</li>
 </ul>
 <h4 id="code">Code</h4>
-<p>As we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we&rsquo;ll use a database with some specific tables for what we want to do in this post. The code below sets up the database and creates some tables with some data:</p>
+<p>As we did in 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we&rsquo;ll use a database with some specific tables for what we want to do in this post. The code below sets up the database and creates some tables with some data:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -411,7 +433,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 1:</strong> <em>Database, and Database Object Creation</em></p>
 <p>We will also later on in this post create more tables for certain operations.</p>
 <h2 id="protocols">Protocols</h2>
-<p>Let us look at what started this investigation; the very big packet size when executing a seemingly innocent statement. In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we had code looking something like this:</p>
+<p>Let us look at what started this investigation; the very big packet size when executing a seemingly innocent statement. In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we had code looking something like this:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -431,7 +455,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>External Script with Data Select</em></p>
-<p>Yes, yes, I know - the code wasn&rsquo;t exactly like that, but close enough. When we - in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> - executed the code we saw this big packet being sent to SqlSatellite. Let us now set up <em>Process Monitor</em> to filter for TCP packets sent to the <code>BxlServer.exe</code>, and execute and see the output from <em>Process Monitor</em>:</p>
+<p>Yes, yes, I know - the code wasn&rsquo;t exactly like that, but close enough. When we - in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> - executed the code we saw this big packet being sent to SqlSatellite. Let us now set up <em>Process Monitor</em> to filter for TCP packets sent to the <code>BxlServer.exe</code>, and execute and see the output from <em>Process Monitor</em>:</p>
 <p>
   <img src="/images/posts/sql_r_services_14_procmon_bxl1.png" alt="">
 
@@ -492,7 +518,9 @@ if (!doNotTrack) {
 <li>Returning data. The returned data is self-describing and record-oriented.</li>
 </ul>
 <p>When we executed the code in <em>Code Snippet 3</em>, (apart from authentication packets etc.) a packet would have been sent from the client (SSMS) with the request to execute the statement, followed by a response from SQL Server with the result data (that was the packet with a length of 93). The client receives the data and parses it based on the meta-data in the return packet.</p>
-<p>If you want to know more about TDS, it is quite well documented and the internet has quite a lot of information floating around. Even though there are quite a lot of information around, seeing that this series is a lot abut <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a>, let&rsquo;s see if we can learn something about the TDS protocol by using the tools we have at hand.</p>
+<p>If you want to know more about TDS, it is quite well documented and the internet has quite a lot of information floating around. Even though there are quite a lot of information around, seeing that this series is a lot abut 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">&ldquo;spelunking&rdquo;</a>, let&rsquo;s see if we can learn something about the TDS protocol by using the tools we have at hand.</p>
 <p>We&rsquo;ll start with <em>Process Monitor</em> and look at packet sizes. The code you executed in <em>Code Snippet 3</em>, executed against the <code>dbo.rand_1M_N</code> table, where the columns are nullable. To not be &ldquo;led astray&rdquo; by null values, etc., we&rsquo;ll now use the <code>dbo.rand_1M</code> table where all columns are constrained to be non null (in all other aspects the table looks exactly the same as <code>dbo.rand_1M_N</code>). So:</p>
 <ul>
 <li>Ensure that the filter you created in <em>Figure 6</em> is loaded in <em>Process Monitor</em></li>
@@ -683,7 +711,9 @@ if (!doNotTrack) {
 <li><code>SELECT TOP(1) rand1 FROM dbo.rand_1M</code>        - 36</li>
 <li><code>SELECT TOP(1) rand1, rand2 FROM dbo.rand_1M</code> - 72</li>
 </ol>
-<p>As we see in the list above, both statement 1 and statement 2 resulted in a same size packet. So it seems that column names do not have any impact on the size of the actual result packet being sent to SqlSatellite, e.g. they are not included in the packet. That sort of makes sense, since we in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> saw how the column names are being sent to the SqlSatellite in the script packet.</p>
+<p>As we see in the list above, both statement 1 and statement 2 resulted in a same size packet. So it seems that column names do not have any impact on the size of the actual result packet being sent to SqlSatellite, e.g. they are not included in the packet. That sort of makes sense, since we in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> saw how the column names are being sent to the SqlSatellite in the script packet.</p>
 <p>Interesting is the size of the resulting packet for the third statement - it is twice the size of the packet for both the first and second statement! Is it a co-incidence that the third statement has two columns, where the two first statements have only one? To test that out, execute <code>sp_execute_external_script</code> as before but with the statement: <code>SELECT TOP(1) rand1, rand2, rand3 FROM dbo.rand_1M</code>, and see the packet size. The packet size comes out at 108 bytes, 3 times the size of the packet returning one row, one column. So it seems that each column &ldquo;weighs&rdquo; in at 36 bytes (including the data type size). So what about if there are more rows than one: <code>SELECT TOP(2) rand1, rand2 FROM dbo.rand_1M</code>, what will the packet size be? Ah, that returns a packet size of 80, 8 bytes more than for one row. So for a row, the size increase is for only the size of the data, no extra bytes for rows etc.</p>
 <blockquote>
 <p><strong>NOTE:</strong> The above statement is true at least for non-nullable columns and fixed width data types.</p>
@@ -1039,7 +1069,9 @@ if (!doNotTrack) {
 <p>What happens with nullable columns is a mystery, as we saw column overheads ranging from 7312 bytes (<code>tinyint</code>) to 32 bytes (<code>decimal</code>). I can&rsquo;t help but think that there is a &ldquo;bug&rdquo; in there somewhere that causes this, and I will try and follow up with Microsoft regarding this.</p>
 <p>Regardless of that, I will do some more <del>playing around</del> investigations around BXL, so there will most likely be a second post about BXL after this one.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

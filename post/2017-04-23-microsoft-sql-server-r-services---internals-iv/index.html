@@ -240,12 +240,20 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the fifth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fourth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I wrote about how the launchpad service creates multiple processes when executing an external script.</p>
-<p>Seeing that some of the conclusions I came to was somewhat educated guesses, I asked you guys to correct me where I was in-correct and/or add more information. After that post - Bob Albright (<a href="https://twitter.com/bob_albright">@bob_albright</a>) - wrote me an email and pointed me to some resources around process creation, as well as some demo code. Thanks Bob!</p>
+                <p>This is the fifth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fourth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I wrote about how the launchpad service creates multiple processes when executing an external script.</p>
+<p>Seeing that some of the conclusions I came to was somewhat educated guesses, I asked you guys to correct me where I was in-correct and/or add more information. After that post - Bob Albright (
+
+<a href="https://twitter.com/bob_albright" target="_blank" rel="noopener">@bob_albright</a>) - wrote me an email and pointed me to some resources around process creation, as well as some demo code. Thanks Bob!</p>
 <p>So today we&rsquo;ll drill even further into the creation of processes, and see how they are used.</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we talked about how, during installation of an R enabled SQL Server instance, 20 Windows accounts are created. These accounts are created for the purpose to be able to provide isolation between users when executing external scripts.</p>
+<p>In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we talked about how, during installation of an R enabled SQL Server instance, 20 Windows accounts are created. These accounts are created for the purpose to be able to provide isolation between users when executing external scripts.</p>
 <p>In addition to the Windows user accounts created during installation, folders named as the individual Windows accounts are also created in the <code>c:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> folder. These folders act as storage for files, results, objects, etc., during execution of an external script.</p>
 <p>When a user executes an external script in SQL Server, that account is being mapped to one of the 20 Windows account created, and it is under that Windows account the external part of the script is executed. Subsequently the files, etc., mentioned above, ends up in that folder somewhere. I write somewhere, because it is not entirely correct to say that the files, results, etc., are stored directly in the user folder. They are in fact stored in sub-folders of the user folder.</p>
 <p>During execution the launchpad service creates working directories (the sub-folders above) and processes, and assigns the working directories and processes the same names (<code>Guid</code> values).</p>
@@ -269,14 +277,30 @@ if (!doNotTrack) {
 </ul>
 </li>
 </ul>
-<p>The above is in essence what <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> covered, and if you want all the &ldquo;nitty-gritty&rdquo;, please read that <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">post</a>.</p>
+<p>The above is in essence what 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> covered, and if you want all the &ldquo;nitty-gritty&rdquo;, please read that 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">post</a>.</p>
 <h2 id="processes">Processes</h2>
-<p>In the <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we figured out that, by default, the launchpad service creates 5 processes, plus the process that is used for execution, when executing an external script. In the post I assumed that the reason for creating 5 (well 6 actually), was for performance, and I also wondered where that magic number 5 came from - seeing I couldn&rsquo;t find it in any config files. That&rsquo;s where <a href="https://twitter.com/bob_albright">Bob&rsquo;s</a> email comes in, as he pointed me to a <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">blog-post</a> by the <a href="https://blogs.msdn.microsoft.com/sql_server_team/">SQL Server engineering</a> team, a.k.a TIGER (cool name!).</p>
+<p>In the 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we figured out that, by default, the launchpad service creates 5 processes, plus the process that is used for execution, when executing an external script. In the post I assumed that the reason for creating 5 (well 6 actually), was for performance, and I also wondered where that magic number 5 came from - seeing I couldn&rsquo;t find it in any config files. That&rsquo;s where 
+
+<a href="https://twitter.com/bob_albright" target="_blank" rel="noopener">Bob&rsquo;s</a> email comes in, as he pointed me to a 
+
+<a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/" target="_blank" rel="noopener">blog-post</a> by the 
+
+<a href="https://blogs.msdn.microsoft.com/sql_server_team/" target="_blank" rel="noopener">SQL Server engineering</a> team, a.k.a TIGER (cool name!).</p>
 <p>So, that particular blog-post mentions that the number of processes spun up can be controlled by a setting in the <code>rlauncher.config</code> file: <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code>. If not set, it defaults to 5, and in the end, when executing, the setting + 1 processes has been created as per above.</p>
-<p>The post also &ldquo;kind of&rdquo; confirms that my assumption about performance being a reason for spinning up multiple processes is correct, considering that a user may execute concurrent requests and it takes around 100 ms to spin up a process. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> I mentioned how the processes that are created are added to a pool of processes. So, the  assumption on my part is that when there are multiple processes available, a new request will not execute on a newly created process, but will use a process from the pool.</p>
+<p>The post also &ldquo;kind of&rdquo; confirms that my assumption about performance being a reason for spinning up multiple processes is correct, considering that a user may execute concurrent requests and it takes around 100 ms to spin up a process. In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> I mentioned how the processes that are created are added to a pool of processes. So, the  assumption on my part is that when there are multiple processes available, a new request will not execute on a newly created process, but will use a process from the pool.</p>
 <p>Let us see if we can confirm the points about the config setting as well as performance.</p>
 <h3 id="controlling-number-of-processes">Controlling Number of Processes</h3>
-<p>Initially we&rsquo;ll begin with looking into the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting and see if it has any effect on the number of processes being created. In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we looked at the number of processes having been spun up while the code was executing and we saw something like so:</p>
+<p>Initially we&rsquo;ll begin with looking into the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting and see if it has any effect on the number of processes being created. In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we looked at the number of processes having been spun up while the code was executing and we saw something like so:</p>
 <p>
   <img src="/images/posts/sql-launchpad-rterm_processes.png" alt="">
 
@@ -298,7 +322,9 @@ if (!doNotTrack) {
 <li>Save the config file after you have added the setting as per above.</li>
 <li>Restart the launchpad service.</li>
 </ol>
-<p>Well, it looks like the launchpad service started, so the setting is not causing any issues (yet). We&rsquo;ll now execute some code and try and figure out if more processes will be created. We use the same code as we did in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, where the code has a pause statement, so we can easier look at what is happening:</p>
+<p>Well, it looks like the launchpad service started, so the setting is not causing any issues (yet). We&rsquo;ll now execute some code and try and figure out if more processes will be created. We use the same code as we did in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, where the code has a pause statement, so we can easier look at what is happening:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -318,7 +344,11 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Execute with Sys.sleep</em></p>
-<p>As in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I use <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><em>Process Explorer</em></a> from <strong>Sysinternals</strong>. So, let&rsquo;s go ahead and see what happens:</p>
+<p>As in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, I use 
+
+<a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx" target="_blank" rel="noopener"><em>Process Explorer</em></a> from <strong>Sysinternals</strong>. So, let&rsquo;s go ahead and see what happens:</p>
 <ol>
 <li>Start <em>Process Explorer</em>, order by Process, and scroll down to where you see process names starting with &ldquo;RT&rdquo; (on my box there are none at this stage), or where those processes should be.
 <ul>
@@ -465,8 +495,14 @@ if (!doNotTrack) {
 </ul>
 </li>
 </ul>
-<p>So, thanks <a href="https://twitter.com/bob_albright">Bob</a> for sending me the mail with the link the the <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">post</a>. That made me look deeper into how this &ldquo;stuff&rdquo; works! In that email Bob also sent some code, which will be used as a topic for another internals blog-post. That post will be about parallelism and the RTerm processes.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>So, thanks 
+
+<a href="https://twitter.com/bob_albright" target="_blank" rel="noopener">Bob</a> for sending me the mail with the link the the 
+
+<a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/" target="_blank" rel="noopener">post</a>. That made me look deeper into how this &ldquo;stuff&rdquo; works! In that email Bob also sent some code, which will be used as a topic for another internals blog-post. That post will be about parallelism and the RTerm processes.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

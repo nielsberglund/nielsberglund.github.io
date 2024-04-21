@@ -228,7 +228,11 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>Way back when (in 2010 as a matter of fact), I wrote a couple of blog-posts (<a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/">here</a> and <a href="/post/2010-11-12-more-t-sql-error-functionality-in-denali-sql-11/">here</a>) about error handling in the new CTP  releases of SQL Server Denali. Denali was what would become SQL Server 2012.</p>
+                <p>Way back when (in 2010 as a matter of fact), I wrote a couple of blog-posts (
+
+<a href="/post/2010-11-10-new-t-sql-features-in-sql-11-denali-error-handling/">here</a> and 
+
+<a href="/post/2010-11-12-more-t-sql-error-functionality-in-denali-sql-11/">here</a>) about error handling in the new CTP  releases of SQL Server Denali. Denali was what would become SQL Server 2012.</p>
 <p>The new functionality built upon what was introduced in SQL Server 2005 - the notion of structured exception handling through <code>BEGIN TRY END TRY</code> followed by <code>BEGIN CATCH END CATCH</code>. In those blog-posts I was fairly positive, and saw the new functionality as something useful and very well worth implementing. I am still positive, however since then I have used the new functionality introduced in SQL Server 2005 extensively in production and have come across some gotchas that I thought would be worth writing a blog-post about.</p>
 <h2 id="background">Background</h2>
 <p>Before SQL Server 2005 was introduced, and with that structured exception handling as mentioned above, the way we handled error conditions in SQL Server was to write something like so:</p>
@@ -264,7 +268,9 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Old Style Error Handling</em></p>
 <p>In your stored procedures, you had to insert code like above after each statement where you wanted to check for errors. Part of the error-handling code quite often would be some logging/auditing and general rewind/cleanup. Typically you would also re-raise the error so that calling procs would be made aware that something has happened, and in the calling procs you would have similar logic to catch the errors being raised.</p>
-<p>All in all, quite a lot of code to write. At <a href="/derivco"><strong>Derivco</strong></a> we have a lot of stored procedures, and they can be fairly big (3000 - 4000 loc), so you can imagine the number of error checks we have in them.</p>
+<p>All in all, quite a lot of code to write. At 
+
+<a href="/derivco"><strong>Derivco</strong></a> we have a lot of stored procedures, and they can be fairly big (3000 - 4000 loc), so you can imagine the number of error checks we have in them.</p>
 <h3 id="try-catch">TRY CATCH</h3>
 <p>Writing the above mentioned error-handling code feels quite arcane if you compare what you would do in other programming languages. So in SQL Server 2005 <strong>Microsoft</strong> introduced the notion of structured exception handling as I mentioned above, and it was implemented through <code>BEGIN TRY ... END TRY</code> and <code>BEGIN CATCH ... END CATCH</code> blocks. As with other programming languages you can have one or more TRY &hellip; CATCH blocks, and when an error happens inside the TRY block, the code in the CATCH block is immediately hit.</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
@@ -374,11 +380,17 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 3:</strong> <em>Error Handling with THROW and TRY &hellip; CATCH</em></p>
-<p>If you have managed to stay awake until now, you probably wonder where is the problem with all this, this looks pretty sweet, or as we use to say in the team I work for in <a href="/derivco">Derivco</a>; &ldquo;What could possibly go wrong?&rdquo;! Whenever we say that, it seems that quite a few things can go wrong :) and the same thing holds true here, as we will see!</p>
+<p>If you have managed to stay awake until now, you probably wonder where is the problem with all this, this looks pretty sweet, or as we use to say in the team I work for in 
+
+<a href="/derivco">Derivco</a>; &ldquo;What could possibly go wrong?&rdquo;! Whenever we say that, it seems that quite a few things can go wrong :) and the same thing holds true here, as we will see!</p>
 <h2 id="the-problem">The Problem</h2>
-<p>The problem comes in when you are mixing &ldquo;old&rdquo; (pre 2005), with &ldquo;new&rdquo; (2005+) error handling. You may ask: &ldquo;why would you ever want to do that, why not use only the new cool features?&rdquo;. In fact that&rsquo;s what I asked when I visited Derivco back in 2009 and taught a <a href="http://www.develop.com/uk"><strong>Developmentor</strong></a> SQL Server course for the team I eventually would work for. Boy was that a stupid question!</p>
+<p>The problem comes in when you are mixing &ldquo;old&rdquo; (pre 2005), with &ldquo;new&rdquo; (2005+) error handling. You may ask: &ldquo;why would you ever want to do that, why not use only the new cool features?&rdquo;. In fact that&rsquo;s what I asked when I visited Derivco back in 2009 and taught a 
+
+<a href="http://www.develop.com/uk" target="_blank" rel="noopener"><strong>Developmentor</strong></a> SQL Server course for the team I eventually would work for. Boy was that a stupid question!</p>
 <p>The answer - in Derivco&rsquo;s&rsquo; case - is <em>complexity</em>. In our main OLTP production database we now have ~5,000 stored procedures, and the call stacks can nest 10 - 15 procedures deep. In addition, our procedures are not simple <em>CRUD</em>, but we do have <strong>LOADS</strong> of business logic in them. So you cherry-pick what procs to edit, most likely some you are changing anyway, and all new procs are written using the new error-handling. What could possibly go wrong with this approach?!</p>
-<p>Well, chances are that the new/edited procs are part of a call chain, and not necessarily the last proc in the chain. This is now the situation where issues can happen. Let&rsquo;s look at this a bit closer. In the <a href="/downloads/code/errorhandling.zip">demo code</a> for this post, we have initially four procedures:</p>
+<p>Well, chances are that the new/edited procs are part of a call chain, and not necessarily the last proc in the chain. This is now the situation where issues can happen. Let&rsquo;s look at this a bit closer. In the 
+
+<a href="/downloads/code/errorhandling.zip">demo code</a> for this post, we have initially four procedures:</p>
 <ul>
 <li><code>dbo.pr_Caller</code> which calls into</li>
 <li><code>dbo.pr_1</code> which calls into</li>
@@ -670,7 +682,9 @@ if (!doNotTrack) {
 <li>If raising an error in a CATCH block, ALWAYS follow the RAISERROR with a RETURN (no value).</li>
 <li>Unless you can guarantee that your code will always use TRY CATCH, stay away from THROW.</li>
 </ul>
-<p><a href="/downloads/code/errorhandling.zip">Download the demo code from here</a>!!</p>
+<p>
+
+<a href="/downloads/code/errorhandling.zip">Download the demo code from here</a>!!</p>
 
                 
 

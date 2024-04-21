@@ -228,8 +228,20 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>On January 1st (that&rsquo;s dedication - New Year&rsquo;s Day), 2024 <a href="https://www.linkedin.com/in/gunnar-morling-2b44b7229/">Gunnar Morling</a> published on his blog the <a href="https://www.morling.dev/blog/one-billion-row-challenge/"><em>One Billion Row Challenge</em></a>. The challenge is to load and aggregate one billion rows using Java. The challenge took on a life of its own, and there are now several implementations of the challenge in different languages, including databases (<a href="https://rmoff.net/2024/01/03/1%EF%B8%8F%E2%83%A3%EF%B8%8F-1brc-in-sql-with-duckdb/">Robin</a>, <a href="https://hubertdulay.substack.com/p/1-billion-row-challenge-in-apache">Hubert</a>, <a href="https://ftisiot.net/posts/1brows/">Francesco</a>, among others). The data to aggregate is a list of temperature readings from weather stations.</p>
-<p>I thought It would be fun to do the challenge using <a href="https://docs.microsoft.com/en-us/azure/data-explorer/">Azure Data Explorer</a> (ADX) since I like ADX and have written blog posts about it. ADX is a fast, scalable, and highly available data analytics service. It is optimized for data exploration over large data volumes. ADX is a columnar store that uses a query language called <strong>Kusto Query Language</strong> (KQL). It is a fully managed service, and it is part of the Azure platform.</p>
+                <p>On January 1st (that&rsquo;s dedication - New Year&rsquo;s Day), 2024 
+
+<a href="https://www.linkedin.com/in/gunnar-morling-2b44b7229/" target="_blank" rel="noopener">Gunnar Morling</a> published on his blog the 
+
+<a href="https://www.morling.dev/blog/one-billion-row-challenge/" target="_blank" rel="noopener"><em>One Billion Row Challenge</em></a>. The challenge is to load and aggregate one billion rows using Java. The challenge took on a life of its own, and there are now several implementations of the challenge in different languages, including databases (
+
+<a href="https://rmoff.net/2024/01/03/1%EF%B8%8F%E2%83%A3%EF%B8%8F-1brc-in-sql-with-duckdb/" target="_blank" rel="noopener">Robin</a>, 
+
+<a href="https://hubertdulay.substack.com/p/1-billion-row-challenge-in-apache" target="_blank" rel="noopener">Hubert</a>, 
+
+<a href="https://ftisiot.net/posts/1brows/" target="_blank" rel="noopener">Francesco</a>, among others). The data to aggregate is a list of temperature readings from weather stations.</p>
+<p>I thought It would be fun to do the challenge using 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/" target="_blank" rel="noopener">Azure Data Explorer</a> (ADX) since I like ADX and have written blog posts about it. ADX is a fast, scalable, and highly available data analytics service. It is optimized for data exploration over large data volumes. ADX is a columnar store that uses a query language called <strong>Kusto Query Language</strong> (KQL). It is a fully managed service, and it is part of the Azure platform.</p>
 <p>So, in this blog post, you&rsquo;ll see what I did to load and aggregate one billion rows. Spoiler alert: certain things didn&rsquo;t work out as I had hoped, but that could be due to me being more rusty with ADX than anything else.</p>
 <h2 id="caveat">Caveat</h2>
 <p>Before we get started a couple of caveats:</p>
@@ -241,13 +253,21 @@ if (!doNotTrack) {
 <h2 id="pre-reqs">Pre-Reqs</h2>
 <p>This section is here to list what you need if you want to follow along:</p>
 <ul>
-<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a <a href="https://azure.microsoft.com/en-us/free/">free account</a>.</li>
-<li>An ADX cluster and database. To set up an ADX cluster and a database, look here: <a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal">Quickstart: Create an Azure Data Explorer cluster and database</a>. You can name the database as you like. My database is called <code>sensorreadings</code>. Please note that there may be a cost associated with the ADX cluster, so be sure to tear it down when you are done.</li>
+<li>An Azure account. If you don&rsquo;t have an Azure subscription, sign up for a 
+
+<a href="https://azure.microsoft.com/en-us/free/" target="_blank" rel="noopener">free account</a>.</li>
+<li>An ADX cluster and database. To set up an ADX cluster and a database, look here: 
+
+<a href="https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal" target="_blank" rel="noopener">Quickstart: Create an Azure Data Explorer cluster and database</a>. You can name the database as you like. My database is called <code>sensorreadings</code>. Please note that there may be a cost associated with the ADX cluster, so be sure to tear it down when you are done.</li>
 </ul>
-<p>You may have seen how ADX offers <a href="https://learn.microsoft.com/en-us/azure/data-explorer/start-for-free-web-ui">free clusters</a>. A free cluster allows you to explore the platform&rsquo;s features, experiment with data analytics queries, and develop proofs of concept without incurring any cost. I tried to use a free cluster for this blog post, but I ran into a couple of issues, so I am using my &ldquo;tried and tested&rdquo; cluster from previous blog posts about ADX instead. If you follow along, you can try using a free cluster, but I cannot guarantee it will work.</p>
+<p>You may have seen how ADX offers 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/start-for-free-web-ui" target="_blank" rel="noopener">free clusters</a>. A free cluster allows you to explore the platform&rsquo;s features, experiment with data analytics queries, and develop proofs of concept without incurring any cost. I tried to use a free cluster for this blog post, but I ran into a couple of issues, so I am using my &ldquo;tried and tested&rdquo; cluster from previous blog posts about ADX instead. If you follow along, you can try using a free cluster, but I cannot guarantee it will work.</p>
 <p>After all this, the assumption is that you now have a running ADX cluster.</p>
 <h4 id="java">Java</h4>
-<p>You also need Java, and specifically Java 21. I did the challange on my Windows box so I used <a href="https://chocolatey.org/"><strong>Chocolatey</strong></a> to install Java:</p>
+<p>You also need Java, and specifically Java 21. I did the challange on my Windows box so I used 
+
+<a href="https://chocolatey.org/" target="_blank" rel="noopener"><strong>Chocolatey</strong></a> to install Java:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -259,7 +279,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 1:</strong> <em>Install Java</em></p>
 <p>After running the code in <em>Code Snippet 1</em>, I had to &ldquo;fix up&rdquo; my <code>PATH</code> environment variable, as it was pointing to the wrong version of Java. Having fixed that and restarted my terminal, I ran  <code>java -version</code> and got the correct version. Success!</p>
 <h2 id="generating-the-data">Generating the Data</h2>
-<p>Where do you get the one billion rows from to load into ADX? Well, you generate it. Gunnar supplies a Java program (hence the Java requirement above) that generates the data. Fork Gunnar&rsquo;s <a href="https://github.com/gunnarmorling/1brc">repo</a> and clone it locally.</p>
+<p>Where do you get the one billion rows from to load into ADX? Well, you generate it. Gunnar supplies a Java program (hence the Java requirement above) that generates the data. Fork Gunnar&rsquo;s 
+
+<a href="https://github.com/gunnarmorling/1brc" target="_blank" rel="noopener">repo</a> and clone it locally.</p>
 <p>After having cloned the repo, you build the Java program using Maven:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -337,18 +359,28 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 5:</strong> <em>Add Extension to Files</em></p>
 <p>After running the command in <em>Code Snippet 5</em>, the files had the <code>.txt</code> extension, and I am getting closer to loading the files.</p>
 <h2 id="loading-the-data">Loading the Data</h2>
-<p>A while back, I wrote a series of posts about iGaming leaderboards and ADX, <strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer</strong>. In the post <a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong></a>, I discussed how to batch-ingest data from local files into ADX.</p>
+<p>A while back, I wrote a series of posts about iGaming leaderboards and ADX, <strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer</strong>. In the post 
+
+<a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/" target="_blank" rel="noopener"><strong>Develop a Real-Time Leaderboard Using Kafka and Azure Data Explorer - II</strong></a>, I discussed how to batch-ingest data from local files into ADX.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Yeah, I know, I know - I still need to finish that series. I will, I promise. I just got sidetracked by other things.</p>
 </blockquote>
-<p>In the <a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/">post</a> mentioned above, I used the ADX <em>Ingestion wizard</em> to ingest the data from the files into ADX. However, with the amount of data, 20 files weighing in at ~670 Mb each, I decided to use the <a href="https://learn.microsoft.com/en-us/azure/data-explorer/lightingest"><strong>LightIngest</strong></a> tool instead. LightIngest is a command-line utility for ad-hoc data ingestion into ADX. The utility can ingest data from various sources, including files from a local folder, and the <a href="https://learn.microsoft.com/en-us/azure/data-explorer/lightingest">docs</a> says: <em>&hellip;most useful when you want to ingest a large amount of data, &hellip;</em>. This led me to believe that Light Ingest would be a good fit.</p>
+<p>In the 
+
+<a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/" target="_blank" rel="noopener">post</a> mentioned above, I used the ADX <em>Ingestion wizard</em> to ingest the data from the files into ADX. However, with the amount of data, 20 files weighing in at ~670 Mb each, I decided to use the 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/lightingest" target="_blank" rel="noopener"><strong>LightIngest</strong></a> tool instead. LightIngest is a command-line utility for ad-hoc data ingestion into ADX. The utility can ingest data from various sources, including files from a local folder, and the 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/lightingest" target="_blank" rel="noopener">docs</a> says: <em>&hellip;most useful when you want to ingest a large amount of data, &hellip;</em>. This led me to believe that Light Ingest would be a good fit.</p>
 <p>Well, it didn&rsquo;t go to plan as I got the weirdest errors no matter what I did. I spent several hours trying to figure out what was wrong, to no avail. So, I decided to use Azure Blob Store instead. First, upload the files to the blob store, then ingest the data into ADX. I started with creating a storage account and a container in the storage account. I then uploaded the files to the container. That worked fine:</p>
 <p>
   <img src="/images/posts/adx-1brc-blob-store.png" alt="">
 
 </p>
 <p><strong>Figure 3:</strong> <em>Azure Blob Store</em></p>
-<p>Having the data in the blob store as in <em>Figure 3</em>, I can now ingest it into ADX. My idea was to use the same approach as in the <a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/">post</a> above - using the <em>Ingestion wizard</em>. Or rather, the replacement for the <em>Ingestion wizard</em>:</p>
+<p>Having the data in the blob store as in <em>Figure 3</em>, I can now ingest it into ADX. My idea was to use the same approach as in the 
+
+<a href="https://nielsberglund.com/post/2023-04-03-develop-a-real-time-leaderboard-using-kafka-and-azure-data-explorer---ii/" target="_blank" rel="noopener">post</a> above - using the <em>Ingestion wizard</em>. Or rather, the replacement for the <em>Ingestion wizard</em>:</p>
 <p>
   <img src="/images/posts/adx-1brc-free-ui-get-data-2.png" alt="">
 
@@ -429,7 +461,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 7:</strong> <em>Create Update Policy</em></p>
 <p>You see in <em>Code Snippet 7</em> how you create the update policy by altering the target table. The update policy instructs ADX to automatically ingest data into the target table (<code>weatherstationreadings</code>) whenever new data is inserted into the source table (<code>weatherstationreadingsraw</code>). The data is ingested using the function <code>SplitColumn()</code>. The update policy is transactional, meaning that if the ingestion into the target table fails, the data is not inserted into the source table.</p>
 <blockquote>
-<p><strong>NOTE:</strong> You can read more about update policies <a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/update-policy">here</a>.</p>
+<p><strong>NOTE:</strong> You can read more about update policies 
+
+<a href="https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/update-policy" target="_blank" rel="noopener">here</a>.</p>
 </blockquote>
 <p>Now, you are ready to ingest the data from the files into the source table.</p>
 <h4 id="ingest-the-data">Ingest the Data</h4>

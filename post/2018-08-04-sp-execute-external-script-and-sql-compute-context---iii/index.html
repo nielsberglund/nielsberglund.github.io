@@ -272,12 +272,24 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>In the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post I wrote about <code>sp_execute_external_script</code> (SPEES) and the <strong>SQL Server Compute Context</strong> (SQLCC). Afterwards I realised I had some things wrong, so I wrote a followup post: <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> where I tried to correct my mistakes from the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">initial post</a>. That post led to <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> and now we have a mini-series.</p>
-<p>To see other posts (including this) in the series, go to <a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
+                <p>In the 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post I wrote about <code>sp_execute_external_script</code> (SPEES) and the <strong>SQL Server Compute Context</strong> (SQLCC). Afterwards I realised I had some things wrong, so I wrote a followup post: 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> where I tried to correct my mistakes from the 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">initial post</a>. That post led to 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> and now we have a mini-series.</p>
+<p>To see other posts (including this) in the series, go to 
+
+<a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
 <p>In the previous post in this series, we looked at how data is sent to the SqlSatellite from SQL Server when we are in the SQLCC. This post was meant to look at what goes on inside SQL Server when we execute in SQLCC, but I realised that it would make more sense if, before we look at the internal working when in SQLCC, I covered what happens when pulling data in the local context. So that is what this post is all about.</p>
 <p>Before we dive into todays topic let us recap.</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> we discussed what the SQLCC is and we said that as part of RevoScaleR, you can define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in the context of somewhere else: Hadoop, Spark and also SQL Server. So, in essence, you can run some code on your development machine and have it execute in the environments mentioned above. To use the SQLCC in SQL Server we use <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
+<p>In 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> we discussed what the SQLCC is and we said that as part of RevoScaleR, you can define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in the context of somewhere else: Hadoop, Spark and also SQL Server. So, in essence, you can run some code on your development machine and have it execute in the environments mentioned above. To use the SQLCC in SQL Server we use <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -308,8 +320,14 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Set up SQL Server Compute Context</em></p>
 <p>The connection string we see in <em>Code Snippet 1</em> indicates the where we execute, not necessarily where the data we work with lives. The <code>numTasks</code> argument defines the maximum number of tasks SQL Server can use. Something interesting when setting <code>numTasks</code> to be greater than 1 is that when we run the code, we run it hosted in a <code>mpiexec.exe</code> process. If we run in SQLCC under <code>numTasks = 1</code> we do not see <code>mpiexec.exe</code>, but we see another <code>bxlserver.exe</code> process. We also said that when we run in SQLCC. <code>sp_execute_external_script</code> executes multiple times.</p>
-<p>The most interesting thing that came out of <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> was the performance benefit of using SQLCC when loading large datasets. So in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a>, we tried to see where that performance benefit came from.</p>
-<p>In <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> we said we had three ways of getting data into an R script:</p>
+<p>The most interesting thing that came out of 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> was the performance benefit of using SQLCC when loading large datasets. So in 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a>, we tried to see where that performance benefit came from.</p>
+<p>In 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> we said we had three ways of getting data into an R script:</p>
 <ul>
 <li>Push using <code>@input_data_1</code>.</li>
 <li>Pull using <code>RxSqlServerData</code> in the local context.</li>
@@ -323,8 +341,14 @@ if (!doNotTrack) {
 <p>To help us figure out the things we want, we use:</p>
 <ul>
 <li><em>Process Monitor</em> - to filter out TCP traffic.</li>
-<li><em>WinDbg</em> - to see what happens inside SQL Server. If you need help with setting it up, we covered that in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>.</li>
-<li><em>WireShark</em> - to &ldquo;sniff&rdquo; network packets. We covered setting up <em>WireShark</em> in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>. Please remember that if you run SSMS and SQL Server on the same machine, then you need the <a href="https://nmap.org/npcap/"><strong>Npcap</strong></a> packet sniffer library instead of the default <strong>WinPcap</strong>.</li>
+<li><em>WinDbg</em> - to see what happens inside SQL Server. If you need help with setting it up, we covered that in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Microsoft SQL Server R Services - Internals I</a>.</li>
+<li><em>WireShark</em> - to &ldquo;sniff&rdquo; network packets. We covered setting up <em>WireShark</em> in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>. Please remember that if you run SSMS and SQL Server on the same machine, then you need the 
+
+<a href="https://nmap.org/npcap/" target="_blank" rel="noopener"><strong>Npcap</strong></a> packet sniffer library instead of the default <strong>WinPcap</strong>.</li>
 </ul>
 <h4 id="code">Code</h4>
 <p>This is the database objects we use in this post:</p>
@@ -411,13 +435,17 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Setup of Database, Table and Data</em></p>
-<p>We use more or less the same database and database object as in the <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> post:</p>
+<p>We use more or less the same database and database object as in the 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> post:</p>
 <ul>
 <li>A database: <code>TestParallel</code>.</li>
 <li>A table: <code>dbo.tb_Rand_50M</code>. This table contains the data we want to analyse.</li>
 </ul>
 <p>In addition to creating the database and the table <em>Code Snippet 2</em> also loads 50 million records into the <code>dbo.tb_Rand_50M</code>. Be aware that when you run the code in <em>Code Snippet 2</em> it may take some time to finish due to the loading of the data. Yes, I know - the data is entirely useless, but it is a lot of it, and it helps to illustrate what we want to do.</p>
-<p>Not only is the database and database objects similar to what we used in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, the code we use is also almost the same:</p>
+<p>Not only is the database and database objects similar to what we used in 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, the code we use is also almost the same:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -482,7 +510,9 @@ if (!doNotTrack) {
 <p>As we see in <em>Code Snippet 3</em> we parameterise the <code>sp_execute_external_script</code> call, and we have parameters for whether to use the SQLCC and also how many tasks to run when executing in the context. The default is to execute in the local context, and when we execute in SQLCC the default for the number of tasks is 1 (<code>numTasks = 1</code>).</p>
 <h2 id="local-context-pull-vs-push">Local Context Pull vs Push</h2>
 <p>Let us try and see what happens in SQL Server when we execute in the local context, and we pull data (<code>RxSqlServerData</code>) compared to when we push data (<code>@input_data_1</code>).</p>
-<p>First, let us try and understand when and how the <code>SELECT</code> statement in <code>Code Snippet 3</code> executes. To check this we use the same technique as we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>, we execute a <code>SELECT</code> statement which causes a division by zero exception. We capture that exception in <em>WinDbg</em> and we check the call stack.</p>
+<p>First, let us try and understand when and how the <code>SELECT</code> statement in <code>Code Snippet 3</code> executes. To check this we use the same technique as we did in 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>, we execute a <code>SELECT</code> statement which causes a division by zero exception. We capture that exception in <em>WinDbg</em> and we check the call stack.</p>
 <p>So, run <em>WinDbg</em> as admin and enable an event-filter, so the debugger breaks at a <code>C++ EH</code> exception. In the <em>Event Filters</em> dialog you can set how that particular exception should be handled. We want it to be enabled, but not handled:</p>
 <p>
   <img src="/images/posts/sql_r_services_windbg_eventfilters_enable.png" alt="">
@@ -529,7 +559,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 4:</strong> <em>Call Stack Local Context Pull</em></p>
-<p>The call stack we see in <em>Code Snippet 4</em> is somewhat edited in that it shows only the important parts. Let us compare it with the call-stack we see when we push the data, (<code>@input_data_1</code>), and receive a division by zero exception as we did in <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>:</p>
+<p>The call stack we see in <em>Code Snippet 4</em> is somewhat edited in that it shows only the important parts. Let us compare it with the call-stack we see when we push the data, (<code>@input_data_1</code>), and receive a division by zero exception as we did in 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Microsoft SQL Server R Services - Internals XIII</a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -583,8 +615,14 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 5:</strong> <em>Call Stack Local Context Push</em></p>
-<p>The call-stack in <em>Code Snippet 5</em> is also edited and when we compare the two call-stacks, they look somewhat similar.  We see <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> in both code snippets, and we know from <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> that <code>ErsqExecuteQuery</code> handles execution of SQL statements and also sending data to the SQL Satellite. So that makes sense that we see it in <em>Code Snippet 4</em>. However, what does not make sense is that we do not see <code>SpExecuteExternalScript</code> in the <em>Code Snippet 4</em> call stack (and no, I did not edit it out). What goes on here?</p>
-<p>Ok, let us refer back to what we saw in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> and  <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a>, how SQL Server sends various data packages to the SqlSatellite and then finally calls <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code>. So, add a breakpoint, in addition to the <code>SpExecuteExternalScript</code> breakpoint, at <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code> and execute the code again. Oh, we see how we hit the <code>SpExecuteExternalScript</code> breakpoint first, followed by <code>SendChunkEndMessage</code>, and finally, we break at the division by zero exception. That is interesting, SQL Server sends the chunk end message and only after that, the query executes.</p>
+<p>The call-stack in <em>Code Snippet 5</em> is also edited and when we compare the two call-stacks, they look somewhat similar.  We see <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> in both code snippets, and we know from 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> that <code>ErsqExecuteQuery</code> handles execution of SQL statements and also sending data to the SQL Satellite. So that makes sense that we see it in <em>Code Snippet 4</em>. However, what does not make sense is that we do not see <code>SpExecuteExternalScript</code> in the <em>Code Snippet 4</em> call stack (and no, I did not edit it out). What goes on here?</p>
+<p>Ok, let us refer back to what we saw in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a> and  
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a>, how SQL Server sends various data packages to the SqlSatellite and then finally calls <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code>. So, add a breakpoint, in addition to the <code>SpExecuteExternalScript</code> breakpoint, at <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code> and execute the code again. Oh, we see how we hit the <code>SpExecuteExternalScript</code> breakpoint first, followed by <code>SendChunkEndMessage</code>, and finally, we break at the division by zero exception. That is interesting, SQL Server sends the chunk end message and only after that, the query executes.</p>
 <p>So what with <code>ErsqExecuteQuery</code>, what does that do? Let us see if we can find out:</p>
 <ul>
 <li>Change the code not to cause a divide by zero exception: <code>SELECT TOP(1) y, rand1, ...</code>.</li>
@@ -624,7 +662,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6:</strong> <em>Breakpoints Hit</em></p>
-<p>In <em>Code Snippet 6</em> we see how we first hit the <code>SpExecuteExternalScript</code> breakpoint, followed by <code>ErsqExecuteQuery</code>, (which is expected), then we hit the <code>SendChunkEndMessage</code> followed by a second <code>ErsqExecuteQuery</code>. That is interesting; two <code>ErsqExecuteQuery</code>, and we know from above that the query executes after the second <code>ErsqExecuteQuery</code>. So the question is now how the data flows from SQL Server to the SqlSatellite. We know from [Internals - XIII<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">si13</a>, as we mentioned above, that when we push data, SQL Server makes these calls (among many others):</p>
+<p>In <em>Code Snippet 6</em> we see how we first hit the <code>SpExecuteExternalScript</code> breakpoint, followed by <code>ErsqExecuteQuery</code>, (which is expected), then we hit the <code>SendChunkEndMessage</code> followed by a second <code>ErsqExecuteQuery</code>. That is interesting; two <code>ErsqExecuteQuery</code>, and we know from above that the query executes after the second <code>ErsqExecuteQuery</code>. So the question is now how the data flows from SQL Server to the SqlSatellite. We know from [Internals - XIII
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">si13</a>, as we mentioned above, that when we push data, SQL Server makes these calls (among many others):</p>
 <ul>
 <li><code>sqlmin!CQScanUdx::PushNextChildRow</code>.</li>
 <li><code>sqllang!CUDXR_ExternalScript::PushRow</code>.</li>
@@ -692,7 +732,9 @@ if (!doNotTrack) {
 </ul>
 <p>That is interesting but what is more interesting is what we see after the <code>GetRow</code> calls: <code>sqllang!CShilohTds::SendRowImpl</code>. SQL Server calls <code>SendRowImpl</code> when it pushes data to the network packet which it then sends to the caller. We can confirm this is the case by using <em>WinDbg</em> and <em>Process Monitor</em>. So, run <em>Process Monitor</em> as admin and set an event filter which captures TCP Receive events for the <code>BxlServer.exe</code> process.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you are not sure how to set an event filter in <em>Process Monitor</em>, you can read about it in the <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> post.</p>
+<p><strong>NOTE:</strong> If you are not sure how to set an event filter in <em>Process Monitor</em>, you can read about it in the 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">sp_execute_external_script and SQL Compute Context - II</a> post.</p>
 </blockquote>
 <p>Now, disable all breakpoints in <em>WinDbg</em> and execute the code in <em>Code Snippet 3</em>, (with <code>SELECT TOP(1) ...</code>) and watch the output from <em>Process Monitor</em>:</p>
 <p>
@@ -700,7 +742,11 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 2:</strong> <em>Process Monitor Output</em></p>
-<p>What we see in <em>Figure 2</em> is similar to what we saw in <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, when we looked at the TCP packets SQL Server sends to the <code>BxlServer.exe</code> process. The outlined row in <em>Figure 2</em> is the packet with the result of the <code>SELECT</code>. I know that because I tried with multiple <code>TOP</code> values and saw which row changed length between the <code>TOP</code> values. In <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> the corresponding row had a length of 1358 as we did a <code>TOP(50)</code>. You may wonder what the three highlighted parts if the figure is and we come back to that in a little bit.</p>
+<p>What we see in <em>Figure 2</em> is similar to what we saw in 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a>, when we looked at the TCP packets SQL Server sends to the <code>BxlServer.exe</code> process. The outlined row in <em>Figure 2</em> is the packet with the result of the <code>SELECT</code>. I know that because I tried with multiple <code>TOP</code> values and saw which row changed length between the <code>TOP</code> values. In 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> the corresponding row had a length of 1358 as we did a <code>TOP(50)</code>. You may wonder what the three highlighted parts if the figure is and we come back to that in a little bit.</p>
 <p>Now let us confirm that the outlined row is the row with the data:</p>
 <ul>
 <li>Re-enable (set) the breakpoint at <code>sqllang!SpExecuteExternalScript</code>.</li>
@@ -743,7 +789,9 @@ if (!doNotTrack) {
 <li>The <em>WireShark</em> display filter is set on port 1433 (anything going in and out of SQL Server), whereas in <em>Process Monitor</em> we filtered on traffic to and from the <code>BxlServer.exe</code> process. The section in <em>Figure 5</em> highlighted in blue is an example of this; this is the communication between <em>SQL Server Management Studio</em> and SQL Server.</li>
 </ul>
 <h4 id="yellow-section">Yellow Section</h4>
-<p>Ok, so what does <em>WireShark</em> tell us? In <em>Figure 5</em> I have highlighted in yellow the part that corresponds to the highlighted yellow part in <em>Figure 3</em>. For this exercise, we can ignore the packets whose <em>Protocol</em> is TCP and concentrate on the ones which have TDS as a protocol. Just by looking at the info we see that the packets have to do with login and authentication: <code>TDS7 pre-login message</code> followed by <code>Response</code> followed by more pre-login messages, followed by <code>TLS Exchange</code> and a <code>Response</code>. I am not going into any details about these packets, but if you want all the &ldquo;gory&rdquo; details about TDS you find documentation here: <a href="https://msdn.microsoft.com/en-us/library/dd304523.aspx">[MS-TDS]: Tabular Data Stream Protocol</a>.</p>
+<p>Ok, so what does <em>WireShark</em> tell us? In <em>Figure 5</em> I have highlighted in yellow the part that corresponds to the highlighted yellow part in <em>Figure 3</em>. For this exercise, we can ignore the packets whose <em>Protocol</em> is TCP and concentrate on the ones which have TDS as a protocol. Just by looking at the info we see that the packets have to do with login and authentication: <code>TDS7 pre-login message</code> followed by <code>Response</code> followed by more pre-login messages, followed by <code>TLS Exchange</code> and a <code>Response</code>. I am not going into any details about these packets, but if you want all the &ldquo;gory&rdquo; details about TDS you find documentation here: 
+
+<a href="https://msdn.microsoft.com/en-us/library/dd304523.aspx" target="_blank" rel="noopener">[MS-TDS]: Tabular Data Stream Protocol</a>.</p>
 <p>We now realise that the packets in the first section in <em>Figure 3</em> has to do with authentication. Seeing that we see packets with the same length in the green and blue sections in <em>Figure 3</em> we can safely assume those packets are also authentication packets, and a quick look at the packets in <em>WireShark</em> confirms that. What about the packets that are different?</p>
 <h4 id="green-section">Green Section</h4>
 <p>In the green section there are packets with lengths of 386, 138, 23 and 22, and in the blue section, we see packet lengths of 330 and 133. Well, we do know what the 133 packet is - that is the packet with the data SQL Server sends to the <code>BxlServer.exe</code> process. So, let us go back to the <em>WireShark</em> output and see what we can find out:</p>
@@ -807,12 +855,16 @@ if (!doNotTrack) {
 <p><strong>Figure 13:</strong> <em>WireShark Output Query Result</em></p>
 <p>With a cursory glance at <em>Figure 13</em> we may think there is no difference between what we see in <em>Figure 10</em> - which shows the response to the <code>sp_prepare</code> call - and what is in <em>Figure 13</em>. However, looking a bit closer we see that this packet contains the result of the query where we see highlighted in green and blue the two first column values, 2 and 6 respectively. The column values are not present in <em>Figure 10</em>.</p>
 <h2 id="sections">Sections</h2>
-<p>By now we sort of understand what goes on when we pull the data in the local context. However, why do we have these different sections, and why do we see multiple authentications? I have no answer why we see multiple authentications; maybe I can get an answer from someone &ldquo;in the know&rdquo;. As for the multiple sections; I am not 100% clear about that - but it seems to have something to do with what RevoScaleR function that accesses the data, remember from <a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> how loading of the data happens not in the <code>RxSqlServerData</code> call, but in the call which uses the data. So why I say that the sections are related to this is that if we, instead of doing a <code>rxLinMod</code> call, did something like <code>ds &lt;- </code>rxImport(mydata)` then we only see the green and blue sections. Hopefully, I can get some more information about the sections as well which I can update this post with.</p>
+<p>By now we sort of understand what goes on when we pull the data in the local context. However, why do we have these different sections, and why do we see multiple authentications? I have no answer why we see multiple authentications; maybe I can get an answer from someone &ldquo;in the know&rdquo;. As for the multiple sections; I am not 100% clear about that - but it seems to have something to do with what RevoScaleR function that accesses the data, remember from 
+
+<a href="/post/2018-07-07-sp-execute-external-script-and-sql-compute-context-ii/">Context - II</a> how loading of the data happens not in the <code>RxSqlServerData</code> call, but in the call which uses the data. So why I say that the sections are related to this is that if we, instead of doing a <code>rxLinMod</code> call, did something like <code>ds &lt;- </code>rxImport(mydata)` then we only see the green and blue sections. Hopefully, I can get some more information about the sections as well which I can update this post with.</p>
 <h2 id="summary">Summary</h2>
 <p>So this post discusses the internal workings in SQL Server when we pull data in the local context. We talked about how SQL Server first sends the script data to the SQL Satellite through the usual <code>sqllang!CXStmtQuery::ErsqExecuteQuery</code> and <code>sqllang!CSatelliteCargoContext::SendChunkEndMessage</code>. After <code>SendChunkEndMessage</code> <code>ErsqExecuteQuery</code> is called again and at that stage the statement query executes.</p>
 <p>The data transfer between the SqlSatellite (hosted by <code>BxlServer.exe</code>) and SQL Server happens through TDS packets, and we saw how authentication packages are sent multiple times, followed by <code>sp_prepare</code>. Finally, SQL Server executes the query and returns the result to the SqlSatellite.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

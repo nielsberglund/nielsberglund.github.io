@@ -244,8 +244,12 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>While I was writing the post about <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a>, I came across some strange behavior when I accidentally ran my code on an SQL Server 2017 instance. I quickly connected back to my SQL Server 2016 instance and continued. However, afterwards I started to look into the differences between SQLCLR in SQL Server 2017 and SQL Server 2016, and this post is the result of me <del>playing around</del> investigating the changes.</p>
-<p><strong>UPDATE</strong> 2017-07-23. This post has a <a href="/post/2017-07-23-sql-server-2017-sqlclr-white-listing-assemblies/">follow up post</a> based on changes in SQL Server 2017 RC1.</p>
+                <p>While I was writing the post about 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a>, I came across some strange behavior when I accidentally ran my code on an SQL Server 2017 instance. I quickly connected back to my SQL Server 2016 instance and continued. However, afterwards I started to look into the differences between SQLCLR in SQL Server 2017 and SQL Server 2016, and this post is the result of me <del>playing around</del> investigating the changes.</p>
+<p><strong>UPDATE</strong> 2017-07-23. This post has a 
+
+<a href="/post/2017-07-23-sql-server-2017-sqlclr-white-listing-assemblies/">follow up post</a> based on changes in SQL Server 2017 RC1.</p>
 <p>Let&rsquo;s start with a recap and an example</p>
 <h2 id="recap">Recap</h2>
 <p>In all versions of SQL Server from 2005 (where SQLCLR was introduced) up to 2016; when you deploy assemblies to the database and you want the assemblies to be able to execute outside of the database it is deployed to, you assign a permission set to the assembly. There are three permission sets available, ranging from not allowing you to shoot yourself in the foot to blow your head off:</p>
@@ -270,7 +274,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Creating an Assembly from Absolute Path</em></p>
-<p>In order to create an assembly with anything else than <code>SAFE</code>, the database or assembly need to have additional authorizations, and that was what my <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post covered.</p>
+<p>In order to create an assembly with anything else than <code>SAFE</code>, the database or assembly need to have additional authorizations, and that was what my 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post covered.</p>
 <p>To see what has changed in SQL Server 2017, let&rsquo;s look at some sample code. In <em>Code Snippet 1</em> you see some C# code that we want to deploy to a SQL Server 2017 database:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -319,7 +325,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 1:</strong> <em>Error Deploying Safe Assembly</em></p>
-<p>The error you see is more or less the same you&rsquo;d receive if you - in SQL Server pre 2017 - tried to deploy an assembly as <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>. You can read more about that particular issue in my <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post.</p>
+<p>The error you see is more or less the same you&rsquo;d receive if you - in SQL Server pre 2017 - tried to deploy an assembly as <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>. You can read more about that particular issue in my 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post.</p>
 <p>One difference in the error message you see in <em>Figure 1</em>, and what you would have received in pre SQL Server 2017 versions, is: &ldquo;<em>the &lsquo;clr strict security&rsquo; option of sp_configure is set to 1</em>&rdquo;. You may think; &ldquo;what is this, I have never seen that in other SQL Server versions&rdquo;. You are absolutely correct, so let&rsquo;s look at that  - and we&rsquo;ll start with <strong>Code Access Security</strong> (<strong>CAS</strong>)</p>
 <h2 id="code-access-security">Code Access Security</h2>
 <p>CAS is a security technology developed to provide the ability to protect system resources when a .NET assembly is executed. Such system resources could be: local files, files on a remote file system, registry keys, databases, printers and so on. CAS, in essence, was used to enforce security boundaries based on code origination or other identity aspects, and SQL Server&rsquo;s <code>PERMISSION_SET</code> relied on the CAS security boundaries. That was how SQLCLR assemblies which only performed &ldquo;safe&rdquo; operations did not need any further authorizations.</p>
@@ -336,8 +344,12 @@ if (!doNotTrack) {
 </ul>
 <p>If you changed the <code>clr strict security</code> option to 0, the code in <em>Code Snippet 2</em>, would work just fine. Likewise, if you didn&rsquo;t change the option, but instead set <code>TRUSTWORTHY ON</code> on the database, it would also work.</p>
 <h2 id="assembly-authorization">Assembly Authorization</h2>
-<p>So, where are we? In order to create a safe assembly we now need to authorize it as we would an <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>, so let&rsquo;s do that to the assembly that the code in <em>Code Snippet 2</em> represents. We could do it by setting <code>TRUSTWORTHY</code> to <code>ON</code> for the database, and you who read my <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post know that I do not think that setting <code>TRUSTWORTHY</code> to <code>ON</code> is like &ldquo;opening the gates to hell&rdquo;, so I would not have an issue with doing that - even on a production database. That is however a discussion for another day, so let us do it by using a certificate.</p>
-<p>To recap from the <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post, to use a certificate you&rsquo;d:</p>
+<p>So, where are we? In order to create a safe assembly we now need to authorize it as we would an <code>EXTERNAL_ACCESS</code> or <code>UNSAFE</code>, so let&rsquo;s do that to the assembly that the code in <em>Code Snippet 2</em> represents. We could do it by setting <code>TRUSTWORTHY</code> to <code>ON</code> for the database, and you who read my 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post know that I do not think that setting <code>TRUSTWORTHY</code> to <code>ON</code> is like &ldquo;opening the gates to hell&rdquo;, so I would not have an issue with doing that - even on a production database. That is however a discussion for another day, so let us do it by using a certificate.</p>
+<p>To recap from the 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post, to use a certificate you&rsquo;d:</p>
 <ul>
 <li>Create a certificate, if you don&rsquo;t already have one.</li>
 <li>Create a <code>.pfx</code> file from the certificate. Pfx stands for Personal Information Exchange, and we&rsquo;ll use it to sign your assembly.</li>
@@ -347,7 +359,9 @@ if (!doNotTrack) {
 <li>Grant the login <code>UNSAFE ASSEMBLY</code>.</li>
 <li>Create the dll in the database.</li>
 </ul>
-<p>I already have a certificate and a <code>.pfx</code> file created from when I wrote the <a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post, so I&rsquo;ll re-use those and go ahead and sign the assembly with the <code>.pfx</code> file:</p>
+<p>I already have a certificate and a <code>.pfx</code> file created from when I wrote the 
+
+<a href="/post/2017-07-01-sqlclr--certificates/">SQLCLR and Certificates</a> post, so I&rsquo;ll re-use those and go ahead and sign the assembly with the <code>.pfx</code> file:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -414,10 +428,14 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6:</strong> <em>Create T-SQL Wrapper Function</em></p>
-<p>To check that it all works, run: <code>SELECT dbo.fn_clr_Adder(21,21)</code> and the <a href="https://en.wikipedia.org/wiki/42_(number)"><em>Answer to the Ultimate Question of Life, the Universe, and Everything</em></a> should be returned to you.</p>
+<p>To check that it all works, run: <code>SELECT dbo.fn_clr_Adder(21,21)</code> and the 
+
+<a href="https://en.wikipedia.org/wiki/42_%28number%29" target="_blank" rel="noopener"><em>Answer to the Ultimate Question of Life, the Universe, and Everything</em></a> should be returned to you.</p>
 <p>So far this does not seem too bad, OK - so for a <code>SAFE</code> assembly we need to sign the assembly and have a login with <code>UNSAFE ASSEMBLY</code> permissions granted (or have <code>TRUSTWORTHY</code> on).</p>
 <h2 id="confusion-about-safe-assemblies">Confusion About <code>SAFE</code> Assemblies</h2>
-<p>Since the introduction of <code>clr strict security</code> there has been some confusion about how <code>SAFE</code> assemblies will behave, and part of this confusion can be attributed to the <a href="https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/clr-strict-security">documentation</a> around <code>clr strict security</code>. Specifically this statement: <em>A CLR assembly created with PERMISSION_SET = SAFE may be able to access external system resources, call unmanaged code, and acquire sysadmin privileges.</em>. When reading that statement, my understanding is that if I create an assembly as <code>SAFE</code> I could potentially do <code>UNSAFE</code> operations.</p>
+<p>Since the introduction of <code>clr strict security</code> there has been some confusion about how <code>SAFE</code> assemblies will behave, and part of this confusion can be attributed to the 
+
+<a href="https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/clr-strict-security" target="_blank" rel="noopener">documentation</a> around <code>clr strict security</code>. Specifically this statement: <em>A CLR assembly created with PERMISSION_SET = SAFE may be able to access external system resources, call unmanaged code, and acquire sysadmin privileges.</em>. When reading that statement, my understanding is that if I create an assembly as <code>SAFE</code> I could potentially do <code>UNSAFE</code> operations.</p>
 <p>Let us test this out, and create a second dll <code>Sql2k17SqlClr2.dll</code>, where the code looks like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -602,9 +620,13 @@ if (!doNotTrack) {
 <p>The above requirement is handled by a new configure option: <code>clr strict security</code>. The documentation around this option is, at least at the moment, somewhat mis-leading as it implies that <code>PERMISSION_SET</code> no longer has an impact on the behavior of an assembly.</p>
 <p>The tests above shows however that if you want to do an <code>UNSAFE</code> operation, the assembly has to be created with <code>PERMISSION_SET = UNSAFE</code>. So what I wrote in the beginning of this post: <em>&ldquo;From a SQLCLR perspective that is a real &ldquo;bummer&rdquo;, as theoretically there is no control over what an assembly can and cannot do (whereas before <code>PERMISSION_SET</code> controlled the abilities).&rdquo;</em>, does not seem to be correct.</p>
 <p>Bear in mind that I am running SQL Server 2017 CTP 2.1, and things may change. I&rsquo;ll try and dig in some more in this, and if I find out something I will edit this post.</p>
-<p><strong>EDIT:</strong> Things changed in SQL Server 2017 RC1. I have written about the changes in the <a href="/post/2017-07-23-sql-server-2017-sqlclr-white-listing-assemblies/">SQL Server 2017 SQLCLR - Whitelisting Assemblies</a> post.</p>
+<p><strong>EDIT:</strong> Things changed in SQL Server 2017 RC1. I have written about the changes in the 
+
+<a href="/post/2017-07-23-sql-server-2017-sqlclr-white-listing-assemblies/">SQL Server 2017 SQLCLR - Whitelisting Assemblies</a> post.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

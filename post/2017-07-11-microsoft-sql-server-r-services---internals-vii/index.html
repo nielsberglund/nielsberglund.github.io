@@ -245,23 +245,39 @@ if (!doNotTrack) {
 
                 
                 <p>(WOW, I finally managed to get this post out! Yay to me!!)</p>
-<p>This is the eighth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the seventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>This is the eighth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the seventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>In this post we will look more at some of the directories that are created when we execute <code>sp_execute_external_script</code>, as well as files being created in those directories.</p>
 <h2 id="recap">Recap</h2>
-<p>In previous posts(<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">here</a>, <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">here</a>, <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">here</a> and <a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">here</a>) we have talked about how the launchpad service creates a number of <strong>RTerm</strong> processes when we execute an <code>sp_execute_external_script</code> request. The number of processes are configurable by the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting in the <code>rlauncher.config</code> file, and by default 5 processes are created. These processes are added to a process pool, and when executing subsequent requests, or concurrent requests from different sessions, processes are picked up from the pool and used. At the same time new processes are created and added to the pool.</p>
-<p>In the [Microsoft SQL Server R Services - Internals VI] <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">si6</a> post we talked about the directories that are created when executing <code>sp_execute_external_script</code>. We saw, when we execute the script, how (with a default <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting):</p>
+<p>In previous posts(
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">here</a>, 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">here</a>, 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">here</a> and 
+
+<a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">here</a>) we have talked about how the launchpad service creates a number of <strong>RTerm</strong> processes when we execute an <code>sp_execute_external_script</code> request. The number of processes are configurable by the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting in the <code>rlauncher.config</code> file, and by default 5 processes are created. These processes are added to a process pool, and when executing subsequent requests, or concurrent requests from different sessions, processes are picked up from the pool and used. At the same time new processes are created and added to the pool.</p>
+<p>In the [Microsoft SQL Server R Services - Internals VI] 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">si6</a> post we talked about the directories that are created when executing <code>sp_execute_external_script</code>. We saw, when we execute the script, how (with a default <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting):</p>
 <ul>
 <li>Three directories are created initially, the first one being the directory for the session - this is the R working directory.</li>
 <li>Then two processes, which will use the second and third directory.</li>
 <li>Then one directory followed by one process, until we&rsquo;re done.</li>
 </ul>
-<p>From the above we understand that each process has a backing directory, and in the <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">post</a> we saw how the various directories had some files and sub-directories inside, as in <em>Figure 1 below</em>:</p>
+<p>From the above we understand that each process has a backing directory, and in the 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">post</a> we saw how the various directories had some files and sub-directories inside, as in <em>Figure 1 below</em>:</p>
 <p>
   <img src="/images/posts/sql_r_services_6_dir_content.png" alt="">
 
 </p>
 <p><strong>Figure 1:</strong> <em>Directory Content</em></p>
-<p>The figure above is from the <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> post. In that post we could not really determine where the sub-directories came from. So in this post let us figure out what the created files are for, and from where the sub-directories originate (or at least let us try to figure it out).</p>
+<p>The figure above is from the 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> post. In that post we could not really determine where the sub-directories came from. So in this post let us figure out what the created files are for, and from where the sub-directories originate (or at least let us try to figure it out).</p>
 <h2 id="files">Files</h2>
 <p>In various documentation of SQL Server R Services it is stated that the directories created during execution of <code>sp_execute_external_script</code> is to store files, intermediate results etc. We will run some code to see what files are created, but before that let&rsquo;s set things up to make life somewhat easier for us:</p>
 <ol>
@@ -273,7 +289,9 @@ if (!doNotTrack) {
 <blockquote>
 <p><strong>NOTE:</strong> By setting the <code>JOB_CLEANUP_ON_EXIT</code> to 0 we tell the launchpad service to not delete any directories etc., after we have executed (the executing process will still be torn down though).</p>
 </blockquote>
-<p>The code we initially want to run is similar to what we ran in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a>:</p>
+<p>The code we initially want to run is similar to what we ran in 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -309,7 +327,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 2:</strong> <em>Output from R Script</em></p>
 <p>So that is the result from the <code>cat</code> function. This makes sense as we can see the <em>Messages</em> tab as something like a console. But is the output from <code>cat</code> anywhere else? Let&rsquo;s go and have a look in the user account directory in <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code>, and the specific account used when executing the script. It is most likely <em>MSSQLSERVER01</em> if you execute from a default instance, but if you are unsure you can have a look at the output from the script and the value for the working directory. Just before the <code>Guid</code> value is the name of the account used.</p>
-<p>When we look under the user account directory, we&rsquo;ll see multiple directories, all with a <code>Guid</code> like string as name. As we covered in previous posts, these directories are the backing directories for the processes created. When you look through these directories you&rsquo;ll see (as we said in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals VI</a>), that most of the directories look the same; they have one subdirectory and 3 files. There are however two directories that are somewhat different; one is empty, and that is the working directory, and one that has four files in it. The one directory with four files in it is the directory for the process the code executed under (I call it process directory), and when you look in that directory you see something like so:</p>
+<p>When we look under the user account directory, we&rsquo;ll see multiple directories, all with a <code>Guid</code> like string as name. As we covered in previous posts, these directories are the backing directories for the processes created. When you look through these directories you&rsquo;ll see (as we said in 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals VI</a>), that most of the directories look the same; they have one subdirectory and 3 files. There are however two directories that are somewhat different; one is empty, and that is the working directory, and one that has four files in it. The one directory with four files in it is the directory for the process the code executed under (I call it process directory), and when you look in that directory you see something like so:</p>
 <p>
   <img src="/images/posts/sql_r_services_7_outputdir.png" alt="">
 
@@ -408,7 +428,9 @@ if (!doNotTrack) {
 </ul>
 <p>The result of the code in <em>Code Snippet 2</em> and <em>Code Snippet 3</em> is that after execution a named pipe connection has been made to the SQL Satellite dll, and as I said above - we&rsquo;ll cover the SQL Satellite in a subsequent blog-post.</p>
 <h2 id="files--sub-directory-origins">Files &amp; Sub-directory Origins</h2>
-<p>Above we saw (at least kind of), what the files inside the process directory do. What about the sub directory that exist in all backing directories, what does that do, and where does it come from? Remember from the <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> post that we said that when we were using <strong>WinDbg</strong> and had break point at <code>KERNELBASE!CreateDirectoryW</code> we couldn&rsquo;t see the sub-directory being created.</p>
+<p>Above we saw (at least kind of), what the files inside the process directory do. What about the sub directory that exist in all backing directories, what does that do, and where does it come from? Remember from the 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> post that we said that when we were using <strong>WinDbg</strong> and had break point at <code>KERNELBASE!CreateDirectoryW</code> we couldn&rsquo;t see the sub-directory being created.</p>
 <p>There is also a question about who is creating the files that we have just discussed. The obvious answer would be that it is the launchpad service together with the <code>rlauncher.dll</code> that create the files. Let&rsquo;s try and prove that.</p>
 <p>So, to set things up:</p>
 <ol>
@@ -416,7 +438,9 @@ if (!doNotTrack) {
 <li>Delete any sub directories of the user account directories in the <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code> directory. Do NOT delete the user account directories themselves.</li>
 <li>Restart the launchpad service.</li>
 </ol>
-<p>This time we will use <a href="https://technet.microsoft.com/en-us/sysinternals/processmonitor.aspx"><em>Process Monitor</em></a> from <strong>Sysinternals</strong> instead of WinDbg, as it will be easier to see what files (and directories) are created and by whom.</p>
+<p>This time we will use 
+
+<a href="https://technet.microsoft.com/en-us/sysinternals/processmonitor.aspx" target="_blank" rel="noopener"><em>Process Monitor</em></a> from <strong>Sysinternals</strong> instead of WinDbg, as it will be easier to see what files (and directories) are created and by whom.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Process Monitor is an advanced monitoring tool for Windows that shows real-time file system, Registry and process/thread activity.</p>
 </blockquote>
@@ -515,7 +539,9 @@ if (!doNotTrack) {
 <li>In addition to the session script, <code>Rterm.exe</code> also creates a sub directory together with a file. The file is not persisted.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>First of all, if you have any insight in the files <code>Rterm.exe</code> creates, please get in touch! Otherwise, if you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>First of all, if you have any insight in the files <code>Rterm.exe</code> creates, please get in touch! Otherwise, if you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

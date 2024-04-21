@@ -241,9 +241,23 @@ if (!doNotTrack) {
 
                 
                 <p>This post was supposed to be a single post about how to install R packages in SQL Server Machine Learning Services, but once again I completely misjudged the scope of the topic. So this one post turned into a series of posts about how to install R packages in <strong>SQL Server Machine Learning Services</strong> and this is the first post in the series.</p>
-<p>To see other posts in the series go to <a href="/sql_server_ml_services_install_packages"><strong>Install R Packages in SQL Server ML Services Series</strong></a>.</p>
-<p>As you may know, I am in the process of writing the follow-up post to <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a>. However, I have a hard time getting into the flow of things, so I use any excuse I can, to not have to write. So when <a href="https://www.linkedin.com/in/dane-bax/">Dane Bax</a>, a colleague of mine, contacted me a couple of days ago with a <strong>SQL Server Machine Learning Services</strong> problem, I jumped at the chance to help him, and also write a post about it.</p>
-<p><a href="https://www.linkedin.com/in/dane-bax/">Dane</a> works for a sister company of <a href="/Derivco">Derivco</a> as a data scientist and at both <a href="/Derivco">Derivco</a> and the sister company - <a href="https://www.microgaming.co.uk/">Microgaming</a> we are now looking at using SQL Server Machine Learning Services.</p>
+<p>To see other posts in the series go to 
+
+<a href="/sql_server_ml_services_install_packages"><strong>Install R Packages in SQL Server ML Services Series</strong></a>.</p>
+<p>As you may know, I am in the process of writing the follow-up post to 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a>. However, I have a hard time getting into the flow of things, so I use any excuse I can, to not have to write. So when 
+
+<a href="https://www.linkedin.com/in/dane-bax/" target="_blank" rel="noopener">Dane Bax</a>, a colleague of mine, contacted me a couple of days ago with a <strong>SQL Server Machine Learning Services</strong> problem, I jumped at the chance to help him, and also write a post about it.</p>
+<p>
+
+<a href="https://www.linkedin.com/in/dane-bax/" target="_blank" rel="noopener">Dane</a> works for a sister company of 
+
+<a href="/Derivco">Derivco</a> as a data scientist and at both 
+
+<a href="/Derivco">Derivco</a> and the sister company - 
+
+<a href="https://www.microgaming.co.uk/" target="_blank" rel="noopener">Microgaming</a> we are now looking at using SQL Server Machine Learning Services.</p>
 <p>His problem was that he wanted to use a CRAN package - <code>bsts</code> - which is not part of a standard SQL Server R installation. He tried a couple of things to get it installed but got errors, so he decided to get in touch with me.</p>
 <blockquote>
 <p><strong>NOTE:</strong> The package name <code>bsts</code> stands for <em>Bayesian Structural Time Series</em> and it performs time series regression using dynamic linear models fit using MCMC.</p>
@@ -258,7 +272,9 @@ if (!doNotTrack) {
 <p>To be able to compile from source on Windows, the people behind R have made available an installer which installs the required tools for compilation of packages: <strong>Rtools</strong>. So if you think that you ever need to compile an R package from source, then ensure that you have <em>Rtools</em> installed. Why I bring this up is that the <code>bsts</code> package has a dependency on a package that needs to be compiled.</p>
 <h4 id="rtools-installation">Rtools Installation</h4>
 <p>While you can install R packages to a remote machine, keep in mind that <em>Rtools</em> is not an R package as such, and it is not installed into the engine - but onto the machine where R is. So, for us here, we need to be on the machine that hosts SQL Server ML Services and run the installation on that machine.</p>
-<p>We need first to download the installer for <em>Rtools</em>, and when you browse to the <a href="https://cran.r-project.org/bin/windows/Rtools/index.html">download page</a>, you see there are multiple versions dependent on what version of R you have. To find the R version of your SQL Server ML Services installation you can run following code:</p>
+<p>We need first to download the installer for <em>Rtools</em>, and when you browse to the 
+
+<a href="https://cran.r-project.org/bin/windows/Rtools/index.html" target="_blank" rel="noopener">download page</a>, you see there are multiple versions dependent on what version of R you have. To find the R version of your SQL Server ML Services installation you can run following code:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -299,7 +315,9 @@ if (!doNotTrack) {
 <p>Regardless how we install the packages, they can only be installed to the default packet library for that instance. The file system folder for this library has restricted access and to write to this folder you need admin rights. Well, that is not entirely correct - with some configuration changes even non-admin can install packages via T-SQL and RevoScaleR. However, as we see later, the installation is against the current database.</p>
 <h4 id="r-code-for-installation">R Code for Installation</h4>
 <p>Before we look at the ways we can install and the tools for installation; what does the code we use to do the installation look like?</p>
-<p>As you probably know, the way to install R packages is through the <code>install.packages</code> command. The command has quite a few parameters as you can see <a href="https://www.rdocumentation.org/packages/utils/versions/3.5.0/topics/install.packages">here</a>, but when I install packages I use only a few of the parameters, regardless of the way I install the package:</p>
+<p>As you probably know, the way to install R packages is through the <code>install.packages</code> command. The command has quite a few parameters as you can see 
+
+<a href="https://www.rdocumentation.org/packages/utils/versions/3.5.0/topics/install.packages" target="_blank" rel="noopener">here</a>, but when I install packages I use only a few of the parameters, regardless of the way I install the package:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -360,7 +378,9 @@ if (!doNotTrack) {
 <li>The GUI: <code>Rgui.exe</code>.</li>
 </ul>
 <p>Once again you need to be able to run them with elevated access, so you need admin rights on the machine, and they can only run locally.</p>
-<p>So let us say that <a href="https://www.linkedin.com/in/dane-bax/">Dane</a> (from above) wants to install the <code>bsts</code> package mentioned above and he has admin rights on the machine SQL Server is installed on. The choice he has is to use <code>Rterm.exe</code> or <code>Rgui.exe</code>. Dane is not really into command line, so he uses <code>Rgui.exe</code>:</p>
+<p>So let us say that 
+
+<a href="https://www.linkedin.com/in/dane-bax/" target="_blank" rel="noopener">Dane</a> (from above) wants to install the <code>bsts</code> package mentioned above and he has admin rights on the machine SQL Server is installed on. The choice he has is to use <code>Rterm.exe</code> or <code>Rgui.exe</code>. Dane is not really into command line, so he uses <code>Rgui.exe</code>:</p>
 <ul>
 <li>He logs onto the SQL Server machine either directly or via <em>Terminal Services</em>.</li>
 <li>He navigates to where <code>Rgui.exe</code> is (the same path as above for <code>Rterm.exe</code>).</li>
@@ -450,7 +470,9 @@ if (!doNotTrack) {
 <li>You can use the R command <code>install.packages</code> to install a package from the package manager.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

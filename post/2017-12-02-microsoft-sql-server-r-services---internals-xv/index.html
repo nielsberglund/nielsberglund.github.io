@@ -244,13 +244,23 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the 16:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 15:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In the last post <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we looked at the <strong>Binary eXchange Protocol</strong> (<strong>BXL</strong>). The post was fairly long, and there were things that I wanted to cover which I didn&rsquo;t do due to the length of the post.</p>
-<p>So this post is a continuation of <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
-<p>Before we dive into it, let&rsquo;s recap what we covered in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
+                <p>This is the 16:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 15:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the last post 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we looked at the <strong>Binary eXchange Protocol</strong> (<strong>BXL</strong>). The post was fairly long, and there were things that I wanted to cover which I didn&rsquo;t do due to the length of the post.</p>
+<p>So this post is a continuation of 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
+<p>Before we dive into it, let&rsquo;s recap what we covered in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
 <h2 id="recap">Recap</h2>
 <p>After many attempts, I finally managed to do the post about BXL. To my defense I&rsquo;d like to say that the &ldquo;failed&rdquo; attempts led to other posts instead :).</p>
-<p>In <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we started looking at TDS, which is an application-level protocol and <strong>THE</strong> protocol used by SQL Server for the transfer of requests and responses between clients and database server systems. We tried to get an understanding for how a TDS response packet looked, and executed against a table: <code>dbo.tb_Test1</code> and retrieved some integer columns: <code>sp_executesql N'SELECT TOP(2) rand1, rand2 FROM dbo.tb_Test1'</code>. By using <em>Microsoft Message Analyzer</em> (<em>MMA</em>), we saw that the packet looked like so (the values of all the columns are <code>size</code>):</p>
+<p>In 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we started looking at TDS, which is an application-level protocol and <strong>THE</strong> protocol used by SQL Server for the transfer of requests and responses between clients and database server systems. We tried to get an understanding for how a TDS response packet looked, and executed against a table: <code>dbo.tb_Test1</code> and retrieved some integer columns: <code>sp_executesql N'SELECT TOP(2) rand1, rand2 FROM dbo.tb_Test1'</code>. By using <em>Microsoft Message Analyzer</em> (<em>MMA</em>), we saw that the packet looked like so (the values of all the columns are <code>size</code>):</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -291,7 +301,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Layout of a BXL Packet</em></p>
-<p>By looking at <em>Code Snippet 2</em>, we saw how BXL is a column oriented protocol, with a header of fixed size for each column, followed by the rows for that column. In <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we came to the conclusion:</p>
+<p>By looking at <em>Code Snippet 2</em>, we saw how BXL is a column oriented protocol, with a header of fixed size for each column, followed by the rows for that column. In 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we came to the conclusion:</p>
 <ul>
 <li>Each column header has an over-head of 32 bytes (at least for non nullable data)</li>
 <li>The size of the column in one row is the size of the data type for numeric types.</li>
@@ -301,7 +313,9 @@ if (!doNotTrack) {
 <li>For <code>varchar</code> and <code>nvarchar</code> the storage size was 2 bytes plus the size of the data stored.</li>
 <li>For the <code>varmax</code> data types the number of bytes that were pre-pended varied dependent on the data size.</li>
 </ul>
-<p>Nullable columns were somewhat weird in that the header for each column ranged from 7312 bytes for <code>tinyint</code> down to 32 bytes for <code>decimal</code>/<code>numeric</code> and alpha-numeric types. In <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> I speculated that this is some sort of bug, but I haven&rsquo;t been able to verify that yet.</p>
+<p>Nullable columns were somewhat weird in that the header for each column ranged from 7312 bytes for <code>tinyint</code> down to 32 bytes for <code>decimal</code>/<code>numeric</code> and alpha-numeric types. In 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> I speculated that this is some sort of bug, but I haven&rsquo;t been able to verify that yet.</p>
 <p>Finally I tried to show the layout of BXL as so:</p>
 <p>
   <img src="/images/posts/sql_r_services_14_bxl.png" alt="">
@@ -314,11 +328,19 @@ if (!doNotTrack) {
 <h4 id="helper-tools">Helper Tools</h4>
 <p>To help us figure out the things we want, we will use <em>Process Monitor</em>, and <em>WinDbg preview</em>:</p>
 <ul>
-<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
-<li><em>WinDbg preview</em> is a windows debugger, which Microsoft released in August as a preview version of a more modern <a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86"><em>WinDbg</em> application</a>. If you want to know more about it, I covered it in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>. Throughout this post I will refer to it as <em>WinDbg</em>.</li>
+<li><em>Process Monitor</em>, will be used it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li><em>WinDbg preview</em> is a windows debugger, which Microsoft released in August as a preview version of a more modern 
+
+<a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86" target="_blank" rel="noopener"><em>WinDbg</em> application</a>. If you want to know more about it, I covered it in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>. Throughout this post I will refer to it as <em>WinDbg</em>.</li>
 </ul>
 <h4 id="code">Code</h4>
-<p>The code below sets up the database and creates some tables with some data, it is more or less the same as we used in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
+<p>The code below sets up the database and creates some tables with some data, it is more or less the same as we used in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -398,7 +420,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 3:</strong> <em>Database, and Database Object Creation</em></p>
 <p>So if you want to follow along with what we do in this post, run the code in <em>Code Snippet 3</em>, and you should be good to go.</p>
 <h2 id="lots-of-data">Lots of Data</h2>
-<p>In <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw how a packet was structured (both BXL and TDS), and the size of a packet when the packet returned just a couple of rows. Let&rsquo;s look at how BXL handles large data volumes and compare it to TDS. Let&rsquo;s start with TDS.</p>
+<p>In 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> we saw how a packet was structured (both BXL and TDS), and the size of a packet when the packet returned just a couple of rows. Let&rsquo;s look at how BXL handles large data volumes and compare it to TDS. Let&rsquo;s start with TDS.</p>
 <h4 id="tds">TDS</h4>
 <p>Remember how I, in the previous post, said that the TDS protocol is basically a request response protocol, where the &ldquo;client&rdquo;:</p>
 <ul>
@@ -409,7 +433,9 @@ if (!doNotTrack) {
 </ul>
 <p>The last bullet point above: &ldquo;Asks for more &hellip;&rdquo;, indicates that there is a limit to how much data the server sends to the client in one go, and by default that limit is the size of a network packet: 4096 bytes. We can see this if we fire up <em>Process Monitor</em> and set a filter capturing outgoing TCP packets from SQL Server.</p>
 <blockquote>
-<p><strong>NOTE:</strong> We covered in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> how to set that filter. There we also spoke about how the TCP/IP protocol needs to be enabled in <em>SQL Server Network Configuration</em>.</p>
+<p><strong>NOTE:</strong> We covered in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> how to set that filter. There we also spoke about how the TCP/IP protocol needs to be enabled in <em>SQL Server Network Configuration</em>.</p>
 </blockquote>
 <p>After you have set the filter (and saved it), execute <code>sp_executesql N'SELECT TOP(820) rand1  FROM dbo.rand_1M'</code> and look at the output from <em>Process Monitor</em>:</p>
 <p>
@@ -417,7 +443,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 3:</strong> <em>Multiple Packets</em></p>
-<p><em>Figure 3</em> shows how we receive two response packets, one with a size of 4096 bytes, and the other with 74, so a total of 4170 bytes. But wait a second, if we go back to <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> and read what was said about packet sizes, I would have expected to see:</p>
+<p><em>Figure 3</em> shows how we receive two response packets, one with a size of 4096 bytes, and the other with 74, so a total of 4170 bytes. But wait a second, if we go back to 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a> and read what was said about packet sizes, I would have expected to see:</p>
 <ul>
 <li>44 bytes, some miscellaneous overhead (including end sequence).</li>
 <li>8 bytes column info overhead.</li>
@@ -444,7 +472,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 4:</strong> <em>Large Resultset in BXL</em></p>
-<p>Before executing the code in <em>Code Snippet 4</em> we need to change the <em>Process Monitor</em> filter to on TCP packets received by BxlServer, like we did in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>. After that is done we can execute and look at the output from <em>Process Monitor</em>:</p>
+<p>Before executing the code in <em>Code Snippet 4</em> we need to change the <em>Process Monitor</em> filter to on TCP packets received by BxlServer, like we did in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>. After that is done we can execute and look at the output from <em>Process Monitor</em>:</p>
 <p>
   <img src="/images/posts/sql_r_services_15_bxl_packets1.png" alt="">
 
@@ -481,10 +511,14 @@ if (!doNotTrack) {
 <blockquote>
 <p><strong>NOTE:</strong> The reason we&rsquo;re not getting 65536 bytes exactly in the second packet is due to how the individual packets are sent, and how <em>Process Monitor</em> reports it.</p>
 </blockquote>
-<p>To get a better understanding how this works, let us do some <a href="http://queue.acm.org/detail.cfm?id=945136">spelunking</a> in the SQL Server code with <em>WinDbg</em>.</p>
+<p>To get a better understanding how this works, let us do some 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">spelunking</a> in the SQL Server code with <em>WinDbg</em>.</p>
 <h2 id="windbg-debugging">WinDbg Debugging</h2>
 <p>Whet we&rsquo;ll do here is to figure out some of the flow when creating the packages that are being sent to SqlSatellite, and well do this by setting breakpoints in <em>WinDbg</em> and tracing what&rsquo;s happening when we hit those breakpoints.</p>
-<p>In <a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we figured out when and how the statement in <code>@input_data_1</code> was executed, and we saw a flow looking something like so:</p>
+<p>In 
+
+<a href="/post/2017-11-11-microsoft-sql-server-r-services---internals-xiii/">Internals - XIII</a> we figured out when and how the statement in <code>@input_data_1</code> was executed, and we saw a flow looking something like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -708,7 +742,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 8:</strong> <em>Break-points Hit when Executing</em></p>
-<p>The code in <em>Code Snippet 6</em> selects one column two rows, and in <em>Code Snippet 8</em> we see how <code>PushRow</code> and <code>PostOneRow</code> is called twice. The routine <code>WriteData</code> is also called twice, but <code>WritePayloadHeader</code> only once. We see how <code>WriteMessageBlockDone</code> is called once as part of <code>PushEOS</code> (we discussed <code>PushEOS</code> in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>) , and then finally <code>SendPackets</code>. It is pretty clear that <code>PushRow</code> and <code>PostOneRow</code> is called per row in the result-set, and <code>WritePayloadHeader</code> only once. The question now is what happens if more than one packet is sent? To see this, change the <code>TOP</code> clause in the <code>@input_data_1</code> statement to be <code>TOP(32800)</code>, and execute. <strong>Wait</strong>, <strong>wait</strong>, before executing disable the <code>PushRow</code>, <code>PostOneRow</code> and <code>WriteData</code> break-points, unless you want to press <code>F5</code> or <code>g</code> 32800 times.</p>
+<p>The code in <em>Code Snippet 6</em> selects one column two rows, and in <em>Code Snippet 8</em> we see how <code>PushRow</code> and <code>PostOneRow</code> is called twice. The routine <code>WriteData</code> is also called twice, but <code>WritePayloadHeader</code> only once. We see how <code>WriteMessageBlockDone</code> is called once as part of <code>PushEOS</code> (we discussed <code>PushEOS</code> in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>) , and then finally <code>SendPackets</code>. It is pretty clear that <code>PushRow</code> and <code>PostOneRow</code> is called per row in the result-set, and <code>WritePayloadHeader</code> only once. The question now is what happens if more than one packet is sent? To see this, change the <code>TOP</code> clause in the <code>@input_data_1</code> statement to be <code>TOP(32800)</code>, and execute. <strong>Wait</strong>, <strong>wait</strong>, before executing disable the <code>PushRow</code>, <code>PostOneRow</code> and <code>WriteData</code> break-points, unless you want to press <code>F5</code> or <code>g</code> 32800 times.</p>
 <p>The execution with <code>TOP(32800)</code> hits the break-points as so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -804,15 +840,23 @@ if (!doNotTrack) {
 </ul>
 <p>Change the <code>@input_data_1</code> statement in <em>Code Snippet 6</em> to <code>SELECT TOP(2) rand1, rand2 FROM dbo.rand_1M</code> and execute. You&rsquo;ll see how we&rsquo;re looping over the rows, and for each row we&rsquo;re looping the columns, for first row we write the header and the value and for subsequent columns the value.</p>
 <h2 id="summary">Summary</h2>
-<p>This post was a continuation of <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, where we in this post looked at subjects that did not &ldquo;fit in&rdquo;, in the <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">XIV</a> post.</p>
+<p>This post was a continuation of 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>, where we in this post looked at subjects that did not &ldquo;fit in&rdquo;, in the 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">XIV</a> post.</p>
 <p>We looked at the size of packages and compared it with TDS, and saw how TDS sends multiple smaller packages, BXL tries to send as big packages as possible. Big in this instance is up to 65536 bytes, and BXL creates a new package when the size of rows and columns has reached 65536.</p>
-<p>From a code perspective we realized that the <code>sqlmin!CQScanUdx::PushNextChildRow</code> routine was where everything happened (or in sub routines). We were aware of that routine from <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, where we looked at what sent the TCP packets to the SqlSatallite. Now we saw how <code>PushNextChildRow</code> calls <code>PushRow</code> which calls <code>WritePayloadHeader</code> if it is the first row and <code>WriteData</code>. If it is a packet that has reached the size of 65536 and there are more packets, <code>WriteMessageBlockDone</code> is called. Then, if it is the last packet, <code>PushEOS</code> is called and <code>PushEOS</code> calls <code>WriteMessageBlockDone</code>. The figure below illustrates the flow:</p>
+<p>From a code perspective we realized that the <code>sqlmin!CQScanUdx::PushNextChildRow</code> routine was where everything happened (or in sub routines). We were aware of that routine from 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>, where we looked at what sent the TCP packets to the SqlSatallite. Now we saw how <code>PushNextChildRow</code> calls <code>PushRow</code> which calls <code>WritePayloadHeader</code> if it is the first row and <code>WriteData</code>. If it is a packet that has reached the size of 65536 and there are more packets, <code>WriteMessageBlockDone</code> is called. Then, if it is the last packet, <code>PushEOS</code> is called and <code>PushEOS</code> calls <code>WriteMessageBlockDone</code>. The figure below illustrates the flow:</p>
 <p>
   <img src="/images/posts/sql_r_services_15_bxl_code.png" alt="">
 
 </p>
 <p><strong>Figure 7:</strong> <em>BXL Code Flow</em></p>
-<p>I you believe you have seen <em>Figure 7</em> before or that it looks similar to some other figure, it is because is is a copy of a figure in <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>. Here I have compressed some routines in order to fit in the ones we learned about today. The numbered arrows in <em>Figure 7</em> shows the communication out from SQL Server, and in what order it happens:</p>
+<p>I you believe you have seen <em>Figure 7</em> before or that it looks similar to some other figure, it is because is is a copy of a figure in 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">Internals - XII</a>. Here I have compressed some routines in order to fit in the ones we learned about today. The numbered arrows in <em>Figure 7</em> shows the communication out from SQL Server, and in what order it happens:</p>
 <ol>
 <li>SQL Server opens named pipe connection to the launchpad service.</li>
 <li>Message sent to the launchpad service.</li>
@@ -854,9 +898,13 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 11:</strong> <em>Pseudo Code Flow for Writing BXL Packets</em></p>
-<p>I do believe this was the last post about BXL, *<em>unless</em> I can find out why nullable columns causes these big, big packets, that we have discussed in quite few posts. Most recently in <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
+<p>I do believe this was the last post about BXL, *<em>unless</em> I can find out why nullable columns causes these big, big packets, that we have discussed in quite few posts. Most recently in 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Internals - XIV</a>.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

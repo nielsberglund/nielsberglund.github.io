@@ -240,11 +240,15 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>A little while ago I wrote a blog post, <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>, about changes in SQL Server 2019 CTP 2.5 impacting how we write Java code for use from SQL Server. While I wrote that post, Microsoft released SQL Server 2019 CTP 3.0, and, (surprise, surprise), that release contains more changes affecting Java code in SQL Server.</p>
+                <p>A little while ago I wrote a blog post, 
+
+<a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>, about changes in SQL Server 2019 CTP 2.5 impacting how we write Java code for use from SQL Server. While I wrote that post, Microsoft released SQL Server 2019 CTP 3.0, and, (surprise, surprise), that release contains more changes affecting Java code in SQL Server.</p>
 <p>This post covers those changes as well as discusses what SQL Server Extensibility Framework and Language Extensions are.</p>
 <p>Before we &ldquo;dive&rdquo; into the &ldquo;nitty-gritty&rdquo; let look at the data we use in this post.</p>
 <h2 id="demo-data">Demo Data</h2>
-<p>The data we see here is for you who want to &ldquo;code along&rdquo;. It is lifted from the <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/">post</a> mentioned above:</p>
+<p>The data we see here is for you who want to &ldquo;code along&rdquo;. It is lifted from the 
+
+<a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/">post</a> mentioned above:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -298,7 +302,9 @@ if (!doNotTrack) {
 <li>The <em>Launchpad</em> service passes the script into the relevant launcher based on the <code>@language</code> parameter in <code>sp_execute_external_script</code>. The knowledge of what launcher to call lives inside of the <em>Launchpad</em> service.</li>
 <li>The launcher dll loads the relevant external engine, passes the script to the engine and executes.</li>
 </ul>
-<p>The above is a very high-level overview of how it works, and you can read more about the inner workings of it in <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>The above is a very high-level overview of how it works, and you can read more about the inner workings of it in 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>So, a launcher dll is a piece of code, typically written in C++, who knows how to interact with the external engine.</p>
 <p>After the introduction of Python in SQL Server 2017, the documentation started to mention how R and Python code runs in an extensibility framework, which is isolated from the core engine processes. Around this time, Microsoft started to mention the possibility of other languages becoming part of the extensibility framework.</p>
 <h2 id="sql-server-2019--java">SQL Server 2019 &amp; Java</h2>
@@ -318,11 +324,15 @@ if (!doNotTrack) {
 </blockquote>
 <p>Having read this far in the post you may say: <em>Hey Niels, this is all interesting and all, but you have not said anything we don&rsquo;t already know</em>.</p>
 <h2 id="external-language">External Language</h2>
-<p>Ok, so let us see what this is all about. Remember how we, in the <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a> post, discussed how SQL Server CTP 2.5 introduced a Java SDK, <code>mssql-java-lang-extension.jar</code>, that we as developers need to develop against when we write Java code we want to execute from SQL Server. That is a requirement in CTP 3.0 as well, but the way you get the <code>.jar</code> file is different. In CTP 2.5 you downloaded the file, whereas in CTP 3.0 the file is part of the SQL Server distribution, and you find it at: <code>..\&lt;path_to_sql_instance&gt;\MSSQL\Binn\mssql-java-lang-extension.jar</code>.</p>
+<p>Ok, so let us see what this is all about. Remember how we, in the 
+
+<a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a> post, discussed how SQL Server CTP 2.5 introduced a Java SDK, <code>mssql-java-lang-extension.jar</code>, that we as developers need to develop against when we write Java code we want to execute from SQL Server. That is a requirement in CTP 3.0 as well, but the way you get the <code>.jar</code> file is different. In CTP 2.5 you downloaded the file, whereas in CTP 3.0 the file is part of the SQL Server distribution, and you find it at: <code>..\&lt;path_to_sql_instance&gt;\MSSQL\Binn\mssql-java-lang-extension.jar</code>.</p>
 <blockquote>
 <p><strong>NOTE:</strong> The file name of the SDK is somewhat misleading as it is not the Java language extension itself, it is the SDK for the Java language extension.</p>
 </blockquote>
-<p>We know from the <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/">post mentioned above</a> that we need to create an external library based on the <code>.jar</code> file, so I copy the file to a more accessible location and then:</p>
+<p>We know from the 
+
+<a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/">post mentioned above</a> that we need to create an external library based on the <code>.jar</code> file, so I copy the file to a more accessible location and then:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -387,9 +397,15 @@ if (!doNotTrack) {
 <li><code>parameters</code>: Optional parameters for the external language runtime. Not supported in CTP 3.0.</li>
 <li><code>env_variables</code>: Optional parameter to set environment variables for the external language runtime. Not supported in CTP 3.0.</li>
 </ul>
-<p>The above is a somewhat simplified explanation of the arguments, but it should be enough for us to get started. You find a more in-depth description <a href="https://docs.microsoft.com/en-us/sql/t-sql/statements/create-external-language-transact-sql?view=sqlallproducts-allversions">here</a>.</p>
+<p>The above is a somewhat simplified explanation of the arguments, but it should be enough for us to get started. You find a more in-depth description 
+
+<a href="https://docs.microsoft.com/en-us/sql/t-sql/statements/create-external-language-transact-sql?view=sqlallproducts-allversions" target="_blank" rel="noopener">here</a>.</p>
 <h2 id="using-create-external-language">Using CREATE EXTERNAL LANGUAGE</h2>
-<p>Before we write code to create an external language, let us think back to what I wrote in <a href="/post/2019-03-10-sql-server-2019-java--external-libraries---i/">SQL Server 2019, Java &amp; External Libraries - I</a>, and <a href="/post/2019-04-10-installing-r-packages-in-sql-server-machine-learning-services---iii/">Installing R Packages in SQL Server Machine Learning Services - III</a> about <code>CREATE EXTERNAL LIBRARY</code> and how there were some new system catalog views introduced together with <code>CREATE EXTERNAL LIBRARY</code>: more specifically <code>sys.external_libraries</code> and friends. The same is true for <code>CREATE EXTERNAL LANGUAGE</code>:</p>
+<p>Before we write code to create an external language, let us think back to what I wrote in 
+
+<a href="/post/2019-03-10-sql-server-2019-java--external-libraries---i/">SQL Server 2019, Java &amp; External Libraries - I</a>, and 
+
+<a href="/post/2019-04-10-installing-r-packages-in-sql-server-machine-learning-services---iii/">Installing R Packages in SQL Server Machine Learning Services - III</a> about <code>CREATE EXTERNAL LIBRARY</code> and how there were some new system catalog views introduced together with <code>CREATE EXTERNAL LIBRARY</code>: more specifically <code>sys.external_libraries</code> and friends. The same is true for <code>CREATE EXTERNAL LANGUAGE</code>:</p>
 <ul>
 <li><code>sys.external_languages</code> - contains a row for each external language in the database.</li>
 <li><code>sys.external_language_files</code> - contains a row for each external language extension file in the database.</li>
@@ -426,7 +442,9 @@ if (!doNotTrack) {
 <p><strong>Figure 4:</strong> <em>Java External Language</em></p>
 <p>WWe see in <em>Figure 4</em> how we have added Java as an external language to the <code>JavaTestDB</code> database. In the lower result grid, we see how the binary representation of the zip file is persisted as well, the same as it is for external libraries. Speaking of external libraries, in the posts I did about those, we discussed how the external libraries, when resolved, were copied to file directories: <code>..\&lt;path_to_sql_instance&gt;\MSSQL\ExternalLibraries</code>. I wonder if it is the same for external languages?</p>
 <p>Sure enough, when looking at <code>..\&lt;path_to_sql_instance&gt;\MSSQL</code> I see an <code>ExternalLanguages</code> directory, and as with external libraries, it is empty. Remember from the posts mentioned above, how the <code>ExternalLibraries</code> directory got populated when we resolved an external library. Let us see if it is the same for external languages.</p>
-<p>As we have created the external language, we can now do what we tried to do earlier; create the external SDK library. So, we run the code in <em>Code Snippet 2</em> again, and now it succeeds. We verify that by executing: <code>SELECT * FROM sys.external_libraries</code>. When we have deployed the SDK, we can deploy our Java code that we want to call from inside SQL Server. In this post, I use the same Java code as in the first example in <a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>:</p>
+<p>As we have created the external language, we can now do what we tried to do earlier; create the external SDK library. So, we run the code in <em>Code Snippet 2</em> again, and now it succeeds. We verify that by executing: <code>SELECT * FROM sys.external_libraries</code>. When we have deployed the SDK, we can deploy our Java code that we want to call from inside SQL Server. In this post, I use the same Java code as in the first example in 
+
+<a href="/post/2019-05-26-java--sql-server-2019-extensibility-framework-the-sequel/"><strong>Java &amp; SQL Server 2019 Extensibility Framework: The Sequel</strong></a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -546,7 +564,9 @@ if (!doNotTrack) {
 </ul>
 <p>Something we didn&rsquo;t touch upon in this post was that the security model for executing against an external language has changed somewhat. We cover that in a future post.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

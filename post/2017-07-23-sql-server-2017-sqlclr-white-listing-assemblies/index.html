@@ -248,8 +248,14 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>A little while ago I wrote a <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">blog-post</a> about the changes in the SQLCLR security model in SQL Server 2017. I wrote about how Microsoft has changed the relation between CAS and security boundaries, and CAS is no longer supported as a boundary! And also how Microsoft introduced an <code>sp_configure</code> option called <code>clr strict security</code>, which by default is set to 1 (on). When the setting is on, SQL Server treats all assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) as if they were marked <code>UNSAFE</code>.</p>
-<p>The release I wrote the post against was CTP 2.1, and earlier this week Microsoft released SQL Server 2017 RC1. Some days ago I received a comment from <em>Paul Vestuto</em> on my <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">post</a>, pointing out that in RC1 there has been some more changes to the security model. I thought those changes would earn their own blog-post, instead of just editing the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">previous post</a>.</p>
+                <p>A little while ago I wrote a 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">blog-post</a> about the changes in the SQLCLR security model in SQL Server 2017. I wrote about how Microsoft has changed the relation between CAS and security boundaries, and CAS is no longer supported as a boundary! And also how Microsoft introduced an <code>sp_configure</code> option called <code>clr strict security</code>, which by default is set to 1 (on). When the setting is on, SQL Server treats all assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) as if they were marked <code>UNSAFE</code>.</p>
+<p>The release I wrote the post against was CTP 2.1, and earlier this week Microsoft released SQL Server 2017 RC1. Some days ago I received a comment from <em>Paul Vestuto</em> on my 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">post</a>, pointing out that in RC1 there has been some more changes to the security model. I thought those changes would earn their own blog-post, instead of just editing the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">previous post</a>.</p>
 <p>Let&rsquo;s look back at what the changes were in SQL 2017, to the SQLCLR permissions.</p>
 <h2 id="recap">Recap</h2>
 <p>In SQL Server 2017, Microsoft now by default requires that all type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) are authorized for <code>UNSAFE</code> access, by:</p>
@@ -259,17 +265,23 @@ if (!doNotTrack) {
 <li>The assembly is signed with an asymmetric key that has a corresponding login with <code>UNSAFE ASSEMBLY</code> permission.</li>
 </ul>
 <p>The implication of the above is that, unless you want to mark your database <code>TRUSTWORTHY</code>, you can no longer &ldquo;just&rdquo; deploy a <code>SAFE</code> assembly, it has to be signed!</p>
-<p>You may say that: &ldquo;signing is not that bad - what&rsquo;s the big deal&rdquo;. Sure, sign one or two assemblies may not be that bad, but if you have, like <a href="/derivco">us</a>, 50 - 60 assemblies then it can become a chore. Especially since there is no real tooling for this.</p>
+<p>You may say that: &ldquo;signing is not that bad - what&rsquo;s the big deal&rdquo;. Sure, sign one or two assemblies may not be that bad, but if you have, like 
+
+<a href="/derivco">us</a>, 50 - 60 assemblies then it can become a chore. Especially since there is no real tooling for this.</p>
 <p>So, in SQL Server 2017 RC1, Microsoft has tried to make things somewhat simpler.</p>
 <h2 id="assembly-whitelisting">Assembly Whitelisting</h2>
-<p>What Microsoft introduces in SQL Server 2017 RC1, is something I refer to as <a href="https://en.wikipedia.org/wiki/Whitelist">whitelisting</a>. It is somewhat similar to the <code>TRUSTWORTHY</code> setting, where you indicate that a database is to be trusted. But instead of doing it on the database level, you do it per assembly.</p>
+<p>What Microsoft introduces in SQL Server 2017 RC1, is something I refer to as 
+
+<a href="https://en.wikipedia.org/wiki/Whitelist" target="_blank" rel="noopener">whitelisting</a>. It is somewhat similar to the <code>TRUSTWORTHY</code> setting, where you indicate that a database is to be trusted. But instead of doing it on the database level, you do it per assembly.</p>
 <p>To whitelist in SQL Server 2017 RC1, you use the system stored procedure <code>sys.sp_add_trusted_assembly</code>. As the name implies the procedure adds an assembly to a list of &ldquo;trusted&rdquo; assemblies. By marking an assembly as trusted, SQL Server will allow it to be loaded when <code>clr strict security</code> is on (on by default), even if:</p>
 <ul>
 <li>the assembly is not signed, <em>and</em></li>
 <li>the database where you want to deploy it to is not <code>TRUSTWORTHY</code>.</li>
 </ul>
 <h4 id="demo-code">Demo Code</h4>
-<p>Before we start to look into how this works, let&rsquo;s look at the demo code we&rsquo;ll be using. If you read the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post, the code should look fairly familiar. So, on a SQL Server 2017 RC1 installation, let us first make sure that we are correctly configured:</p>
+<p>Before we start to look into how this works, let&rsquo;s look at the demo code we&rsquo;ll be using. If you read the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post, the code should look fairly familiar. So, on a SQL Server 2017 RC1 installation, let us first make sure that we are correctly configured:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -344,7 +356,9 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Create Databases</em></p>
 <p>For now, don&rsquo;t worry about the <code>DeployDB</code> database, the database that will be the &ldquo;production&rdquo; database and to where we want to deploy an assembly is <code>TrustedAsmDB</code>.</p>
-<p>With the databases created, the CLR code we will use is some of what we used in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post:</p>
+<p>With the databases created, the CLR code we will use is some of what we used in the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -426,7 +440,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 4:</strong> <em>Create Assembly</em></p>
-<p>When executing the code in <em>Code Snippet 4</em>, you&rsquo;ll get almost the same error message as we initially saw in <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a>, when we tried an deploy an assembly without the assembly being signed:</p>
+<p>When executing the code in <em>Code Snippet 4</em>, you&rsquo;ll get almost the same error message as we initially saw in 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a>, when we tried an deploy an assembly without the assembly being signed:</p>
 <p>
   <img src="/images/posts/sql2k17_trust_asms_creation_fail.png" alt="">
 
@@ -608,7 +624,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 11:</strong>  <em>Create and Execute an Unsafe Function</em></p>
-<p>Ouch, the creation of the function succeeded, but when you executed the function you received an error that we also saw in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post. The error says something about not having necessary permissions to do the operation. This normally happens if the assembly has not been assigned the correct <code>PERMISSION_SET</code> when it was created.</p>
+<p>Ouch, the creation of the function succeeded, but when you executed the function you received an error that we also saw in the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post. The error says something about not having necessary permissions to do the operation. This normally happens if the assembly has not been assigned the correct <code>PERMISSION_SET</code> when it was created.</p>
 <p>So, if you drop the functions and the assembly, and recreate the assembly with <code>PERMISSION_SET = UNSAFE</code>, then when you have recreated the functions, all should work.</p>
 <p>The slightly interesting thing with this is that even when you mark an assembly as trusted, it still has to be created with the correct permission set.</p>
 <h2 id="dropping-a-trusted-assembly">Dropping a Trusted Assembly</h2>
@@ -631,7 +649,9 @@ if (!doNotTrack) {
 <p><strong>Figure 6:</strong> <em>Assembly Not Trusted</em></p>
 <p>Based on the error message we get, it definitely seems like SQL Server checks whether the assembly is either signed or trusted during execution. So, no security hole.</p>
 <h2 id="summary">Summary</h2>
-<p>In the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post I summarized the new SQL Server 2017 SQLCLR security requirements with: <em>All type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) have to be authorized for <code>UNSAFE</code> access.</em></p>
+<p>In the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post I summarized the new SQL Server 2017 SQLCLR security requirements with: <em>All type of assemblies (<code>SAFE</code>, <code>EXTERNAL_ACCESS</code>, <code>UNSAFE</code>) have to be authorized for <code>UNSAFE</code> access.</em></p>
 <p>With the release of SQL Server 2017 RC1 there is another option and that is, that the assembly is marked as trusted. You mark an assembly as trusted by the stored procedure <code>sys.sp_add_trusted_assembly</code>.</p>
 <p>The security choices you now have for an assembly in SQL Server 2017 are:</p>
 <ul>
@@ -641,9 +661,13 @@ if (!doNotTrack) {
 <li>The assembly is marked as trustworthy by the <code>sys.sp_add_trusted_assembly</code> procedure.</li>
 </ul>
 <p>Marking an assembly as trusted does not mean that you can do whatever you want in the assembly, you still need to deploy the assembly with the correct permission set based on your operations in the assembly.</p>
-<p>I&rsquo;m finishing this summary with the same caveat as I had in the <a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post: Bear in mind that all the above are based on SQL Server 2017 RC1. Things may change up until release.</p>
+<p>I&rsquo;m finishing this summary with the same caveat as I had in the 
+
+<a href="/post/2017-07-02-sql-server-2017-sqlclr-and-permissions/">SQL Server 2017, SQLCLR and Permissions</a> post: Bear in mind that all the above are based on SQL Server 2017 RC1. Things may change up until release.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

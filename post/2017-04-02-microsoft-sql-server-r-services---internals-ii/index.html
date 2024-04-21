@@ -236,10 +236,16 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the third post in a series about <strong>Microsoft SQL Server R Services</strong>, and the second post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">previous internals post</a> we looked at what happens inside the SQL Server engine when  we execute <code>sp_execute_external_script</code>. In that post we wrapped up when we reached the launchpad service (<em>Launchpad.exe</em>). This post will look closer at the launchpad service, and we will do it by some more &ldquo;spelunking&rdquo;</p>
+                <p>This is the third post in a series about <strong>Microsoft SQL Server R Services</strong>, and the second post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">previous internals post</a> we looked at what happens inside the SQL Server engine when  we execute <code>sp_execute_external_script</code>. In that post we wrapped up when we reached the launchpad service (<em>Launchpad.exe</em>). This post will look closer at the launchpad service, and we will do it by some more &ldquo;spelunking&rdquo;</p>
 <h2 id="recap">Recap</h2>
-<p>In both previous posts about SQL Server R Services I have mentioned that the launchpad service is responsible for launching an external runtime when we execute <code>sp_execute_external_script</code>. In the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals I</a> post the following picture showed what happened inside the SQL server engine when executing the procedure:</p>
+<p>In both previous posts about SQL Server R Services I have mentioned that the launchpad service is responsible for launching an external runtime when we execute <code>sp_execute_external_script</code>. In the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals I</a> post the following picture showed what happened inside the SQL server engine when executing the procedure:</p>
 <p>
   <img src="/images/posts/sql-launchpad_post.png" alt="">
 
@@ -247,7 +253,9 @@ if (!doNotTrack) {
 <p><strong>Figure 1:</strong> <em>Call Flow Executing sp_execute_external_script</em></p>
 <p>From <em>Figure 1</em> we see how an named pipe connection is opened from the SQL Server engine into the launchpad service, and eventually the routine <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> writes a message to the service. The message will at one stage or another cause the <code>launchpad!CLaunchContext::Launch</code> routine in the launchpad service to be called. In a little while we&rsquo;ll see how we came to that conclusion.</p>
 <h2 id="launchpad">Launchpad</h2>
-<p>Launchpad is a new service installed together with SQL Server 2016, and it is there to support execution of scripts targeting external runtimes/engines. The launchpad service calls into launchers, and it is the launcher&rsquo;s job to launch the correct runtime/engine. How does the launchpad service know what launcher dll to call into? To answer that, cast your mind back to the previous post about <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals</a>, in that post we looked at the procedure used to execute external scripts: <code>sp_execute_external_script</code>, and we executed some code like so:</p>
+<p>Launchpad is a new service installed together with SQL Server 2016, and it is there to support execution of scripts targeting external runtimes/engines. The launchpad service calls into launchers, and it is the launcher&rsquo;s job to launch the correct runtime/engine. How does the launchpad service know what launcher dll to call into? To answer that, cast your mind back to the previous post about 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals</a>, in that post we looked at the procedure used to execute external scripts: <code>sp_execute_external_script</code>, and we executed some code like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -327,7 +335,9 @@ launchpad.exe
 </code></pre><p><strong>Code Snippet 3:</strong> <em>Example of How to Launch Launchpad Defining Multiple Launchers</em></p>
 <p>Notice how in <em>Code Snippet 3</em> above, multiple launchers are defined, and a launcher for Python being one of them. Maybe we&rsquo;ll soon see Python being supported as well!</p>
 <h3 id="windbg-investigations">WinDbg Investigations</h3>
-<p>By now we know (or at least we have a strong hunch) that during startup of the launchpad service, the launchers are loaded. Now it is time to start drilling down in what happens inside the launchpad service when we execute code as in <em>Code Snippet 1</em>. First, let us look at what happens during connection from the SQL Server engine to the launchpad service. In the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I post</a> I mentioned how SQL Server opens a named pipe connection to the launchpad service in the <code>sqllang!CSQLSatelliteConnection::OpenNPConnection</code> routine.</p>
+<p>By now we know (or at least we have a strong hunch) that during startup of the launchpad service, the launchers are loaded. Now it is time to start drilling down in what happens inside the launchpad service when we execute code as in <em>Code Snippet 1</em>. First, let us look at what happens during connection from the SQL Server engine to the launchpad service. In the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I post</a> I mentioned how SQL Server opens a named pipe connection to the launchpad service in the <code>sqllang!CSQLSatelliteConnection::OpenNPConnection</code> routine.</p>
 <p>When named pipes are used, the client connects to a certain named pipe through the <code>ConnectNamedPipe</code> routine. Let&rsquo;s do some &ldquo;spelunking&rdquo; in the launchpad service using WinDbg, and see if we can find anything that can have anything to do with named pipes:</p>
 <ol>
 <li>Stop the launchpad service if it is running.</li>
@@ -336,7 +346,9 @@ launchpad.exe
 <li>Reload the symbols: <code>.reload /f</code>.</li>
 </ol>
 <blockquote>
-<p><strong>NOTE:</strong> The <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals - I post</a> has more information how to attach to a process, and what commands to use.</p>
+<p><strong>NOTE:</strong> The 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals - I post</a> has more information how to attach to a process, and what commands to use.</p>
 </blockquote>
 <p>Now, do a search for routines named like <code>ConnectNamedPipe</code>: <code>x *!*ConnectNamedPipe*</code>:</p>
 <p>
@@ -486,7 +498,9 @@ ProcessPool::CreateProcess(MSSQLSERVER01-ss-2,
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6:</strong> <em>Call Stack at Exception</em></p>
-<p>In <em>Code Snippet 6</em> we see the <code>launchpad!CLaunchContext::Launch</code> routine, the same we identified in the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>. That routine has an important part to play when calling into the launcher. When you look at <em>Code Snippet 5</em> you also see routines from the <code>RLauncher</code> module. Unfortunately we cannot really see what goes on inside the launcher as there is no symbol file for it.</p>
+<p>In <em>Code Snippet 6</em> we see the <code>launchpad!CLaunchContext::Launch</code> routine, the same we identified in the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>. That routine has an important part to play when calling into the launcher. When you look at <em>Code Snippet 5</em> you also see routines from the <code>RLauncher</code> module. Unfortunately we cannot really see what goes on inside the launcher as there is no symbol file for it.</p>
 <p>Coming back to <code>launchpad!CLaunchContext::Launch</code>; I said it has an important part to play, and it does. However the <code>launchpad!CLaunchContext::LaunchServTask</code> routine which you also can see in <em>Code Snippet 6</em> is even more important. That routine sets up most of the things that happen when SQL Server calls into the launchpad service. When I talked about the named pipe connection and how things happened in parallel, if you were to set a breakpoint at <code>launchpad!CLaunchContext::Launch</code> and then output the call-stack and compared that call-stack to what is shown in <em>Code Snippet 4</em>, you would see that both call-stacks have the same originating methods and addresses.</p>
 <p>Seeing that we don&rsquo;t have symbol files for the RLauncher module we have to &ldquo;hunt&rdquo; around in WinDbg as well as making some assumptions of what is happening if we want to go further in the &ldquo;spelunking&rdquo;. When we, in <em>Code Snippet 5</em> looked at the exception we received in the debugger we saw something about <code>CreateProcess</code>, and we already saw the <code>Launch</code> routine in <em>Code Snippet 6</em>. What if we were to look for something like that in the <code>launchpad</code> module: <code>x launchpad!*Launch*Process*</code>. That reveals:</p>
 <ul>
@@ -509,7 +523,9 @@ ProcessPool::CreateProcess(MSSQLSERVER01-ss-2,
 <p><strong>Figure 10:</strong> <em>After LaunchProcess</em></p>
 <p>In <em>Figure 10</em> we now see how some instances of <code>RTerm.exe</code> has been spun up. In next post we&rsquo;ll look at why there are multiple instances.</p>
 <p><strong>UPDATE:</strong> After &ldquo;spelunking&rdquo; for the <strong>Microsoft SQL Server R Services - Internals III</strong> post (still in the works), I realized that I over-simplified the above, so I have tried to make it somewhat more clearer below.</p>
-<p>Though it is correct to say that the actual launch of R happens in the <code>launchpad!PhysicalUserContext::LaunchProcess</code>, it is more to it than that. If we were to set a breakpoint at <code>launchpad!CLaunchContext::Launch</code>, and when we reach that breakpoint we would do &ldquo;Watch and Trace&rdquo; (<a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497(v=vs.85).aspx"><code>wt</code></a>), we would get a very lengthy trace, containing all calls being made.</p>
+<p>Though it is correct to say that the actual launch of R happens in the <code>launchpad!PhysicalUserContext::LaunchProcess</code>, it is more to it than that. If we were to set a breakpoint at <code>launchpad!CLaunchContext::Launch</code>, and when we reach that breakpoint we would do &ldquo;Watch and Trace&rdquo; (
+
+<a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff561497%28v=vs.85%29.aspx" target="_blank" rel="noopener"><code>wt</code></a>), we would get a very lengthy trace, containing all calls being made.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Some routines (<code>launchpad!PhysicalUserContext::LaunchProcess</code> amongst them) may be too long for the WinDbg console, so <code>wt</code> can also be written to a log-file, using WinDbg menu <em>Edit | Open/Close Log File</em>.</p>
 </blockquote>
@@ -556,7 +572,9 @@ ProcessPool::CreateProcess(MSSQLSERVER01-ss-2,
 </div>
 </div><p><strong>Code Snippet 7:</strong> <em>Trace output from launchpad!CLaunchContext::Launch</em></p>
 <p>Setting breakpoints and stepping through the code I saw how the R process (RTerm.exe) was spun up inside the <code>KERNELBASE!CreateProcessInternalW</code> routine.</p>
-<p>So if that creates the R process, when and how is the actual data being passed over to the R runtime? Remember back from the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>, where we saw how the actual data was written to the launchpad service in the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> routine. What if there is something similar in the launchpad service? Let us see what we find if we execute <code>x *!*WriteMessage*</code>. Oh, among the result is <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>; that looks something that would be worth looking into. Let us set a breakpoint at <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>, and execute the code again. We are breaking at out various breakpoints, and we also break at <code>WriteMessage</code>. If we output the call-stack, it looks like so:</p>
+<p>So if that creates the R process, when and how is the actual data being passed over to the R runtime? Remember back from the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>, where we saw how the actual data was written to the launchpad service in the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> routine. What if there is something similar in the launchpad service? Let us see what we find if we execute <code>x *!*WriteMessage*</code>. Oh, among the result is <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>; that looks something that would be worth looking into. Let us set a breakpoint at <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>, and execute the code again. We are breaking at out various breakpoints, and we also break at <code>WriteMessage</code>. If we output the call-stack, it looks like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -590,7 +608,9 @@ ProcessPool::CreateProcess(MSSQLSERVER01-ss-2,
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 7:</strong> <em>Callstack for launchpad!CSQLSatelliteConnection::WriteMessage</em></p>
-<p>If we were to step through the routine we&rsquo;d see it looks quite like the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> which we looked at in the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>. Having reached this point we can now with somewhat certainty assume that after we have launched the process, the launchpad service sends the actual data packet to the R engine through the <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> routine. And this is where we leave it for now.</p>
+<p>If we were to step through the routine we&rsquo;d see it looks quite like the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> which we looked at in the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">internals I post</a>. Having reached this point we can now with somewhat certainty assume that after we have launched the process, the launchpad service sends the actual data packet to the R engine through the <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> routine. And this is where we leave it for now.</p>
 <h2 id="summary">Summary</h2>
 <p>We should now have a somewhat better understanding of what happens when the launchpad service is called from SQL Server. In <em>Figure 11</em> below shows some of the significant events/calls when <code>sp_execute_external_script</code> is executed:</p>
 <p>
@@ -615,7 +635,9 @@ ProcessPool::CreateProcess(MSSQLSERVER01-ss-2,
 <li>Finally after the processes have been launched, <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> is called.</li>
 </ol>
 <p>Some of the above are, somewhat, educated guesswork since I don&rsquo;t have the symbol file for <code>RLauncher.dll</code>. I do however believe it is more or less accurate. In the next internals post we&rsquo;ll look at what happens in the RTerm process.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

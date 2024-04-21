@@ -240,12 +240,24 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the sixth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fifth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we looked at how the launchpad service creates <strong>RTerm</strong> processes when we execute an external script.</p>
-<p>The <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> post came about due to an email from Bob Albright (<a href="https://twitter.com/bob_albright">@bob_albright</a>), pointing me to some resources (a blog-post) regarding the processes the launchpad service creates.</p>
+                <p>This is the sixth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the fifth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we looked at how the launchpad service creates <strong>RTerm</strong> processes when we execute an external script.</p>
+<p>The 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> post came about due to an email from Bob Albright (
+
+<a href="https://twitter.com/bob_albright" target="_blank" rel="noopener">@bob_albright</a>), pointing me to some resources (a blog-post) regarding the processes the launchpad service creates.</p>
 <p>In his email Bob also, kindly enough, attached some code. The code highlighted some behavior when creating the RTerm processes, especially around parallelism. In this blog-post we&rsquo;ll follow up on that and look into the effect parallelism has on process creation.</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we saw how:</p>
+<p>In 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, we saw how:</p>
 <ul>
 <li>The launchpad service creates by default 6 RTerm processes when an external script is executed by a user. One of the processes will be used for the execution of the script and torn down afterwards. The other 5 is added to the process pool. In essence the launchpad service creates 5 + 1.</li>
 <li>If more (or less) processes than 5 is needed, a setting <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> can be set in <code>rlauncher.config</code>. The value of the setting defines number of processes to create (as with default it will be setting value + 1).</li>
@@ -256,7 +268,9 @@ if (!doNotTrack) {
 </li>
 </ul>
 <p>Previously I had the assumption that &ldquo;somehow&rdquo; the number of processes created had to be configurable, and that the reason for creating multiple processes has to do with performance.</p>
-<p>In the post we verified that, and this was much due to the <a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/">blog-post</a> Bob pointed to in his - previously mentioned - email. That particular post also briefly mentioned <code>MAXDOP</code>, and what to think about in terms of pool size. That and Bob&rsquo;s code lead to this blog-post.</p>
+<p>In the post we verified that, and this was much due to the 
+
+<a href="https://blogs.msdn.microsoft.com/microsoftrservertigerteam/2016/09/20/tips-sql-r-services-optimization-for-concurrent-execution-of-in-database-analytics-using-sp_execute_external_script/" target="_blank" rel="noopener">blog-post</a> Bob pointed to in his - previously mentioned - email. That particular post also briefly mentioned <code>MAXDOP</code>, and what to think about in terms of pool size. That and Bob&rsquo;s code lead to this blog-post.</p>
 <h2 id="code">Code</h2>
 <p>Before diving into the &ldquo;stuff&rdquo;, let&rsquo;s look at the code we&rsquo;ll use. The code we have used in previous posts has been very, very minimal. Today we&rsquo;ll be &ldquo;very advanced&rdquo; and select data from a table in a database - talk about cutting edge!! What we want to do is to execute some linear regression functions against data, and see what happens in different scenarios.</p>
 <p>In <em>Code Snippet 1</em> below, we set up the database and a table with some data we can use, all in all 30 million records:</p>
@@ -413,12 +427,20 @@ if (!doNotTrack) {
 <p>So the code in <em>Code Snippet 3</em> is what we will &ldquo;play&rdquo; around with in this post. Some comments:</p>
 <ul>
 <li>First line of the script (the <code>@script</code> parameter) is commented out; <code>Sys.sleep(30)</code>. We&rsquo;ll use it at one stage to be able to look a little bit closer at what is happening.</li>
-<li>As we did in <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> we grab the process id of the RTerm process the code executes under.</li>
+<li>As we did in 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a> we grab the process id of the RTerm process the code executes under.</li>
 <li>In the <code>OutputDataSet</code> variable we output a data-frame consisting of the process id, how many rows we processed and the intercept value.</li>
 <li>The output data is being presented as a result set, by the <code>WITH RESULT SETS ...</code> statement.</li>
 <li>Oh, and for &ldquo;giggles&rdquo; we check how long the execution takes (first line and last line).</li>
 </ul>
-<p>In addition to the code above, we&rsquo;ll also use <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx"><strong>Process Explorer</strong></a>, to see how many processes are created as well as memory consumption etc. If you have read <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, you should be comfortable with <em>Process Explorer</em>.</p>
+<p>In addition to the code above, we&rsquo;ll also use 
+
+<a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx" target="_blank" rel="noopener"><strong>Process Explorer</strong></a>, to see how many processes are created as well as memory consumption etc. If you have read 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>, you should be comfortable with <em>Process Explorer</em>.</p>
 <h2 id="parallel-execution">Parallel Execution</h2>
 <p>So the blog-post is about what impact parallel processing will have on the process creation, but before we go down that &ldquo;rabbit&rdquo; hole, let&rsquo;s see what it looks like during non-parallel execution:</p>
 <ul>
@@ -430,7 +452,11 @@ if (!doNotTrack) {
 <p>In <em>Process Explorer</em> you should see something similar to this:</p>
 <p>!{}(/images/posts/sql_r_services_lin_reg1.png)</p>
 <p><strong>Figure 1:</strong> <em>Processes from Code Execution</em></p>
-<p>What you see in <em>Figure 1</em> matches pretty good with what we discussed in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>; while a single user executes <code>sp_execute_external_script</code> 6 RTerm processes are alive, and one of the processes is the process where the script executes under. In this case it was process id 10120, and we determined that from the CPU value (.32) as well as Private Bytes: 1,023,376 K and Working Set 189,268 K respectively.  We can further confirm the process the code executed under by looking at the result coming back:</p>
+<p>What you see in <em>Figure 1</em> matches pretty good with what we discussed in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">Internals - IV</a>; while a single user executes <code>sp_execute_external_script</code> 6 RTerm processes are alive, and one of the processes is the process where the script executes under. In this case it was process id 10120, and we determined that from the CPU value (.32) as well as Private Bytes: 1,023,376 K and Working Set 189,268 K respectively.  We can further confirm the process the code executed under by looking at the result coming back:</p>
 <p>
   <img src="/images/posts/sql_r_services_lin_reg1_result.png" alt="">
 
@@ -443,7 +469,11 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 3:</strong> <em>Actual Query Plan</em></p>
 <p>In <em>Figure 3</em> we see how we do clustered index scan for our rows and then hand it over to the UDX operator. The UDX operator comes normally in play when we do XML related processes, but - as we can see - it also comes into the picture for external scripts. It kind of makes sense as it is an <strong>Extended Operator</strong>.</p>
-<p>This is all well and good, but it is not really anything new from what we discussed in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a>.</p>
+<p>This is all well and good, but it is not really anything new from what we discussed in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> and 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a>.</p>
 <p>So what about parallel execution? When you read documentation about <strong>SQL Server R Services</strong> it always mentions how efficient it is to execute external scripts as one can utilize SQL&rsquo;s parallelism. How does this work then? In &ldquo;normal&rdquo; SQL Server parallelism, SQL Server decides whether to execute a statement in parallel or not, and the <code>MAXDOP</code> setting defines the number of processors the statement will execute on.</p>
 <p>For <strong>SQL Server R Services</strong> it works in a similar way, except that you have to explicitly say that you want to execute in parallel. To specify parallel execution you use a parameter on the <code>sp_execute_external_script</code> procedure: <code>@parallel</code>. The parameter can either be either 0, no parallelism which is default, or 1.</p>
 <blockquote>
@@ -481,7 +511,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 4:</strong> <em>Result from Parallel Execution</em></p>
-<p>In <em>Figure 4</em> we see how the results are returned from 8 RTerm process id&rsquo;s. This is to be expected when SQL uses parallelism and <code>MAXDOP</code> is 0. Oh, and BTW - according to people &ldquo;in the know&rdquo; you should not have <code>MAXDOP</code> set to 0 if you run on an HT box. <a href="https://www.mssqltips.com/sqlservertip/2650/what-maxdop-setting-should-be-used-for-sql-server/">Here</a> is an article about <code>MAXDOP</code> settings.</p>
+<p>In <em>Figure 4</em> we see how the results are returned from 8 RTerm process id&rsquo;s. This is to be expected when SQL uses parallelism and <code>MAXDOP</code> is 0. Oh, and BTW - according to people &ldquo;in the know&rdquo; you should not have <code>MAXDOP</code> set to 0 if you run on an HT box. 
+
+<a href="https://www.mssqltips.com/sqlservertip/2650/what-maxdop-setting-should-be-used-for-sql-server/" target="_blank" rel="noopener">Here</a> is an article about <code>MAXDOP</code> settings.</p>
 <p>We also see from <em>Figure 4</em> that we executed in ~8.7 seconds, roughly half the time it took when we didn&rsquo;t use parallelism.</p>
 <blockquote>
 <p><strong>NOTE:</strong> There is no guarantee that you will improve performance by using parallelism, so it is a good idea to always test against the workloads you are using.</p>
@@ -514,7 +546,9 @@ if (!doNotTrack) {
 <h3 id="cran-r-functions">CRAN R Functions</h3>
 <p>So far we have used RevoScaleR functions in our script code, what happens if we want to use a CRAN R function instead. Something similar to what is in <em>Code Snippet 2</em>? That works fine as well, multiple RTerm processes will process the data. I will not show the code here, but you can easily try it our yourselves.</p>
 <h2 id="max-degree-of-parallelism-maxdop">Max Degree of Parallelism (MAXDOP)</h2>
-<p>So <code>MAXDOP</code> is a way to indicate to SQL Server how many processors to execute a piece of code on. Or rather, it is a way to limit SQL Server from running a statement over all processors on the box. As this post is not about <code>MAXDOP</code> as such, I won&rsquo;t go into details about it, but if you want to know more <a href="https://blogs.msdn.microsoft.com/arali/2009/11/25/sql-server-max-degree-of-parallelism-maxdop/">here is an MSDN article</a> covering <code>MAXDOP</code>. Anyway, <code>MAXDOP</code> is set on SQL Server instance level, but can also be used as query hint on individual queries.</p>
+<p>So <code>MAXDOP</code> is a way to indicate to SQL Server how many processors to execute a piece of code on. Or rather, it is a way to limit SQL Server from running a statement over all processors on the box. As this post is not about <code>MAXDOP</code> as such, I won&rsquo;t go into details about it, but if you want to know more 
+
+<a href="https://blogs.msdn.microsoft.com/arali/2009/11/25/sql-server-max-degree-of-parallelism-maxdop/" target="_blank" rel="noopener">here is an MSDN article</a> covering <code>MAXDOP</code>. Anyway, <code>MAXDOP</code> is set on SQL Server instance level, but can also be used as query hint on individual queries.</p>
 <p>Setting <code>MAXDOP</code> for individual statements also work for the statement used in the <code>@input_data_1</code> parameter on the <code>sp_execute_external_script</code> procedure. So in our code example was can change the <code>@input_data_1</code> parameter to look like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -564,8 +598,14 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 7:</strong> Tasks, Workers and Schedulers*</p>
 <p>Ok, we see multiple schedulers, tasks and workers being active when we execute our code, and there is nothing strange in that. Seeing that, I would then have expected that there would be a one-to-one relationship between the tasks and the calls into the launchpad service, but that is not the case.</p>
-<p>I verified that by &ldquo;firing up&rdquo; my trusted debugger <strong>WinDbg</strong> and attached it to the launchpad process, similar to what we did in <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a>. I then set a breakpoint at <code>launchpad!CLaunchContext::LaunchServTask</code>, and executed the code. My expectation was that I would see how the breakpoint was hit multiple times when I executed with parallelism.</p>
-<p>That did not happen, the breakpoint was hit once, and that was it. That leaves me with the question how SQL Server interacts with the launchpad service when executing with parallelism. My guess is that when SQL Server calls into the launchpad service, (which we discussed at length in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">II</a>), it tells the launchpad service that this call requires parallelism, and the level of it. But as I said, this is just a guess. Maybe someone out there can clarify what goes on.</p>
+<p>I verified that by &ldquo;firing up&rdquo; my trusted debugger <strong>WinDbg</strong> and attached it to the launchpad process, similar to what we did in 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a>. I then set a breakpoint at <code>launchpad!CLaunchContext::LaunchServTask</code>, and executed the code. My expectation was that I would see how the breakpoint was hit multiple times when I executed with parallelism.</p>
+<p>That did not happen, the breakpoint was hit once, and that was it. That leaves me with the question how SQL Server interacts with the launchpad service when executing with parallelism. My guess is that when SQL Server calls into the launchpad service, (which we discussed at length in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">II</a>), it tells the launchpad service that this call requires parallelism, and the level of it. But as I said, this is just a guess. Maybe someone out there can clarify what goes on.</p>
 <h2 id="summary">Summary</h2>
 <p>In this post I wanted to look at how parallelism affects the creation of RTerm processes in <strong>SQL Server R Services</strong>. The conclusion is that it does:</p>
 <ul>
@@ -578,8 +618,12 @@ if (!doNotTrack) {
 <li>Parallelism works with CRAN R functions as well as RevoScaleR.</li>
 <li>The <code>MAXDOP</code> setting has impact on the parallelism.</li>
 </ul>
-<p>So that&rsquo;s for now! Thanks once again to <a href="https://twitter.com/bob_albright">Bob</a> for his input and code!! And as I mentioned above, if anyone has input how SQL Server interacts with the launchpad service, when parallelism is in play - I&rsquo;d be more than happy to hear about it.</p>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>So that&rsquo;s for now! Thanks once again to 
+
+<a href="https://twitter.com/bob_albright" target="_blank" rel="noopener">Bob</a> for his input and code!! And as I mentioned above, if anyone has input how SQL Server interacts with the launchpad service, when parallelism is in play - I&rsquo;d be more than happy to hear about it.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

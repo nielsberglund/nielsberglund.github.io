@@ -260,12 +260,22 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>I wrote the post <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> about how the <strong>SQL Server Compute Context</strong> (SQLCC) works with <code>sp_execute_external_script</code> (SPEES), as I wanted to correct some mistakes I did in the <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post. I initially thought one post would be enough, but quite soon I realised I was too optimistic, and at least one more post would be needed, if not more. So this is the first followup post about SPEES and SQLCC.</p>
-<p>To see other posts (including this) in the series, go to <a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
-<p>One of the reasons for me realising that one post is not enough is that while I wrote and executed code for the first <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">post</a>, I noticed some fairly significant performance differences using SQLCC compared to not using SQLCC (SQLCC performed better :)). So that is part of what we look at in this post.</p>
+                <p>I wrote the post 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> about how the <strong>SQL Server Compute Context</strong> (SQLCC) works with <code>sp_execute_external_script</code> (SPEES), as I wanted to correct some mistakes I did in the 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">Microsoft SQL Server R Services - sp_execute_external_script - III</a> post. I initially thought one post would be enough, but quite soon I realised I was too optimistic, and at least one more post would be needed, if not more. So this is the first followup post about SPEES and SQLCC.</p>
+<p>To see other posts (including this) in the series, go to 
+
+<a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
+<p>One of the reasons for me realising that one post is not enough is that while I wrote and executed code for the first 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">post</a>, I noticed some fairly significant performance differences using SQLCC compared to not using SQLCC (SQLCC performed better :)). So that is part of what we look at in this post.</p>
 <h2 id="recap">Recap</h2>
 <p>In quite a few posts about <strong>SQL Server Machine Learning Services</strong> we have discussed how, as part of the functionality in RevoScaleR, you can define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in the context of somewhere else: Hadoop, Spark and also SQL Server. So, in essence, you can run some code on your development machine and have it execute in the environments mentioned above.</p>
-<p>In the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post we saw that even when we executed from inside SQL Server, the compute context was the local context: <code>RxLocalSeq</code>. If we want to use the SQLCC we used <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
+<p>In the 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post we saw that even when we executed from inside SQL Server, the compute context was the local context: <code>RxLocalSeq</code>. If we want to use the SQLCC we used <code>RxInSqlServer</code> and <code>rxSetComputeContext</code>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -300,14 +310,18 @@ if (!doNotTrack) {
 <p><strong>NOTE:</strong> The connection string is for where we want to execute, not necessarily where the data we use resides.</p>
 </blockquote>
 <p>We also see in <em>Figure 1</em> how <code>RxInSqlServer</code> has the <code>numTasks</code> parameter for you to set the number of tasks (processes) to run for each computation. The parameter defines the maximum number of tasks SQL Server can use. SQL Server can, however, decide to start fewer processes. Finally in <em>Figure 1</em> we call <code>rxSetComputeContext</code> which ensures that any code with functions that support SQLCC, executes under the compute context.</p>
-<p>In the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post, we saw how when we execute inside of SQL Server via SPEES we by default run in the local context and only by setting the context as in <em>Code Snippet 1</em> we can execute in SQLCC.</p>
+<p>In the 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post, we saw how when we execute inside of SQL Server via SPEES we by default run in the local context and only by setting the context as in <em>Code Snippet 1</em> we can execute in SQLCC.</p>
 <p>An interesting observation when we set the <code>numTasks</code> parameter to a value greater than 1 is that when we run the code, we run it hosted in an <code>mpiexec.exe</code> process:</p>
 <p>
   <img src="/images/posts/sql_ml_services_comp_mpi.png" alt="">
 
 </p>
 <p><strong>Figure 1:</strong> <em>Parallel Execution in Compute Context</em></p>
-<p>In <em>Figure 1</em> we now see not only the &ldquo;usual&rdquo; RTerm and <code>BxlServer.exe</code> processes but also a new hosting process, outlined in red, <code>mpiexec.exe</code>. Underneath the <code>mpiexec.exe</code> process we see the <code>smpd.exe</code> process (outlined in green) and then four RTerm processes with <code>BxlServer.exe</code> processes which handle the workload. So, <code>mpiexec.exe</code> and <code>smpd.exe</code> are parts of <a href="https://msdn.microsoft.com/en-us/library/bb524831%28v=vs.85%29.aspx?f=255&amp;MSPPError=-2147217396"><strong>Microsoft MPI</strong></a> which is an implementation of MPI which is a communication protocol for programming parallel computers.</p>
+<p>In <em>Figure 1</em> we now see not only the &ldquo;usual&rdquo; RTerm and <code>BxlServer.exe</code> processes but also a new hosting process, outlined in red, <code>mpiexec.exe</code>. Underneath the <code>mpiexec.exe</code> process we see the <code>smpd.exe</code> process (outlined in green) and then four RTerm processes with <code>BxlServer.exe</code> processes which handle the workload. So, <code>mpiexec.exe</code> and <code>smpd.exe</code> are parts of 
+
+<a href="https://msdn.microsoft.com/en-us/library/bb524831%28v=vs.85%29.aspx?f=255&amp;MSPPError=-2147217396" target="_blank" rel="noopener"><strong>Microsoft MPI</strong></a> which is an implementation of MPI which is a communication protocol for programming parallel computers.</p>
 <p>All this is somewhat interesting, but the most interesting thing (at least for me) is the performance difference we saw when executing the same code in the local context compared to the SQLCC. When executing with <code>numTasks</code> set to 1 (as it would be under the local context) code that ran in ~40 seconds in the local context took ~30 seconds to run in SQLCC! Once again, we did not run it with multiple tasks in SQLCC, so just be running in SQLCC we received a performance gain of about 30%!</p>
 <blockquote>
 <p><strong>NOTE:</strong> The performance gain is of course not always 30%, it depends on data volumes.</p>
@@ -402,13 +416,17 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Setup of Database, Table and Data</em></p>
-<p>We use more or less the same database and database object as in the <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post:</p>
+<p>We use more or less the same database and database object as in the 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> post:</p>
 <ul>
 <li>A database: <code>TestParallel</code>.</li>
 <li>A table: <code>dbo.tb_Rand_50M</code>. This table contains the data we want to analyse.</li>
 </ul>
 <p>In addition to creating the database and the table <em>Code Snippet 2</em> also loads 50 million records into the <code>dbo.tb_Rand_50M</code>. Be aware that when you run the code in <em>Code Snippet 2</em> it may take some time to finish due to the loading of the data. Yes, I know - the data is entirely useless, but it is a lot of it, and it helps to illustrate what we want to do.</p>
-<p>The code we use is almost like what we used in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>:</p>
+<p>The code we use is almost like what we used in 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -482,7 +500,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 3:</strong> <em>Test Code</em></p>
 <p>As we see in <em>Code Snippet 3</em> we parameterize the <code>sp_execute_external_script</code> call, and we have parameters for whether to use the SQLCC and also how many tasks to run when executing in the context. The default is to execute in the local context, and when executing in SQLCC <code>numTasks</code> is 1.</p>
 <h2 id="performance-differences">Performance Differences</h2>
-<p>To start with, let us repeat - more or less - what we did in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> and compare execution times when running in the local context (<code>@isCtx = 0</code>) and when in SQLCC  (<code>@isCtx = 1</code>). In both cases, we execute with the default number of tasks (<code>numTasks = 1</code>).</p>
+<p>To start with, let us repeat - more or less - what we did in 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a> and compare execution times when running in the local context (<code>@isCtx = 0</code>) and when in SQLCC  (<code>@isCtx = 1</code>). In both cases, we execute with the default number of tasks (<code>numTasks = 1</code>).</p>
 <blockquote>
 <p><strong>NOTE:</strong> Do a couple of executions in the local context as well as in the SQLCC to ensure you get representative numbers for both.</p>
 </blockquote>
@@ -491,7 +511,9 @@ if (!doNotTrack) {
 <li>Local context: ~40 seconds</li>
 <li>SQLCC: ~24 seconds</li>
 </ul>
-<p>So, the same workload shows an approximately 40% performance improvement when running in the SQLCC compared to the local context and this is in line with what we saw in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>. Why is this, we do the same things:</p>
+<p>So, the same workload shows an approximately 40% performance improvement when running in the SQLCC compared to the local context and this is in line with what we saw in 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>. Why is this, we do the same things:</p>
 <ul>
 <li>We load data</li>
 <li>We apply the <code>rxLinMod</code> function.</li>
@@ -614,7 +636,19 @@ if (!doNotTrack) {
 <li>The <code>BxlServer.exe</code> does the processing.</li>
 <li>SQL Server receives data back from the SqlSatellite.</li>
 </ol>
-<p>The <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series covered in &ldquo;excruciating&rdquo; details what data SQL Server sends to the BxlServer. If you want to read up on it I suggest <strong>Internals</strong> <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a>, <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, <a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a>, <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">XIV</a> and <a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">XV</a>.</p>
+<p>The 
+
+<a href="/sql_server_2k16_r_services">SQL Server R Services</a> series covered in &ldquo;excruciating&rdquo; details what data SQL Server sends to the BxlServer. If you want to read up on it I suggest <strong>Internals</strong> 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a>, 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, 
+
+<a href="/post/2017-10-31-microsoft-sql-server-r-services---internals-xii/">XII</a>, 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">XIV</a> and 
+
+<a href="/post/2017-12-02-microsoft-sql-server-r-services---internals-xv/">XV</a>.</p>
 <h4 id="investigation-using-performance-monitor">Investigation using Performance Monitor</h4>
 <p>To see what happens when we execute our three scenarios (local push, local pull, SQLCC pull) we set up some <em>Process Monitor</em> event filters to capture TCP traffic from SQL Server to the SqlSatellite, where <code>BxlServer.exe</code> is &ldquo;hosting&rdquo; the SqlSatellite. The filters we set up are for &ldquo;Process Name&rdquo; and &ldquo;Operation&rdquo;. We want the process to be <code>BxlServer.exe</code> and the operation &ldquo;TCP Receive&rdquo;.</p>
 <p>So, run <em>Process Monitor</em> as admin. To set the filter; under the <em>Filter</em> menu click the Filter menu item, and you see the &ldquo;Process Monitor Filter&rdquo; dialog. To create the filter we enter the conditions we want to match:</p>
@@ -637,7 +671,9 @@ if (!doNotTrack) {
 <p>We see in <em>Figure 6</em> that the output looks quite &ldquo;tidy&rdquo; and by looking at the <code>Path</code> column see a connection between SQL Server and the SqlSatellite on port 13273 (<code>win10-dev:13273</code>). Furthermore, we see:</p>
 <ul>
 <li>There is one <code>BxlServer.exe</code> process with a process id of 17260.</li>
-<li>The data the BxlServer receives are what we covered in the <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series.</li>
+<li>The data the BxlServer receives are what we covered in the 
+
+<a href="/sql_server_2k16_r_services">SQL Server R Services</a> series.</li>
 <li>The 50 rows we pushed to the BxlServer is the outlined (in blue) row with a length of 1392.</li>
 </ul>
 <p>Ok, so onto the local context pull:</p>
@@ -646,15 +682,21 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 7:</strong> <em>TCP Receive Local Context Pull</em></p>
-<p>Looking at <em>Figure 7</em> we see that there is quite a difference between when we push the data to the SqlSatellite. First, we see (highlighted in red) the usual connection between SQL Server and the SqlSatellite and how SQL Server sends data (authentication and script) to the SqlSatellite. Then, however, we see data going from SQL Server from a &ldquo;strange&rdquo; port: <code>ms-sql-s</code>. That &ldquo;name&rdquo; is <a href="http://www.t1shopper.com/tools/port-number/1433/"><em>IANA</em>&rsquo;s</a> (Internet Assigned Numbers Authority) definition for SQL Server&rsquo;s port 1433. As we know, port 1433 is the default port SQL uses for connections and retrieval of data. So it looks like that when we use pull, we connect to SQL Server over the default port and retrieves the data that way. Thinking about it, it makes sense as the connection is an ODBC connection. All the packets received by the SqlSatellite are the regular ODBC data packets. The actual 50 rows of data are in the packet outlined in blue with a length of 1358. As we use ODBC the protocol used to send the data is TDS.</p>
-<p>Oh, TDS - that is probably a reason why the local pull is slower than local push, as the local push uses the <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/"><strong>Binary eXchange Language</strong></a> protocol (BXL) which is very efficient for transferring data. Another reason why the local pull is slower than the local push, even with small datasets, is that for local pull there is much more happening, as we see in <em>Figure 7</em>.</p>
+<p>Looking at <em>Figure 7</em> we see that there is quite a difference between when we push the data to the SqlSatellite. First, we see (highlighted in red) the usual connection between SQL Server and the SqlSatellite and how SQL Server sends data (authentication and script) to the SqlSatellite. Then, however, we see data going from SQL Server from a &ldquo;strange&rdquo; port: <code>ms-sql-s</code>. That &ldquo;name&rdquo; is 
+
+<a href="http://www.t1shopper.com/tools/port-number/1433/" target="_blank" rel="noopener"><em>IANA</em>&rsquo;s</a> (Internet Assigned Numbers Authority) definition for SQL Server&rsquo;s port 1433. As we know, port 1433 is the default port SQL uses for connections and retrieval of data. So it looks like that when we use pull, we connect to SQL Server over the default port and retrieves the data that way. Thinking about it, it makes sense as the connection is an ODBC connection. All the packets received by the SqlSatellite are the regular ODBC data packets. The actual 50 rows of data are in the packet outlined in blue with a length of 1358. As we use ODBC the protocol used to send the data is TDS.</p>
+<p>Oh, TDS - that is probably a reason why the local pull is slower than local push, as the local push uses the 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/"><strong>Binary eXchange Language</strong></a> protocol (BXL) which is very efficient for transferring data. Another reason why the local pull is slower than the local push, even with small datasets, is that for local pull there is much more happening, as we see in <em>Figure 7</em>.</p>
 <p>Right, then what about SQLCC pull:</p>
 <p>
   <img src="/images/posts/sql_ml_services_compctx_II_procmon_pull_sqlcc2.png" alt="">
 
 </p>
 <p><strong>Figure 8:</strong> <em>TCP Receive SQLCC Pull</em></p>
-<p>Oh my, that is a lot! As in <em>Figure 7</em> the sections outlined in red is the connection between SQL Server and the SqlSatellite, and in blue it is the &ldquo;ODBC&rdquo; connection. What is noticeable is that there are multiple sections interleaved, as well that there are multiple <code>BxlServer.exe</code> processes involved (process id&rsquo;s 2108, 13360 and 15340). Well, maybe that is not such a surprise as we spoke about it in <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>.</p>
+<p>Oh my, that is a lot! As in <em>Figure 7</em> the sections outlined in red is the connection between SQL Server and the SqlSatellite, and in blue it is the &ldquo;ODBC&rdquo; connection. What is noticeable is that there are multiple sections interleaved, as well that there are multiple <code>BxlServer.exe</code> processes involved (process id&rsquo;s 2108, 13360 and 15340). Well, maybe that is not such a surprise as we spoke about it in 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">Context - I</a>.</p>
 <p>What is more interesting though is that we receive the dataset both via the ODBC connection outlined in blue (length 1358), as well as the way we do it in the local push context, outlined in purple (length 1392)! That means that SQL sends data using both the TDS protocol as well as the BXL protocol.</p>
 <p>By seeing the amount of &ldquo;stuff&rdquo; happening in <em>Figure 8</em> we do realise why the SQLCC pull is not as efficient as local push and local pull (1.6 s vs ~200 ms). Having seen all this, we probably ask ourselves why the SQLCC pull was a lot faster (~15 s) than local pull (~23 s) for a big dataset and somewhat faster than the local push (~17 s)?</p>
 <p>Let us execute the code in <em>Code Snippet 3</em> and <em>Code Snippet 4</em> with <code>TOP (30000000)</code> (30 million) and see what <em>Process Monitor</em> tells us. For local push, we see many packets with a size of 65495 which is the maximum size for BXL data package. When we execute the local pull, we see many TDS packets with a size of 4096 followed by many packages with sizes ranging from ~70,000 up to 2.5 Mb. For me, it looks like the local pull is nowhere as efficient as the local push. Finally, the SQLCC pull shows the same behaviour as local pull with many TDS 4096 packages. However, after the TDS packages follows BXL packages where most have the maximum size of 65495.</p>
@@ -674,7 +716,9 @@ if (!doNotTrack) {
 </ul>
 <p>After writing this post, I have quite a few questions which I will try to answer in a future post.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

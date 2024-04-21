@@ -240,13 +240,23 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the twelfth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eleventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In the last <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">post</a> we spoke about how the transfer of data happens between SQL Server and the R components, and we saw how data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server. In the post we mentioned that the protocol being used is  <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>), and this post was supposed to talk about BXL.</p>
-<p>However, while I was investigating BXL I did some WinDbg <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a> in SQL Server and came across some interesting &ldquo;stuff&rdquo; that ties into how data is being sent, so I decided to post about that instead (a future post will definitely cover BXL).</p>
+                <p>This is the twelfth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eleventh post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In the last 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">post</a> we spoke about how the transfer of data happens between SQL Server and the R components, and we saw how data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server. In the post we mentioned that the protocol being used is  <strong>Binary eXchange Language</strong> protocol(<strong>BXL</strong>), and this post was supposed to talk about BXL.</p>
+<p>However, while I was investigating BXL I did some WinDbg 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">&ldquo;spelunking&rdquo;</a> in SQL Server and came across some interesting &ldquo;stuff&rdquo; that ties into how data is being sent, so I decided to post about that instead (a future post will definitely cover BXL).</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, as mentioned above, we looked at how data was transferred from SQL Server to R. By using <strong>WireShark</strong> we could see how the data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server.</p>
+<p>In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, as mentioned above, we looked at how data was transferred from SQL Server to R. By using <strong>WireShark</strong> we could see how the data was transferred over the TCP connection between the <strong>SqlSatellite</strong> and SQL Server.</p>
 <blockquote>
-<p><strong>NOTE:</strong> We discussed the communications mechanisms in general and the TCP connection specifically in <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>.</p>
+<p><strong>NOTE:</strong> We discussed the communications mechanisms in general and the TCP connection specifically in 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>.</p>
 </blockquote>
 <p>To see what happens in SQL Server as well as the launchpad service when a script executes we set some break-points in WinDbg, for both processes:</p>
 <ul>
@@ -298,7 +308,9 @@ if (!doNotTrack) {
 <li><code>launchpad!CSQLSatelliteConnection::WriteMessage</code></li>
 </ol>
 <p>The above led us to the conclusion - which I voiced in the start of this recap - that data may not be sent via the launchpad service, but over the SqlSatellite TCP connection. The reason that conclusion was achieved was that some of the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> did not have a corresponding <code>launchpad!Np::ReadAsync</code>.</p>
-<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we further proved that theory by using <em>Process Monitor</em> and capturing what TCP packets were sent to the SqlSatellite (or rather <code>BxlServer.exe</code> - which hosts SqlSatellite). When executing the code in <em>Code Snippet 1</em> we saw <em>Process Monitor</em> output like so:</p>
+<p>In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a> we further proved that theory by using <em>Process Monitor</em> and capturing what TCP packets were sent to the SqlSatellite (or rather <code>BxlServer.exe</code> - which hosts SqlSatellite). When executing the code in <em>Code Snippet 1</em> we saw <em>Process Monitor</em> output like so:</p>
 <p>
   <img src="/images/posts/sql_r_services_10_procmon_output1.png" alt="">
 
@@ -343,9 +355,13 @@ if (!doNotTrack) {
 <h2 id="packets-sent-from-sql-server">Packets Sent from SQL Server</h2>
 <p>So let&rsquo;s start at the top; when we look at <em>Figure 1</em> we see two <code>TCP Receive</code> after the connection is opened, and these two have a length of 217 and 17 respectively. Regardless what we execute, we&rsquo;ll always see these two &ldquo;events&rdquo; and they will always have the same lengths. Seeing that they appear after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, it may have something to do with setup of the connection, or something like that. To find out what these events are, let&rsquo;s do some &ldquo;spelunking&rdquo; using WinDbg. Run WinDbg as admin and attach to the <code>sqlservr.exe</code> process.</p>
 <blockquote>
-<p><strong>NOTE:</strong> The <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach WinDbg to a process, and what commands to use.</p>
+<p><strong>NOTE:</strong> The 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> has more information how to attach WinDbg to a process, and what commands to use.</p>
 </blockquote>
-<p>When we look at the code flow above combining breakpoints together with the <em>Process Monitor</em> output we see that the two first <code>TCP Receive</code> events (the ones we are interested in appears after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, but there are no <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> preceding them. Let&rsquo;s see if we can find out something based on what <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> calls. In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we used the <code>uf [options] &lt;address&gt;</code> WinDbg command to see what a particular routine did, so let&rsquo;s do that for <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. In the WinDbg console execute <code>uf /c sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> (we&rsquo;re using the <code>/c</code> options which displays only the call instructions). That returns something like so:</p>
+<p>When we look at the code flow above combining breakpoints together with the <em>Process Monitor</em> output we see that the two first <code>TCP Receive</code> events (the ones we are interested in appears after <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>, but there are no <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> preceding them. Let&rsquo;s see if we can find out something based on what <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> calls. In 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we used the <code>uf [options] &lt;address&gt;</code> WinDbg command to see what a particular routine did, so let&rsquo;s do that for <code>sqllang!CUDXR_ExternalScript::ConnectToSatellite</code>. In the WinDbg console execute <code>uf /c sqllang!CUDXR_ExternalScript::ConnectToSatellite</code> (we&rsquo;re using the <code>/c</code> options which displays only the call instructions). That returns something like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -687,7 +703,9 @@ if (!doNotTrack) {
 <p>Our hunch was right, we can see how we are breaking at <code>AuthenticateConnection+0x100</code> right before the second <code>WriteAsync</code>. In other words the two packets we are interested in are both sent during authentication of the TCP/IP connection between SQL Server and SqlSatellite.</p>
 <h2 id="summary">Summary</h2>
 <p>In this post we set out to find out more about the two TCP/IP packets that are sent from SQL Server to the SqlSatellite, before the actual packages with the script etc., are sent. After some WinDbg &ldquo;spelunking&rdquo; we figured out that the packets were sent during the connection to the SqlSatellite, more specifically during <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code>.</p>
-<p>In <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> I had a figure which tried to illustrate what happens in SQL Server when executing <code>sp_execute_external_script</code>, and - based on that figure - I created a new figure where I have included what we found out in this post:</p>
+<p>In 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> I had a figure which tried to illustrate what happens in SQL Server when executing <code>sp_execute_external_script</code>, and - based on that figure - I created a new figure where I have included what we found out in this post:</p>
 <p>
   <img src="/images/posts/sql_r_services_11_calls.png" alt="">
 
@@ -704,7 +722,9 @@ if (!doNotTrack) {
 <p>Thus we have figured out what the two first packets are, and where they are sent from.</p>
 <p>In the next post we&rsquo;ll look at what is sending the packets containing the scripts, and what the flow looks like.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

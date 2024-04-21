@@ -248,13 +248,23 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the eleventh post in a series about <strong>Microsoft SQL Server R Services</strong>, and the tenth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
-<p>In <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> I said we were nearing the end of the internals part is this series, and I had planned this post to be the final post in the Internals part. However while investigating how data is sent between SQL Server and the external components I realized that I would need to probably do two more posts (apart from this) for Internals.</p>
+                <p>This is the eleventh post in a series about <strong>Microsoft SQL Server R Services</strong>, and the tenth post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+<p>In 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> I said we were nearing the end of the internals part is this series, and I had planned this post to be the final post in the Internals part. However while investigating how data is sent between SQL Server and the external components I realized that I would need to probably do two more posts (apart from this) for Internals.</p>
 <p>Anyway, in this post we&rsquo;ll see how data is sent to the R components from SQL Server.</p>
-<p>The &ldquo;cool&rdquo; thing by writing all these Internals posts is that as we go along, I learn more things about how it works. For example when I wrote the <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>, I was quite confident in how things worked. Today, how I thought it might have worked, is not entirely correct (as we&rsquo;ll see). So, as I said I have learned a lot along the way.</p>
+<p>The &ldquo;cool&rdquo; thing by writing all these Internals posts is that as we go along, I learn more things about how it works. For example when I wrote the 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a>, I was quite confident in how things worked. Today, how I thought it might have worked, is not entirely correct (as we&rsquo;ll see). So, as I said I have learned a lot along the way.</p>
 <h2 id="recap">Recap</h2>
-<p>Since I thought this would be the last Internals post I wanted to do a full recap what has been covered so far. We now know that this is not the last Internals post, but since I have done the work, lets do the full recap anyway even though there will be one or two more posts covering Internals. Since I am lazy, I shamelessly &ldquo;steal&rdquo; the recap from <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> and add what we&rsquo;ve done since then.</p>
-<p>The first post in the series - <a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a> - covered the installation of SQL Server 2016 R Services, and it also touched upon the external procedure which allows us to execute external scripts; <code>sp_execute_external_script</code>. We looked at the signature of the procedure as well as executing the equivalent to a &ldquo;Hello World&rdquo; script.</p>
+<p>Since I thought this would be the last Internals post I wanted to do a full recap what has been covered so far. We now know that this is not the last Internals post, but since I have done the work, lets do the full recap anyway even though there will be one or two more posts covering Internals. Since I am lazy, I shamelessly &ldquo;steal&rdquo; the recap from 
+
+<a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> and add what we&rsquo;ve done since then.</p>
+<p>The first post in the series - 
+
+<a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a> - covered the installation of SQL Server 2016 R Services, and it also touched upon the external procedure which allows us to execute external scripts; <code>sp_execute_external_script</code>. We looked at the signature of the procedure as well as executing the equivalent to a &ldquo;Hello World&rdquo; script.</p>
 <p>In the subsequent posts we talked about - when executing <code>sp_execute_external_script</code> - how SQL Server calls into the launchpad service, and how the launchpad service - through the <code>rlauncher.dll</code> creates multiple <code>Rterm.exe</code> processes as in <em>Figure 1</em> below. One of the processes will be used to run the external script:</p>
 <p>
   <img src="/images/posts/sql-launchpad-rterm_processes.png" alt="">
@@ -268,26 +278,36 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 2:</strong> <em>Call Flow Executing sp_execute_external_script</em></p>
 <p>We discussed how the number of processes can be controlled by the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting in <code>rlauncher.config</code> file, and how it defaults to 5 if nothing is set.</p>
-<p>In <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we came back to the backing directories, and we realized that in addition to the backing directories created for the Rterm processes, one more directory is created. This directory will be the &ldquo;official&rdquo; working directory for the session, and we showed this using this figure:</p>
+<p>In 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we came back to the backing directories, and we realized that in addition to the backing directories created for the Rterm processes, one more directory is created. This directory will be the &ldquo;official&rdquo; working directory for the session, and we showed this using this figure:</p>
 <p>
   <img src="/images/posts/sql_r_services_6_launchpad_working_dir.png" alt="">
 
 </p>
 <p><strong>Figure 3:</strong> <em>Launchpad, Directories and Processes</em></p>
-<p>While we were investigating the directories created in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a>, we saw that - while we executed an external script, files and sub-directories were created in the various backing directories:</p>
+<p>While we were investigating the directories created in 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a>, we saw that - while we executed an external script, files and sub-directories were created in the various backing directories:</p>
 <p>
   <img src="/images/posts/sql_r_services_7_outputdir.png" alt="">
 
 </p>
 <p><strong>Figure 4:</strong> <em>Contents Process Directory</em></p>
-<p>In <em>Figure 4</em> we see the content of the directory which is the processing directory, and in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we looked into what creates those files/directories and what they are for. We came to the conclusion that both the launchpad service (probably through the <code>rlauncher.dll</code>) created some files, whereas <code>Rterm.exe</code> created others.</p>
-<p>So far in the series we have covered what happens up until the Rterm process is created. In <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> we saw how <code>Rterm.exe</code> was the entry point into R and how Rterm loaded the <code>R.dll</code> and <code>RxLink.dll</code>. RxLink acts as a conduit between the open source R and Microsoft&rsquo;s <code>BxlServer.exe</code>. BxlServer is the executable hosting RevoScaleR, and it also coordinates with the R runtime in order to manage exchanges of data with SQL Server. To help with data exchanges with SQL Server, BxlServer loads <code>BxServerLink.dll</code>, who does a lot of data conversions etc. We illustrated all this with following figure:</p>
+<p>In <em>Figure 4</em> we see the content of the directory which is the processing directory, and in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we looked into what creates those files/directories and what they are for. We came to the conclusion that both the launchpad service (probably through the <code>rlauncher.dll</code>) created some files, whereas <code>Rterm.exe</code> created others.</p>
+<p>So far in the series we have covered what happens up until the Rterm process is created. In 
+
+<a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> we saw how <code>Rterm.exe</code> was the entry point into R and how Rterm loaded the <code>R.dll</code> and <code>RxLink.dll</code>. RxLink acts as a conduit between the open source R and Microsoft&rsquo;s <code>BxlServer.exe</code>. BxlServer is the executable hosting RevoScaleR, and it also coordinates with the R runtime in order to manage exchanges of data with SQL Server. To help with data exchanges with SQL Server, BxlServer loads <code>BxServerLink.dll</code>, who does a lot of data conversions etc. We illustrated all this with following figure:</p>
 <p>
   <img src="/images/posts/sql_r_services_8_arch_overview.png" alt="">
 
 </p>
 <p><strong>Figure 5:</strong> <em>BxlServer</em></p>
-<p>In <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> we tried to determine what communication mechanisms are used between the various components, and what components are involved to return data to SQL Server. We saw that in addition to BxlServer and BxServerLink we also had <code>SqlSatellite.dll</code>. SqlSatellite is an API to support external code and external run times, and it is the dll that BxlServer relies on in order to exchange data with SQL Server.</p>
+<p>In 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> we tried to determine what communication mechanisms are used between the various components, and what components are involved to return data to SQL Server. We saw that in addition to BxlServer and BxServerLink we also had <code>SqlSatellite.dll</code>. SqlSatellite is an API to support external code and external run times, and it is the dll that BxlServer relies on in order to exchange data with SQL Server.</p>
 <p>We eventually figured out how communication takes place between the various components and we used the figure below to illustrate the comms mechanisms:</p>
 <p>
   <img src="/images/posts/sql_r_services_9_comms2.png" alt="">
@@ -303,7 +323,9 @@ if (!doNotTrack) {
 </ul>
 <p>By now we have a certain understanding how it works, and we do know that the SqlSatellite communicates with SQL Server. I this post we&rsquo;ll look a little bit deeper into what is happening.</p>
 <h2 id="demo-code">Demo Code</h2>
-<p>As in quite a few of the other posts, let&rsquo;s have a look at the demo code we&rsquo;ll be using. In this post we&rsquo;ll re-use what we had in <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>. First the code to setup the database, and a table with some data:</p>
+<p>As in quite a few of the other posts, let&rsquo;s have a look at the demo code we&rsquo;ll be using. In this post we&rsquo;ll re-use what we had in 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>. First the code to setup the database, and a table with some data:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -431,7 +453,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 2:</strong> <em>Code to Execute</em></p>
 <p>Even though the code in <em>Code Snippet 2</em> doesn&rsquo;t do very much, it serves it&rsquo;s purposes for what we want to do. Notice that we can pause the execution thought the commented out <code>Sys.sleep</code> statement, if we want to examine what is happening.</p>
 <h2 id="data-transferexchange">Data Transfer/Exchange</h2>
-<p>We know by now (at least after <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>) that the SqlSatellite has something to do with data exchange. In addition we also know that the launchpad service (in reality <code>rlauncher.dll</code>) talks to R, and can potentially transfer data. So the question is who transfers data, and what data is transferred by who? If you look at the code in <em>Code Snippet 2</em>, there are various data transfers happening:</p>
+<p>We know by now (at least after 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>) that the SqlSatellite has something to do with data exchange. In addition we also know that the launchpad service (in reality <code>rlauncher.dll</code>) talks to R, and can potentially transfer data. So the question is who transfers data, and what data is transferred by who? If you look at the code in <em>Code Snippet 2</em>, there are various data transfers happening:</p>
 <ul>
 <li>The R script is sent to R.</li>
 <li>A dataset is sent in to R trough the <code>@input_data_1</code> parameter.</li>
@@ -439,7 +463,13 @@ if (!doNotTrack) {
 <li>A dataset is returned from the <code>OutputDataSet</code> variable. The schema of the resultset is defined in <code>WITH RESULT SETS ...</code>.</li>
 </ul>
 <p>In addition to the scenarios above, parameters are also transferred (both in and out), but for now we&rsquo;ll leave those out of the discussion.</p>
-<p>So, cast you mind back to <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and <a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> (&ldquo;woooosh&rdquo; - that&rsquo;s the sound of your mind being cast back), where we discussed what happens when we execute <code>sp_execute_external_script</code>. We said that, SQL Server&rsquo;s <code>sqllang!SpExecuteExternalScript</code> is called, and SQL Server then opens a named pipe connection to the launchpad service and sends a data packet to the service. The launchpad service creates the necessary processes (RTerm) etc., and sends the data packet it received on tho the executing process. The assumption made, at least implicitly,  was that all the necessary data is transferred to the R engine via the packets SQL Server sends to the launchpad service and that the launchpad sends it on. For return data the assumption was that the data is returned the same way. That&rsquo;s what I thought up until <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> when we discussed the SqlSatellite. So, let&rsquo;s see what really happens.</p>
+<p>So, cast you mind back to 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> and 
+
+<a href="/post/2017-04-02-microsoft-sql-server-r-services---internals-ii/">Internals - II</a> (&ldquo;woooosh&rdquo; - that&rsquo;s the sound of your mind being cast back), where we discussed what happens when we execute <code>sp_execute_external_script</code>. We said that, SQL Server&rsquo;s <code>sqllang!SpExecuteExternalScript</code> is called, and SQL Server then opens a named pipe connection to the launchpad service and sends a data packet to the service. The launchpad service creates the necessary processes (RTerm) etc., and sends the data packet it received on tho the executing process. The assumption made, at least implicitly,  was that all the necessary data is transferred to the R engine via the packets SQL Server sends to the launchpad service and that the launchpad sends it on. For return data the assumption was that the data is returned the same way. That&rsquo;s what I thought up until 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a> when we discussed the SqlSatellite. So, let&rsquo;s see what really happens.</p>
 <h4 id="data---r">Data -&gt; R</h4>
 <p>To see how data is sent to R, let&rsquo;s fire up our trusted <strong>WinDbg</strong> an attach it to both the SQL Server process as well as the launchpad process:</p>
 <ul>
@@ -497,9 +527,15 @@ if (!doNotTrack) {
 </ol>
 <p>For now we won&rsquo;t bother over what happens after the <code>Sys.sleep</code>, but we can see some behaviors that might make us doubt that we have been entirely correct in our previous assumptions how data is sent to the R engine. I am thinking about some of the <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> who doesn&rsquo;t have a corresponding launchpad action.</p>
 <p>Let us see what happens if we were to execute the code in <em>Code Snippet 2</em>. Before you execute the code, change the <code>SELECT y ...</code> statement to be <code>SELECT TOP(10) y ...</code>. When you execute you will see a third <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> before the <code>Sys.sleep</code>. After the <code>Sys.sleep</code> there&rsquo;d be a third <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> and a second  <code>launchpad!CSQLSatelliteConnection::WriteMessage</code>. What happens if the <code>TOP</code> clause was changed to be <code>TOP(100000)</code> (hundred thousand)? Then there&rsquo;d be 5 <code>sqllang!CSQLSatelliteConnection::WriteMessage</code> after <code>ConnectToSatellite</code> and the rest would stay the same. Based on this, there seems to be some impact based on how much data is being transferred, and it seems that the launchpad service is bypassed for at least some data transfer (as we don&rsquo;t see any extra <code>launchpad!Np::ReadAsync</code>).</p>
-<p>So if the launchpad service is being bypassed, what would be used to transfer data? Seeing that we discussed SqlSatellite in <a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>, and also mentioned SqlSatellite above, that might be the answer. Unfortunately we have no debug symbols for SqlSatellite or its host <code>BxlServer.exe</code>, so we cannot use WinDbg to check and see if we are correct. What we&rsquo;ll do instead is to take advantage of the fact that SqlSatellite communicates with SQL Server using sockets, and we&rsquo;ll use <a href="https://technet.microsoft.com/en-us/sysinternals/processmonitor.aspx"><strong>Process Monitor</strong></a>, to see if we can find any interesting things.</p>
+<p>So if the launchpad service is being bypassed, what would be used to transfer data? Seeing that we discussed SqlSatellite in 
+
+<a href="/post/2017-08-18-microsoft-sql-server-r-services---internals-ix/">Internals - IX</a>, and also mentioned SqlSatellite above, that might be the answer. Unfortunately we have no debug symbols for SqlSatellite or its host <code>BxlServer.exe</code>, so we cannot use WinDbg to check and see if we are correct. What we&rsquo;ll do instead is to take advantage of the fact that SqlSatellite communicates with SQL Server using sockets, and we&rsquo;ll use 
+
+<a href="https://technet.microsoft.com/en-us/sysinternals/processmonitor.aspx" target="_blank" rel="noopener"><strong>Process Monitor</strong></a>, to see if we can find any interesting things.</p>
 <blockquote>
-<p><strong>NOTE:</strong> We used <em>Process Monitor</em> in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>, so go back there if you need pointers of how to use <em>Process Monitor</em>.</p>
+<p><strong>NOTE:</strong> We used <em>Process Monitor</em> in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>, so go back there if you need pointers of how to use <em>Process Monitor</em>.</p>
 </blockquote>
 <p>After you have started up Process Monitor as admin, suppress any event monitoring to start with, as not too be flooded with events. You should also just choose to see event types you are interested in, in this case &ldquo;Network Activity&rdquo;. You can do this through the icons in the tool bar, as per below:</p>
 <p>
@@ -508,7 +544,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 7:</strong> <em>Communication Mechanisms</em></p>
 <p>In <em>Figure 7</em> we see how event capturing is paused due to having clicked on the magnifying glass (in the first outlined box). We also have chosen to receive only &ldquo;Network Activity&rdquo; events (the second outlined box). You can see that &ldquo;Network Activity&rdquo; is enabled as it has a barely visible light-blue background, and the others do not. Having set this up, now is a good time to clear out any events that might have been captured, so under the <em>Edit</em> menu click <em>Clear Display</em>.</p>
-<p>So what are we going to use <em>Process Monitor</em> for? Well, as I mentioned above, there is socket communication between SQL Server and SqlSatellite, so we&rsquo;ll try and capture that particular traffic. In order to do this, we&rsquo;ll set up some <em>Process Monitor</em> event filters, the same way as we did in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>. The filters we&rsquo;ll setup are for &ldquo;Process Name&rdquo; and &ldquo;Operation&rdquo;. The process we initially are interested in is <code>BxlServer.exe</code>, since BxlServer hosts the SqlSatellite. The operations we want are &ldquo;TCP Connect&rdquo; and &ldquo;TCP Receive&rdquo;. The idea is that we will be able to see when a connection is made between SQL Server and the SqlSatellite and if there is any data sent to the satellite from SQL Server.</p>
+<p>So what are we going to use <em>Process Monitor</em> for? Well, as I mentioned above, there is socket communication between SQL Server and SqlSatellite, so we&rsquo;ll try and capture that particular traffic. In order to do this, we&rsquo;ll set up some <em>Process Monitor</em> event filters, the same way as we did in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>. The filters we&rsquo;ll setup are for &ldquo;Process Name&rdquo; and &ldquo;Operation&rdquo;. The process we initially are interested in is <code>BxlServer.exe</code>, since BxlServer hosts the SqlSatellite. The operations we want are &ldquo;TCP Connect&rdquo; and &ldquo;TCP Receive&rdquo;. The idea is that we will be able to see when a connection is made between SQL Server and the SqlSatellite and if there is any data sent to the satellite from SQL Server.</p>
 <p>To set the filter; under the <em>Filter</em> menu click the Filter menu item, and the &ldquo;Process Monitor Filter&rdquo; dialog will be shown. To create the filter we enter the conditions we want to match:</p>
 <ul>
 <li>The <em>Process Name</em> (from first drop down) should be  <em>is</em> (from second drop down): <code>bxlserver.exe</code>.</li>
@@ -626,11 +664,17 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 11:</strong> <em>Process Monitor Output Data Select</em></p>
 <p>This is strange, the R script we executed here is exactly the same as in <em>Code Snippet 3</em>, but the packet size is different (350 vs. 204), and we also have a new packet sent to the SqlSatellite with a size of 6300. Let&rsquo;s start with the last portion first; the packet with the size of 6300.</p>
-<p>This packet actually contains the data sent to the SqlSatellite (the data represented by the  <code>@input_data_1</code> variable). Normally when SQL transfers data it is done via the <a href="https://en.wikipedia.org/wiki/Tabular_Data_Stream">TDS protocol</a> (Tabular Data Stream). However when sending data to and from the SqlSatellite, TDS is not used, but a custom protocol called <strong>BXL</strong> (Binary eXchange Language). The BXL protocol is optimized for fast data transfers between SQL Server and external script engines.</p>
+<p>This packet actually contains the data sent to the SqlSatellite (the data represented by the  <code>@input_data_1</code> variable). Normally when SQL transfers data it is done via the 
+
+<a href="https://en.wikipedia.org/wiki/Tabular_Data_Stream" target="_blank" rel="noopener">TDS protocol</a> (Tabular Data Stream). However when sending data to and from the SqlSatellite, TDS is not used, but a custom protocol called <strong>BXL</strong> (Binary eXchange Language). The BXL protocol is optimized for fast data transfers between SQL Server and external script engines.</p>
 <p>In the next blog-post in this series, we&rsquo;ll look more at the BXL protocol, and why you see a packet size of 6300, when we only retrieve one row, with six <code>int</code> columns.</p>
-<p>Let us look at the first question; why is the packet size different when the R script is exactly the same. To try to figure this out, we&rsquo;ll use a packet analyzer:  <a href="https://www.wireshark.org/"><strong>WireShark</strong></a>.</p>
+<p>Let us look at the first question; why is the packet size different when the R script is exactly the same. To try to figure this out, we&rsquo;ll use a packet analyzer:  
+
+<a href="https://www.wireshark.org/" target="_blank" rel="noopener"><strong>WireShark</strong></a>.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you are running SSMS and SQL Server on the same machine, then you need the <a href="https://nmap.org/npcap/"><strong>Npcap</strong></a> packet sniffer library instead of the default <strong>WinPcap</strong>. This is because WinPcap doesn&rsquo;t support loop-back adapters.</p>
+<p><strong>NOTE:</strong> If you are running SSMS and SQL Server on the same machine, then you need the 
+
+<a href="https://nmap.org/npcap/" target="_blank" rel="noopener"><strong>Npcap</strong></a> packet sniffer library instead of the default <strong>WinPcap</strong>. This is because WinPcap doesn&rsquo;t support loop-back adapters.</p>
 </blockquote>
 <p>At this stage you don&rsquo;t need the WinDbg breakpoints, so just disable all the breakpoints, both for SQL Server as well as the launchpad process. Also take note of the port SQL Server listens on for the satellite connection. We need the port number to filter events in WireShark, and we can get the port number by running <code>netstat -o -a -n</code> or look at the <code>Path</code> column in <em>Process Monitor</em>:</p>
 <p>
@@ -862,7 +906,9 @@ if (!doNotTrack) {
 <p>From previous posts we knew that SQL Server communicates with the launchpad service over named pipes. We also know that there is communication between SQL Server and the SqlSatellite over sockets. We may have assumed that data was sent from SQL Server to the R components through the named pipe connection to the launchpad service, and the on from there to the R components.</p>
 <p>In this post we have seen how that is not true, but how both the script to execute including some metadata, as well as the actual data to use for analysis (<code>@input_data_1</code>) is sent over the socket connection.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

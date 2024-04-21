@@ -274,9 +274,13 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Test Script for Python</em></p>
-<p>Cool, all is &ldquo;A-OK&rdquo;! A couple of days go by, and I see that there is a Cumulative Update (CU) for SQL Server 2017 - CU7. I install it and does not think much about it. I mean: &ldquo;what can go wrong, how hard can it be?&rdquo;. A couple of days later and I am busy writing the follow-up post to <a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> when I try to execute <code>sp_execute_external_script</code>, and it falls over!</p>
+<p>Cool, all is &ldquo;A-OK&rdquo;! A couple of days go by, and I see that there is a Cumulative Update (CU) for SQL Server 2017 - CU7. I install it and does not think much about it. I mean: &ldquo;what can go wrong, how hard can it be?&rdquo;. A couple of days later and I am busy writing the follow-up post to 
+
+<a href="/post/2018-05-20-sp-execute-external-script-and-sql-compute-context/">sp_execute_external_script and SQL Compute Context - I</a> when I try to execute <code>sp_execute_external_script</code>, and it falls over!</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you do not know what CU&rsquo;s are, you can read more about them <a href="https://blogs.msdn.microsoft.com/sqlreleaseservices/announcing-the-modern-servicing-model-for-sql-server/">here</a>.</p>
+<p><strong>NOTE:</strong> If you do not know what CU&rsquo;s are, you can read more about them 
+
+<a href="https://blogs.msdn.microsoft.com/sqlreleaseservices/announcing-the-modern-servicing-model-for-sql-server/" target="_blank" rel="noopener">here</a>.</p>
 </blockquote>
 <h2 id="exception">Exception</h2>
 <p>The exception I received when I tried to execute <code>sp_execute_external_script</code> looked like so:</p>
@@ -285,11 +289,23 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 1:</strong> <em>Exception when Executing</em></p>
-<p>As we see in <em>Figure 1</em> the exception has something to do with not being able to create a directory, which points to permission issues. This, kind of, resonated with me as I had in the back of my mind that something similar happened in the early days of SQL Server 2016 R Services when R stopped working after service packs were applied. Regardless I did some investigation around the issue (read I Googled) and found <a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/">this</a> post by Jon Culp and also a post by my old friend <a href="https://blog.greglow.com/2018/05/16/machine-learning-testing-your-installation-of-r-and-python-in-sql-server-2017/">Greg Low</a>. Both posts mention the 8.3 file naming convention as the primary culprit for the error. However, seeing that this worked fine before I applied CU7, I did not believe that the 8.3 file names were the case.  Having said that, I did (to be sure) enable the 8.3 notation as per <a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/">Jon Culp&rsquo;s</a> post: <code>fsutil.exe behaviour set disable8dot3 0</code>. Unfortunately, that did not change anything because when I executed the code in <em>Code Snippet 1</em> it still errored out with the error in <em>Figure 1</em>.</p>
+<p>As we see in <em>Figure 1</em> the exception has something to do with not being able to create a directory, which points to permission issues. This, kind of, resonated with me as I had in the back of my mind that something similar happened in the early days of SQL Server 2016 R Services when R stopped working after service packs were applied. Regardless I did some investigation around the issue (read I Googled) and found 
+
+<a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/" target="_blank" rel="noopener">this</a> post by Jon Culp and also a post by my old friend 
+
+<a href="https://blog.greglow.com/2018/05/16/machine-learning-testing-your-installation-of-r-and-python-in-sql-server-2017/" target="_blank" rel="noopener">Greg Low</a>. Both posts mention the 8.3 file naming convention as the primary culprit for the error. However, seeing that this worked fine before I applied CU7, I did not believe that the 8.3 file names were the case.  Having said that, I did (to be sure) enable the 8.3 notation as per 
+
+<a href="http://jonculp.com/2017/01/resolve-sql-server-fatal-error-cannot-create-r_tempdir/" target="_blank" rel="noopener">Jon Culp&rsquo;s</a> post: <code>fsutil.exe behaviour set disable8dot3 0</code>. Unfortunately, that did not change anything because when I executed the code in <em>Code Snippet 1</em> it still errored out with the error in <em>Figure 1</em>.</p>
 <p>All this pointed me back to the error being due to permission issues.</p>
 <h2 id="permissions">Permissions</h2>
 <p>Ok, so above we said permission issues, but permissions on what?</p>
-<p>If you read my series about <a href="/sql_server_2k16_r_services">SQL Server 2016 R Services</a> you may remember that in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> and <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we discussed how the Launchpad service and the RTerm processes create files and directories in the <code>ExtensibilityData</code> directory and its sub directories. This directory is where the permissions are supposed to be or, as in this case, are not.</p>
+<p>If you read my series about 
+
+<a href="/sql_server_2k16_r_services">SQL Server 2016 R Services</a> you may remember that in 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> and 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we discussed how the Launchpad service and the RTerm processes create files and directories in the <code>ExtensibilityData</code> directory and its sub directories. This directory is where the permissions are supposed to be or, as in this case, are not.</p>
 <blockquote>
 <p><strong>NOTE:</strong> In a default installation of SQL Server on a Windows box, the <code>ExtensibilityData</code> directory is located at <code>C:\&lt;sql_instance_path&gt;\MSSQL\ExtensibilityData</code>.</p>
 </blockquote>
@@ -302,14 +318,22 @@ if (!doNotTrack) {
 <p>In <em>Figure 2</em> we see the various users, groups and roles that have access to the <code>ExtensibilityData</code> directory and the highlighted part is the group that is of interest for this discussion. What is interesting is that when you look at this dialog before CU7 (when everything works) and after you deploy CU7, it looks the same. So, something is going on behind the scenes.</p>
 <p>To further confirm that what I saw was a permission issue I used <em>Process Monitor</em> to see what file operations happened when I tried to execute the code in <em>Code Snippet 1</em>. After gradually filtering out events I ended up with was is shown in the figure below.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you are interested in how you can use <em>Process Monitor</em> I covered that in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>.</p>
+<p><strong>NOTE:</strong> If you are interested in how you can use <em>Process Monitor</em> I covered that in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a>.</p>
 </blockquote>
 <p>
   <img src="/images/posts/sql_ml_sql_cu7_procmon1.png" alt="">
 
 </p>
 <p><strong>Figure 3:</strong> <em>Process Monitor Output</em></p>
-<p>Remember how we in the <strong>Internals</strong> posts <a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a> and [VII] <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">si7</a> in the <a href="/sql_server_2k16_r_services">SQL Server R Services</a> series discussed how the Launchpad service creates RTerm processes. We also discussed how the RTerm processes create directories and files under the <code>ExtensibilityData</code> directory and its sub-directories. So what we see in <em>Figure 3</em> is how the RTerm processes cannot write to the root of the <code>ExtensibilityData</code> directory and this is what ultimately causes the error in <em>Figure 1</em>.</p>
+<p>Remember how we in the <strong>Internals</strong> posts 
+
+<a href="/post/2017-04-23-microsoft-sql-server-r-services---internals-iv/">IV</a> and [VII] 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">si7</a> in the 
+
+<a href="/sql_server_2k16_r_services">SQL Server R Services</a> series discussed how the Launchpad service creates RTerm processes. We also discussed how the RTerm processes create directories and files under the <code>ExtensibilityData</code> directory and its sub-directories. So what we see in <em>Figure 3</em> is how the RTerm processes cannot write to the root of the <code>ExtensibilityData</code> directory and this is what ultimately causes the error in <em>Figure 1</em>.</p>
 <p>What I saw when I filtered out events was that even though the RTerm processes could not write to the root of the <code>ExtensibilityData</code> directory, they could write to subdirectories:</p>
 <p>
   <img src="/images/posts/sql_ml_sql_cu7_procmon2.png" alt="">
@@ -378,9 +402,15 @@ if (!doNotTrack) {
 <li>&ldquo;Continue&rdquo; through the error dialogs until you are back in the &ldquo;Advanced Security Settings&rdquo; dialog.</li>
 <li>In the &ldquo;Advanced Security Settings&rdquo; dialog &ldquo;Remove&rdquo; the <code>MSSQLSERVER</code> principal.</li>
 </ol>
-<p>Oh, and I can warmly recommend the blogs I mention above by <a href="http://jonculp.com/">Jon Culp</a> and <a href="https://blog.greglow.com/">Greg Low</a>.</p>
+<p>Oh, and I can warmly recommend the blogs I mention above by 
+
+<a href="http://jonculp.com/" target="_blank" rel="noopener">Jon Culp</a> and 
+
+<a href="https://blog.greglow.com/" target="_blank" rel="noopener">Greg Low</a>.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

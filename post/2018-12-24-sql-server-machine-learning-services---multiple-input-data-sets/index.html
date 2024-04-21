@@ -240,13 +240,25 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This post came about due to a question on the <a href="https://social.msdn.microsoft.com/Forums/en-US/home?forum=MicrosoftR">Microsoft Machine Learning Server</a> forum. The <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> was if there are any plans by Microsoft to support more the one input dataset (<code>@input_data_1</code>) in <code>sp_execute_external_script</code>. My immediate reaction was that if you want more than one dataset, you can always connect from the script back into the database, and retrieve data.</p>
-<p>However, the poster was well aware of that, but due to certain reasons he did not want to do it that way - he wanted to push in the data, fair enough. When I read this, I seemed to remember something from a while ago, where, instead of retrieving data from inside the script, they pushed in the data, serialized it as an output parameter and then used the binary representation as in input parameter (yeah - this sounds confusing, but bear with me). I did some research (read Googling), and found <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">this</a> StackOverflow question, and answer. So for future questions, and for me to remember, I decided to write a blog post about it.</p>
+                <p>This post came about due to a question on the 
+
+<a href="https://social.msdn.microsoft.com/Forums/en-US/home?forum=MicrosoftR" target="_blank" rel="noopener">Microsoft Machine Learning Server</a> forum. The 
+
+<a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR" target="_blank" rel="noopener">question</a> was if there are any plans by Microsoft to support more the one input dataset (<code>@input_data_1</code>) in <code>sp_execute_external_script</code>. My immediate reaction was that if you want more than one dataset, you can always connect from the script back into the database, and retrieve data.</p>
+<p>However, the poster was well aware of that, but due to certain reasons he did not want to do it that way - he wanted to push in the data, fair enough. When I read this, I seemed to remember something from a while ago, where, instead of retrieving data from inside the script, they pushed in the data, serialized it as an output parameter and then used the binary representation as in input parameter (yeah - this sounds confusing, but bear with me). I did some research (read Googling), and found 
+
+<a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server" target="_blank" rel="noopener">this</a> StackOverflow question, and answer. So for future questions, and for me to remember, I decided to write a blog post about it.</p>
 <blockquote>
-<p><strong>DISCLAIMER:</strong> <em>I want to make it perfectly clear that the method outlined in this post is NOT my idea, but - as mentioned above - comes from the StackOverflow <a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server">answer</a> by <a href="https://twitter.com/@brandonmoretz">Brandon Moretz</a>.</em></p>
+<p><strong>DISCLAIMER:</strong> <em>I want to make it perfectly clear that the method outlined in this post is NOT my idea, but - as mentioned above - comes from the StackOverflow 
+
+<a href="https://stackoverflow.com/questions/42918990/how-to-pass-two-sql-tables-as-input-parameter-for-r-codes-in-sql-server" target="_blank" rel="noopener">answer</a> by 
+
+<a href="https://twitter.com/@brandonmoretz" target="_blank" rel="noopener">Brandon Moretz</a>.</em></p>
 </blockquote>
 <h2 id="recap">Recap</h2>
-<p>We start with a recap about how we pass/retrieve data for external scripts. In <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> we discussed, among other things, the <code>sp_execute_external_script</code>&rsquo;s <code>@input_data_1</code> parameter and how it specifies the input data used by the external script in the form of a Transact-SQL query:</p>
+<p>We start with a recap about how we pass/retrieve data for external scripts. In 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> we discussed, among other things, the <code>sp_execute_external_script</code>&rsquo;s <code>@input_data_1</code> parameter and how it specifies the input data used by the external script in the form of a Transact-SQL query:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -272,9 +284,13 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 1:</strong> <em>Using @input_data_1 with straight SELECT</em></p>
 <p>In <em>Code Snippet 1</em> we see how the <code>@input_data_1</code> parameter contains a <code>SELECT</code> statement against a table, and the statement executes during the <code>sp_execute_external_script</code> execution. The dataset generated by the query is referred to in the script as <code>InputDataSet</code>. The query has to be based on a <code>SELECT</code>, but it does not have to be against a table, it can be against a view or a user-defined function as well.</p>
 <blockquote>
-<p><strong>NOTE:</strong> The code in <em>Code Snippet 1</em> above, and <em>Code Snippet 2</em> below, uses tables and data from the <a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> post.</p>
+<p><strong>NOTE:</strong> The code in <em>Code Snippet 1</em> above, and <em>Code Snippet 2</em> below, uses tables and data from the 
+
+<a href="/post/2018-03-07-microsoft-sql-server-r-services-sp_execute_external_script-i/">Microsoft SQL Server R Services - sp_execute_external_script - I</a> post.</p>
 </blockquote>
-<p>That is all well and good, but what if you want to push in multiple datasets? Seeing that the parameter we use to define the data ends with a <code>1</code>, it would be logical to think there are <code>@input_data_2</code>, <code>3</code>, and so on - but no, that is not the case. To process more than one dataset in the external script, we have to pull the dataset(s) from inside the script. To do this, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package, in Python <code>pyodbc</code>) or the highly optimized Microsoft <a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler"><strong><code>RevoScaleR</code></strong></a> package (in Python <strong><code>revoscalepy</code></strong>). In the following example I use <code>RevoScaleR</code>:</p>
+<p>That is all well and good, but what if you want to push in multiple datasets? Seeing that the parameter we use to define the data ends with a <code>1</code>, it would be logical to think there are <code>@input_data_2</code>, <code>3</code>, and so on - but no, that is not the case. To process more than one dataset in the external script, we have to pull the dataset(s) from inside the script. To do this, we can use <code>ODBC</code> (in R it is the <code>RODBC</code> package, in Python <code>pyodbc</code>) or the highly optimized Microsoft 
+
+<a href="https://docs.microsoft.com/en-us/machine-learning-server/r-reference/revoscaler/revoscaler" target="_blank" rel="noopener"><strong><code>RevoScaleR</code></strong></a> package (in Python <strong><code>revoscalepy</code></strong>). In the following example I use <code>RevoScaleR</code>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -343,7 +359,9 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 2:</strong> <em>Multiple Data Sets using RevoScaleR</em></p>
 <p>The code in <em>Code Snippet 2</em> shows how we read in data within the script by the use of <code>RevoScaleR</code> functionality together with the data from the <code>@input_data_1</code> parameter, and how we subsequently calculate <code>mean</code> on the two datasets.</p>
-<p>So above we see how we can use multiple datasets, but what if we for some or another do not want to / cannot connect from the script to the database, as per the <a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR">question</a> above? Well, that is what we cover in this post.</p>
+<p>So above we see how we can use multiple datasets, but what if we for some or another do not want to / cannot connect from the script to the database, as per the 
+
+<a href="https://social.msdn.microsoft.com/Forums/en-US/70e3577c-58f1-40af-9f0b-546c8b181cfa/sql-server-r-services-are-more-input-datasets-planned-or-under-development?forum=MicrosoftR" target="_blank" rel="noopener">question</a> above? Well, that is what we cover in this post.</p>
 <h2 id="multiple-datasets">Multiple Datasets</h2>
 <p>What we want to do is to push data from three completely different tables into the external script, and then in the script do something. We use <code>@input_data_1</code> to push one of the datasets, and we look at two different ways to push in the data from the other two tables. The tables we read data from are three system tables, this way we do not need to create separate tables and load data etc.:</p>
 <ul>
@@ -419,7 +437,9 @@ if (!doNotTrack) {
 <p>The <code>@params</code> parameter is an optional parameter, and when defined it contains a comma separated list of the definitions of all parameters embedded in the values for the <code>@input_data_1</code> and the <code>@script</code> parameters. The string must be either a Unicode constant or a Unicode variable. Each parameter definition consists of a parameter name and a data type. The parameters defined in the <code>@params</code> list need to be added as named parameters to the stored procedure, and in the case of parameters for the external script; the script references the parameters by name but without the <code>@</code> sign.</p>
 <p>So, when we push data into the script, either by using JSON or binary serialization we define a parameter for the data which we then reference in the script.</p>
 <blockquote>
-<p><strong>NOTE:</strong> If you want to get the inner workings of the <code>@params</code> parameter, have a look at my blog post: <a href="/post/2018-03-11-microsoft-sql-server-r-services---sp-execute-external-script---ii/">Microsoft SQL Server R Services - sp_execute_external_script - II</a>.</p>
+<p><strong>NOTE:</strong> If you want to get the inner workings of the <code>@params</code> parameter, have a look at my blog post: 
+
+<a href="/post/2018-03-11-microsoft-sql-server-r-services---sp-execute-external-script---ii/">Microsoft SQL Server R Services - sp_execute_external_script - II</a>.</p>
 </blockquote>
 <p>Enough of this preamble, let us get going.</p>
 <h4 id="json">JSON</h4>
@@ -437,7 +457,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 5:</strong> <em>Retrieve JSON Data</em></p>
-<p>We see how I use the <code>FOR JSON AUTO</code> syntax in <em>Code Snippet 5</em> to indicate to SQL Server I want JSON formatted data as the resultset. You do not necessarily need to use <code>AUTO</code>, as there are other options. To see more of this look here: <a href="https://docs.microsoft.com/en-us/sql/relational-databases/json/format-query-results-as-json-with-for-json-sql-server?view=sql-server-2016">Format Query Results as JSON with FOR JSON (SQL Server)</a>.</p>
+<p>We see how I use the <code>FOR JSON AUTO</code> syntax in <em>Code Snippet 5</em> to indicate to SQL Server I want JSON formatted data as the resultset. You do not necessarily need to use <code>AUTO</code>, as there are other options. To see more of this look here: 
+
+<a href="https://docs.microsoft.com/en-us/sql/relational-databases/json/format-query-results-as-json-with-for-json-sql-server?view=sql-server-2016" target="_blank" rel="noopener">Format Query Results as JSON with FOR JSON (SQL Server)</a>.</p>
 <p>I limit the columns I select to get a more readable output. When I execute and click on the result I see:</p>
 <p>
   <img src="/images/posts/sql_ml_multidata_simple_json.png" alt="">
@@ -487,7 +509,9 @@ if (!doNotTrack) {
 </ul>
 <p>If we were to execute, all would work - but we have not done anything with the parameters in the script. What we need to do is to parse the incoming JSON text into a data frame somehow. To do this in Python, we use the <code>pandas</code> package as it has various functions for parsing JSON.</p>
 <blockquote>
-<p><strong>NOTE:</strong> The <code>pandas</code> package makes it easy to work with relational data. To find out more about it, go to <a href="https://pandas.pydata.org/pandas-docs/stable/">here</a>.</p>
+<p><strong>NOTE:</strong> The <code>pandas</code> package makes it easy to work with relational data. To find out more about it, go to 
+
+<a href="https://pandas.pydata.org/pandas-docs/stable/" target="_blank" rel="noopener">here</a>.</p>
 </blockquote>
 <p>Anyway, the function from the <code>pandas</code> package we use is <code>read_json</code>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
@@ -547,7 +571,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 3:</strong> <em>Result Python read_json</em></p>
 <p>It all works! Oh, it just so happens that I am on an almost new SQL Server instance, and that is why the number of rows in <code>sys.tables</code> and <code>sys.databases</code> is the same.</p>
-<p>If R is your &ldquo;poison of choice&rdquo;, then we can, for example, use the <code>jsonlite</code> package. You can read more about it <a href="https://cran.r-project.org/web/packages/jsonlite/jsonlite.pdf">here</a>. What we use from <code>jsonlite</code> is the <code>fromJSON</code> function:</p>
+<p>If R is your &ldquo;poison of choice&rdquo;, then we can, for example, use the <code>jsonlite</code> package. You can read more about it 
+
+<a href="https://cran.r-project.org/web/packages/jsonlite/jsonlite.pdf" target="_blank" rel="noopener">here</a>. What we use from <code>jsonlite</code> is the <code>fromJSON</code> function:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -1016,7 +1042,9 @@ if (!doNotTrack) {
 <p>In <em>Figure 5</em> we see how with a million rows, the binary serialization is about 3.5 times faster than JSON. There are a couple of reasons why binary serialization performs better that JSON with larger datasets:</p>
 <ul>
 <li>Binary serialization is more compact, less data to transfer.</li>
-<li>By using the <code>@input_data_1</code> parameter to push in the data to the serialization we get a better performing transport. Read more about it in my post: <a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>.</li>
+<li>By using the <code>@input_data_1</code> parameter to push in the data to the serialization we get a better performing transport. Read more about it in my post: 
+
+<a href="/post/2017-11-25-microsoft-sql-server-r-services---internals-xiv/">Microsoft SQL Server R Services - Internals XIV</a>.</li>
 </ul>
 <p>So, for very small datasets, use the JSON method, but for larger datasets, the binary serialization is always preferred. Another thing to keep in mind is if you use both <code>@input_data_1</code> as well as pushing in serialized data (like in all our code snippets where we used three tables), try to use <code>@input_data_1</code> for the biggest dataset. That way you get the better performing transport and also, potentially, parallel execution of the query.</p>
 <h2 id="summary">Summary</h2>
@@ -1037,7 +1065,9 @@ if (!doNotTrack) {
 </ul>
 <p>What method to use (JSON or binary serialization) comes down to, in my mind, performance. For very small datasets JSON is faster, but as soon as the dataset gets bigger binary serialization outperforms JSON by order of magnitude.</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

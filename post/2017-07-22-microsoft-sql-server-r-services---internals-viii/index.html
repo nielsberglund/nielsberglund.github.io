@@ -244,13 +244,17 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the ninth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eight post that drills down into the internal of how it works. To see other posts (including this) in the series, go to: <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a></p>
+                <p>This is the ninth post in a series about <strong>Microsoft SQL Server R Services</strong>, and the eight post that drills down into the internal of how it works. To see other posts (including this) in the series, go to: 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a></p>
 <p>So far in this series we have been looking at what happens in SQL Server as well as the launchpad service when we execute <code>sp_execute_external_script</code>, and we have still no real &ldquo;clue&rdquo; to where the R engine comes into play.</p>
 <p>Well, hopefully that will change (at least a little bit) with this post, as we here will look at what happens when we leave the launchpad service.</p>
 <p>Before we dive into the &ldquo;juicy&rdquo; stuff, let&rsquo;s remind ourselves where we are.</p>
 <h2 id="recap">Recap</h2>
 <p>Normally in the recaps in this series, we have looked at what was covered in the previous &ldquo;episode&rdquo;. In this recap, let&rsquo;s look at he &ldquo;full&rdquo; picture up until now.</p>
-<p>The first post in the series - <a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a> - covered the installation of SQL Server 2016 R Services, and it also touched upon the external procedure which allows us to execute external scripts; <code>sp_execute_external_script</code>. We looked at the signature of the procedure as well as executing the equivalent to a &ldquo;Hello World&rdquo; script.</p>
+<p>The first post in the series - 
+
+<a href="/post/2017-03-04-microsoft-sql-server-2016-r-services-installation/">Microsoft SQL Server 2016 R Services Installation</a> - covered the installation of SQL Server 2016 R Services, and it also touched upon the external procedure which allows us to execute external scripts; <code>sp_execute_external_script</code>. We looked at the signature of the procedure as well as executing the equivalent to a &ldquo;Hello World&rdquo; script.</p>
 <p>In the subsequent posts we talked about - when executing <code>sp_execute_external_script</code> - how SQL Server calls into the launchpad service, and how the launchpad service - through the <code>rlauncher.dll</code> creates multiple <code>Rterm.exe</code> processes as in <em>Figure 1</em> below. One of the processes will be used to run the external script:</p>
 <p>
   <img src="/images/posts/sql-launchpad-rterm_processes.png" alt="">
@@ -264,22 +268,30 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 2:</strong> <em>Call Flow Executing sp_execute_external_script</em></p>
 <p>We discussed how the number of processes can be controlled by the <code>PROCESS_POOL_SQLSATELLITE_GROWTH</code> setting in <code>rlauncher.config</code> file, and how it defaults to 5 if nothing is set.</p>
-<p>In <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we came back to the backing directories, and we realized that in addition to the backing directories created for the Rterm processes, one more directory is created - which will be the &ldquo;official&rdquo; working directory for the session, and we showed this using this figure:</p>
+<p>In 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we came back to the backing directories, and we realized that in addition to the backing directories created for the Rterm processes, one more directory is created - which will be the &ldquo;official&rdquo; working directory for the session, and we showed this using this figure:</p>
 <p>
   <img src="/images/posts/sql_r_services_6_launchpad_working_dir.png" alt="">
 
 </p>
 <p><strong>Figure 3:</strong> <em>Launchpad, Directories and Processes</em></p>
-<p>While we were investigating the directories created in <a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we saw that, while we executed an external script, files and sub-directories were created in the various backing directories:</p>
+<p>While we were investigating the directories created in 
+
+<a href="/post/2017-05-16-microsoft-sql-server-r-services---internals-vi/">Internals - VI</a> we saw that, while we executed an external script, files and sub-directories were created in the various backing directories:</p>
 <p>
   <img src="/images/posts/sql_r_services_7_outputdir.png" alt="">
 
 </p>
 <p><strong>Figure 4:</strong> <em>Contents Process Directory</em></p>
-<p>In <em>Figure 4</em> we see he content of the directory which is the processing directory, and in <a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we looked into what creates those files/directories and what they are for. We came to the conclusion that both the launchpad service (probably through the <code>rlauncher.dll</code>) created some files, whereas <code>Rterm.exe</code> created others.</p>
+<p>In <em>Figure 4</em> we see he content of the directory which is the processing directory, and in 
+
+<a href="/post/2017-07-11-microsoft-sql-server-r-services---internals-vii/">Internals - VII</a> we looked into what creates those files/directories and what they are for. We came to the conclusion that both the launchpad service (probably through the <code>rlauncher.dll</code>) created some files, whereas <code>Rterm.exe</code> created others.</p>
 <p>That&rsquo;s where we are, and now it is time to look at the world outside of the launchpad, and try to figure out what is being used when executing an external script.</p>
 <h2 id="rtermexe">Rterm.exe</h2>
-<p>In <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we saw how the launchpad service creates Rterm processes, and how the launchpad service calls <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> followed by <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> to call into the Rterm process chosen for execution of the external script. So what does <code>Rterm.exe</code> and the RTerm process do?</p>
+<p>In 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> we saw how the launchpad service creates Rterm processes, and how the launchpad service calls <code>launchpad!CSQLSatelliteCommunication::SendResumeWithLoginInfo</code> followed by <code>launchpad!CSQLSatelliteConnection::WriteMessage</code> to call into the Rterm process chosen for execution of the external script. So what does <code>Rterm.exe</code> and the RTerm process do?</p>
 <p>To answer that let us first look at what the R &ldquo;engine&rdquo; really is, and let&rsquo;s do that by looking at standard CRAN R, and for this I use RStudio as an IDE. So, let&rsquo;s open RStudio and make sure it uses the CRAN R engine:</p>
 <p>
   <img src="/images/posts/sql_r_services_8_rstudio_cran.png" alt="">
@@ -292,7 +304,9 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 6:</strong> <em>Processes Loaded</em></p>
-<p>So in <em>Figure 6</em> we see how the <code>rstudio.exe</code> is host for <code>rsession.exe</code>, which in turn host <code>conhost.exe</code>. For this discussion <code>conhost.exe</code> has no real impact, but if you want to know more about it, <a href="https://blogs.technet.microsoft.com/askperf/2009/10/05/windows-7-windows-server-2008-r2-console-host/">here</a> is a good article explaining why we have <code>conhost.exe</code>.</p>
+<p>So in <em>Figure 6</em> we see how the <code>rstudio.exe</code> is host for <code>rsession.exe</code>, which in turn host <code>conhost.exe</code>. For this discussion <code>conhost.exe</code> has no real impact, but if you want to know more about it, 
+
+<a href="https://blogs.technet.microsoft.com/askperf/2009/10/05/windows-7-windows-server-2008-r2-console-host/" target="_blank" rel="noopener">here</a> is a good article explaining why we have <code>conhost.exe</code>.</p>
 <p>Going back to <code>rsession.exe</code>; in Process Explorer, we look at what dll&rsquo;s it has loaded (click on ``rsession.exe` followed by <strong>Ctrl-D</strong> ) we&rsquo;ll see something like this:</p>
 <p>
   <img src="/images/posts/sql_r_services_8_rstudio_rsession_dlls1.png" alt="">
@@ -306,7 +320,9 @@ if (!doNotTrack) {
 </p>
 <p><strong>Figure 8:</strong> <em>R Dlls</em></p>
 <p>Among the dll&rsquo;s we see the <code>R.dll</code>, which is the main dll for R. So, it seems that <code>rsession.exe</code> acts as a host for the R engine, and the R engine is a &ldquo;bunch&rdquo; of dll&rsquo;s.</p>
-<p>Coming back to <code>rterm.exe</code> and what it is, we can now assume it acts in the same way as <code>rsession.exe</code>. Let us go back to the code that we used in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> when we captured the figure we above in <em>Figure 1</em>:</p>
+<p>Coming back to <code>rterm.exe</code> and what it is, we can now assume it acts in the same way as <code>rsession.exe</code>. Let us go back to the code that we used in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a> when we captured the figure we above in <em>Figure 1</em>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -326,7 +342,9 @@ if (!doNotTrack) {
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 1:</strong> <em>Execute with Sys.Sleep</em></p>
-<p>Like we did in <a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we&rsquo;ll execute the code in <em>Code Snippet 1</em>, and while the code is running we&rsquo;ll look in Process Explorer and see if we find anything of interest:</p>
+<p>Like we did in 
+
+<a href="/post/2017-04-13-microsoft-sql-server-r-services---internals-iii/">Internals - III</a>, we&rsquo;ll execute the code in <em>Code Snippet 1</em>, and while the code is running we&rsquo;ll look in Process Explorer and see if we find anything of interest:</p>
 <ol>
 <li>Stop the launchpad service.</li>
 <li>Restart the launchpad service.</li>
@@ -402,7 +420,9 @@ if (!doNotTrack) {
 <blockquote>
 <p><strong>NOTE:</strong> In the next Internals post we&rsquo;ll look more at <code>RxLink.dll</code>, and <code>BxLinkServer.dll</code>.</p>
 </blockquote>
-<p>Finally, let&rsquo;s make sure that <code>BxlServer.exe</code> actually is doing something when we execute an external script in SQL Server R Services. For that we&rsquo;ll use some code we wrote in <a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">Internals V</a>, where we discussed parallelism:</p>
+<p>Finally, let&rsquo;s make sure that <code>BxlServer.exe</code> actually is doing something when we execute an external script in SQL Server R Services. For that we&rsquo;ll use some code we wrote in 
+
+<a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">Internals V</a>, where we discussed parallelism:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -476,7 +496,9 @@ if (!doNotTrack) {
 </div><p><strong>Code Snippet 2:</strong> <em>Setup of Database, Table and Data</em></p>
 <p>The data we create in <em>Code Snippet 2</em> makes absolutely no sense at all, but it will serve our purposes of have some volume of data to work with, and cause the execution to run for a little while.</p>
 <blockquote>
-<p><strong>NOTE:</strong> Go back to <a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">Internals - V</a> if you are interested in seeing what this code does.</p>
+<p><strong>NOTE:</strong> Go back to 
+
+<a href="/post/2017-05-01-microsoft-sql-server-r-services---internals-v/">Internals - V</a> if you are interested in seeing what this code does.</p>
 </blockquote>
 <p>The code we want to execute in SQL Server looks like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
@@ -552,9 +574,13 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 15:</strong> <em>BxlServer Processing</em></p>
-<p>Notice how, in <em>Figure 15</em>, there is nothing about how data gets back to SQL Server. That is something we will discuss in next post. Oh and yes, <em>Figure 15</em> looks very much like one of the figures you can see in this <a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/new-components-in-sql-server-to-support-r">post</a>, and I freely admit I have looked at it :).</p>
+<p>Notice how, in <em>Figure 15</em>, there is nothing about how data gets back to SQL Server. That is something we will discuss in next post. Oh and yes, <em>Figure 15</em> looks very much like one of the figures you can see in this 
+
+<a href="https://docs.microsoft.com/en-us/sql/advanced-analytics/r/new-components-in-sql-server-to-support-r" target="_blank" rel="noopener">post</a>, and I freely admit I have looked at it :).</p>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

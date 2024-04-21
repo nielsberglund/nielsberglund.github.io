@@ -232,17 +232,27 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>Just to set things straight, the title of this post has nothing to do with US politics, but the infinitely more important (and exciting) subject of transactions in <strong>SQL Server</strong> and the concept of <strong>doomed</strong> transactions. Why I came across the idea for this post was due to a discussion I had with a colleague of mine - Sameer Chunilall - who didn&rsquo;t agree with my <a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">post</a> a while ago about <code>XACT_ABORT</code>, he believes it is a good thing (mostly), where I believe it is a bad thing (mostly).</p>
+                <p>Just to set things straight, the title of this post has nothing to do with US politics, but the infinitely more important (and exciting) subject of transactions in <strong>SQL Server</strong> and the concept of <strong>doomed</strong> transactions. Why I came across the idea for this post was due to a discussion I had with a colleague of mine - Sameer Chunilall - who didn&rsquo;t agree with my 
+
+<a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">post</a> a while ago about <code>XACT_ABORT</code>, he believes it is a good thing (mostly), where I believe it is a bad thing (mostly).</p>
 <p>We <del>argued</del> discussed at length, and then decided that we both were right. Or rather I decided I was right, and he decided he was right :). Jokes aside, during the discussions the concept of <strong>doomed</strong> transactions were brought up, and that led me to writing this blog post.</p>
 <p>Before we go any further, I have written a couple (three actually) posts that deal with transactions and/or error-handling in SQL Server, so if you want to refresh your memory they can be found here (in chronological order):</p>
 <ul>
-<li><a href="/post/2011-09-11-transactions-in-sql-server-take-2956/">Transactions in SQL Server (take 2956)</a></li>
-<li><a href="/post/2016-12-31-sql-server-error-handling-gotchas/">SQL Server Error Handling Gotchas</a></li>
-<li><a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">Abort, Abort, We Are XACT_ABORT:ing, Or Are We?!</a></li>
+<li>
+
+<a href="/post/2011-09-11-transactions-in-sql-server-take-2956/">Transactions in SQL Server (take 2956)</a></li>
+<li>
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">SQL Server Error Handling Gotchas</a></li>
+<li>
+
+<a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">Abort, Abort, We Are XACT_ABORT:ing, Or Are We?!</a></li>
 </ul>
 <p>Before we start talking about doomed transactions, let&rsquo;s look at something that has a definitive impact if a transaction will be doomed or not.</p>
 <blockquote>
-<p><strong>NOTE</strong>: There is no special demo code for this blog post, if you want you can <a href="/downloads/code/xact_abort.zip">download the code from the <code>XACT_ABORT</code> blog post</a>, and edit according to the code snippets here.</p>
+<p><strong>NOTE</strong>: There is no special demo code for this blog post, if you want you can 
+
+<a href="/downloads/code/xact_abort.zip">download the code from the <code>XACT_ABORT</code> blog post</a>, and edit according to the code snippets here.</p>
 </blockquote>
 <h2 id="statement-scope-and-batch-termination">Statement, Scope and Batch Termination</h2>
 <p>In SQL Server you execute statements and batches. A statement is what it says it is, a single T-SQL statement, like:</p>
@@ -447,7 +457,9 @@ if (!doNotTrack) {
 </div>
 </div><p><strong>Code Snippet 4</strong>: <em>Batch Executions</em></p>
 <blockquote>
-<p><strong>NOTE:</strong> The code above starts with <code>TRUNCATE TABLE</code> we do that just to make sure everything is cleaned up before execution. Oh, and BTW - how many batches are executed above? Answer in comments or <a href="mailto:niels.it.berglund@gmail.com">email</a>.</p>
+<p><strong>NOTE:</strong> The code above starts with <code>TRUNCATE TABLE</code> we do that just to make sure everything is cleaned up before execution. Oh, and BTW - how many batches are executed above? Answer in comments or 
+
+<a href="mailto:niels.it.berglund@gmail.com">email</a>.</p>
 </blockquote>
 <p>When executing the above you should see three rows coming back from the <code>SELECT</code> statement, all is good:</p>
 <p>
@@ -606,12 +618,18 @@ if (!doNotTrack) {
 
 <strong>Figure 4:</strong> <em>Scope Abort Error</em></p>
 <p>As expected an error happened, but compared to the statement termination example, <code>dbo.pr_2</code> did not continue executing (we did not see <code>dbo.pr_2: Before EXEC dbo.pr_3</code>). The statement that caused the error was terminated <strong>AND</strong> all subsequent statements within that scope (procedure). However, the batch continues and <code>dbo.pr_Caller</code> committed the transaction. When you look at the <em>Results</em> tab in SSMS you will see one row returning from the <code>SELECT</code> statement; the insert done by <code>dbo.pr_1</code>.</p>
-<p>So, what causes scope termination? I have tried to look into that, but so far the only error type I have found termination the scope is when you try to access a missing object. If you know more types, please <a href="mailto:niels.it.berglund@gmail.com">email</a> me, and I can update this post.</p>
+<p>So, what causes scope termination? I have tried to look into that, but so far the only error type I have found termination the scope is when you try to access a missing object. If you know more types, please 
+
+<a href="mailto:niels.it.berglund@gmail.com">email</a> me, and I can update this post.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Neither statement termination, nor scope termination have any effect on a transaction.</p>
 </blockquote>
 <h4 id="error-handling-and-scope-termination">Error Handling and Scope Termination</h4>
-<p>An interesting aspect of scope termination is how it is being handled (or not) by error handling. From my previous posts about errors, (<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">gotchas</a>, and <a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">XACT_ABORT</a>), we see how either <code>IF(@@ERROR &lt;&gt; 0 )</code>, or <code>TRY ... CATCH</code> catch exceptions. How about scope termination errors? You would expect them to be handled the same way as statement termination errors, as they do have the same severity (16), as can be seen from <em>Figure 3</em>, and <em>Figure 4</em>. In fact that is not the case! It turns out that an <code>IF(@@ERROR &lt;&gt; 0)</code> will not catch the error, whereas a <code>TRY ... CATCH</code> block will!</p>
+<p>An interesting aspect of scope termination is how it is being handled (or not) by error handling. From my previous posts about errors, (
+
+<a href="/post/2016-12-31-sql-server-error-handling-gotchas/">gotchas</a>, and 
+
+<a href="/post/2017-01-08-abort-abort-we-re-xact-aborting-or-are-we/">XACT_ABORT</a>), we see how either <code>IF(@@ERROR &lt;&gt; 0 )</code>, or <code>TRY ... CATCH</code> catch exceptions. How about scope termination errors? You would expect them to be handled the same way as statement termination errors, as they do have the same severity (16), as can be seen from <em>Figure 3</em>, and <em>Figure 4</em>. In fact that is not the case! It turns out that an <code>IF(@@ERROR &lt;&gt; 0)</code> will not catch the error, whereas a <code>TRY ... CATCH</code> block will!</p>
 <h3 id="batch-termination">Batch Termination</h3>
 <p>After having covered statement termination and scope termination above, I do think that it is pretty clear what <strong>batch</strong> termination is. Some code to show this; once again in <code>dbo.pr_2</code>, comment out the <code>SELECT</code> statement against the no existing table and un-comment the part where we try to do a <code>CAST</code> conversion:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">

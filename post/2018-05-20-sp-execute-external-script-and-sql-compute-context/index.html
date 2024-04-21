@@ -260,11 +260,23 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>The last <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">blog post</a> in the <a href="/sql_server_2k16_r_services">Microsoft SQL Server R Services</a> series covered some performance related parameters of <code>sp_execute_external_script</code>, (<code>@parallel</code> and <code>@r_rowsPerRead</code>), and it touched a little bit on <strong>SQL Server Compute Context</strong>.</p>
-<p>After I published the post, I received an email from <a href="https://www.linkedin.com/in/umachandarjayachandran/">Umachandar Jayachandran</a> who is a Principal Program Manager in the SQL Server team and is working on integration of R, Python and other runtimes into SQL Server (basically, he knows this &ldquo;stuff&rdquo;). In the mail, he said that I was somewhat incorrect in what I said about how the <strong>SQL Server Compute Context</strong> (SQLCC) works.</p>
+                <p>The last 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">blog post</a> in the 
+
+<a href="/sql_server_2k16_r_services">Microsoft SQL Server R Services</a> series covered some performance related parameters of <code>sp_execute_external_script</code>, (<code>@parallel</code> and <code>@r_rowsPerRead</code>), and it touched a little bit on <strong>SQL Server Compute Context</strong>.</p>
+<p>After I published the post, I received an email from 
+
+<a href="https://www.linkedin.com/in/umachandarjayachandran/" target="_blank" rel="noopener">Umachandar Jayachandran</a> who is a Principal Program Manager in the SQL Server team and is working on integration of R, Python and other runtimes into SQL Server (basically, he knows this &ldquo;stuff&rdquo;). In the mail, he said that I was somewhat incorrect in what I said about how the <strong>SQL Server Compute Context</strong> (SQLCC) works.</p>
 <p>So I decided to write a post to correct my mistakes, and this is it. While I wrote this post I realized that there are more to the SQL compute context that meets ones eye, so I will - in all likelihood - write more posts about SQLCC.</p>
-<p>To see other posts (including this) in the series, go to <a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
-<p>Before I begin I want to say a very big <strong>THANK YOU</strong> to <a href="https://www.linkedin.com/in/umachandarjayachandran/">Umachandar</a> as well as <a href="https://twitter.com/nelliegson">Nellie Gustafsson</a> who also is a SQL Server Program Manager at Microsoft. Without them making me see the &ldquo;errors of my way&rdquo; I would not have been able to write this post.</p>
+<p>To see other posts (including this) in the series, go to 
+
+<a href="/spees_and_sql_compute_context"><strong>sp_execute_external_script and SQL Server Compute Context</strong></a>.</p>
+<p>Before I begin I want to say a very big <strong>THANK YOU</strong> to 
+
+<a href="https://www.linkedin.com/in/umachandarjayachandran/" target="_blank" rel="noopener">Umachandar</a> as well as 
+
+<a href="https://twitter.com/nelliegson" target="_blank" rel="noopener">Nellie Gustafsson</a> who also is a SQL Server Program Manager at Microsoft. Without them making me see the &ldquo;errors of my way&rdquo; I would not have been able to write this post.</p>
 <p>A little bit of background first.</p>
 <h2 id="background">Background</h2>
 <p>We all know how SQL Server supports parallelism, whereby it decides whether to execute a statement in parallel or not, and the <code>MAXDOP</code> setting defines the number of processors executing the statement. Parallel execution is also supported when executing <code>sp_execute_external_script</code> by setting the <code>@parallel</code> parameter to <code>1</code>.</p>
@@ -294,7 +306,9 @@ if (!doNotTrack) {
 <li>The BxlServer processes hosting the SqlSatellites processes the data.</li>
 <li>SQL Server receives results back from the SqlSatellites.</li>
 </ul>
-<p>Why this is a downside is that, as the data is processed independently, if your data has dependencies between different rows (like creating models), there is a high risk that different processes process the dependent rows. We saw that in <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> where we had code like so:</p>
+<p>Why this is a downside is that, as the data is processed independently, if your data has dependencies between different rows (like creating models), there is a high risk that different processes process the dependent rows. We saw that in 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> where we had code like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
@@ -446,7 +460,9 @@ if (!doNotTrack) {
 </ul>
 <p>In <em>Code Snippet 2</em> we also see how we load 50 million records into the <code>dbo.tb_Rand_50M</code>. Be aware that when you run the code in <em>Code Snippet 2</em> it may take some time to finish due to the loading of the data.</p>
 <h2 id="sql-server-compute-context">SQL Server Compute Context</h2>
-<p>In <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> we spoke about as part of the functionality in RevoScaleR is the ability to define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in context of somewhere else: Hadoop, Spark and also SQL Server. For this post it is the the SQLCC that interests us.</p>
+<p>In 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> we spoke about as part of the functionality in RevoScaleR is the ability to define where a workload executes. By default, it executes on your local machine, but you can also set it to execute in context of somewhere else: Hadoop, Spark and also SQL Server. For this post it is the the SQLCC that interests us.</p>
 <p>The SQLCC is not only available from within SQL Server, but also from desktop applications, like Visual Studio, RStudio and so forth. To demonstrate the ability to execute in a separate context we use Visual Studio and some R code:</p>
 <ol>
 <li>Open <em>Visual Studio</em></li>
@@ -496,7 +512,9 @@ if (!doNotTrack) {
 <li>Run <em>Process Explorer</em> as admin.</li>
 <li>Navigate to the <code>devenv.exe</code> process in <em>Process Explorer</em>.</li>
 </ul>
-<p>Notice how, under the <code>devenv.exe</code> process, there is a node for <code>Microsoft.R.Host.Broker.exe</code>. Under that node are two <code>Microsoft.R.Host.exe</code> nodes which in turn hosts <code>BxlServer.exe</code>. This is in line with what we discussed in <a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> about hosting of R processes.</p>
+<p>Notice how, under the <code>devenv.exe</code> process, there is a node for <code>Microsoft.R.Host.Broker.exe</code>. Under that node are two <code>Microsoft.R.Host.exe</code> nodes which in turn hosts <code>BxlServer.exe</code>. This is in line with what we discussed in 
+
+<a href="/post/2017-07-22-microsoft-sql-server-r-services---internals-viii/">Internals - VIII</a> about hosting of R processes.</p>
 <p>When you execute the code in <em>Code Snippet 3</em> the output in <em>Process Explorer</em> looks something like so:</p>
 <p>
   <img src="/images/posts/sql_ml_services_comp_ctx1.png" alt="">
@@ -564,7 +582,9 @@ if (!doNotTrack) {
 <p><strong>Figure 4:</strong> <em>SQL Server Compute Context Execution</em></p>
 <p>Interesting, we see that one of the <code>BxlServer.exe</code> processes under <code>Launchpad.exe</code> is busy (highlighted in yellow). So we see that the code executes in the context of SQL Server. What also is interesting is that the output from <code>system.time()</code>, is on my machine, around 32 seconds - 8 seconds less than when the execution happened in the local compute context! The fact that the execution time is shorter when executing in the SQL Server compute context than when executing in the local context is interesting since we do not do anything different - no more tasks, nothing. Later in this post, we come back to this, but now let us look at using the SQLCC when executing inside SQL Server - like when executing <code>sp_execute_external_script</code>.</p>
 <h2 id="sql-server-and-sql-server-compute-context">SQL Server and SQL Server Compute Context</h2>
-<p>So the question is now that if we execute from inside of SQL Server, is that not automatically within a SQLCC? It is a valid question since what we see in <em>Figure 4</em> looks exactly what we saw in quite a few of the posts in the <a href="/sql_server_2k16_r_services">Internals</a> series. In there we saw how the <code>Launchpad.exe</code> process is hosting, via <code>RTerm.exe</code>, a <code>BxlServer.exe</code> server process which processes the data. So let us switch over to SQL Server and <em>SQL Server Management Studio</em> <em>SSMS</em> and try to see if we execute in the SQLCC or not.</p>
+<p>So the question is now that if we execute from inside of SQL Server, is that not automatically within a SQLCC? It is a valid question since what we see in <em>Figure 4</em> looks exactly what we saw in quite a few of the posts in the 
+
+<a href="/sql_server_2k16_r_services">Internals</a> series. In there we saw how the <code>Launchpad.exe</code> process is hosting, via <code>RTerm.exe</code>, a <code>BxlServer.exe</code> server process which processes the data. So let us switch over to SQL Server and <em>SQL Server Management Studio</em> <em>SSMS</em> and try to see if we execute in the SQLCC or not.</p>
 <p>You see in <em>Code Snippet 4</em> how we use the function <code>rxSetComputeContext()</code> to set the compute context. There is also a function to retrieve the compute context you are in: <code>rxGetComputeContext()</code> (in Python it is <code>rx_get_compute_context</code>) which we now use:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -726,7 +746,9 @@ if (!doNotTrack) {
 <p><strong>Figure 5:</strong> <em>Compute Context Output</em></p>
 <p>The two highlighted parts in <em>Figure 5</em> shows that we indeed executed inside the SQLCC. As for the execution time; I see in the <em>Results</em> tab in <em>SSMS</em> that the execution took ~30 seconds. If you were to comment out the <code>RxInSqlServer</code> and <code>rxSetComputeContext</code> statements and re-run the code, you&rsquo;d see the same as we saw above when we used Visual Studio. E.g. executing inside the SQLCC is faster than in the local context, even though it runs in the same database and with the same number of tasks (1). As mentioned in the part where we looked at executing from Visual Studio, something is &ldquo;going on&rdquo;, and that is a topic for a future post.</p>
 <h2 id="under-the-covers">Under the Covers</h2>
-<p>Now it is time to see how it works when we execute code running in a SQL Server compute context set up with multiple tasks. Remember what we saw in <a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> when we executed code that ran in parallel:</p>
+<p>Now it is time to see how it works when we execute code running in a SQL Server compute context set up with multiple tasks. Remember what we saw in 
+
+<a href="/post/2018-03-21-microsoft-sql-server-r-services---sp-execute-external-script---iii/">sp_execute_external_script - III</a> when we executed code that ran in parallel:</p>
 <p>
   <img src="/images/posts/sql_r_services_ext_scriptIII_proc_exp2.png" alt="">
 
@@ -746,9 +768,13 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 7:</strong> <em>Parallel Execution in Compute Context</em></p>
-<p>Well, that is interesting! In <em>Figure 7</em> we now see not only the &ldquo;usual&rdquo; RTerm and <code>BxlServer.exe</code> processes but also a new hosting process, outlined in red, <code>mpiexec.exe</code>. Underneath the <code>mpiexec.exe</code> process we see the <code>smpd.exe</code> process (outlined in green) and then four RTerm processes with <code>BxlServer.exe</code> processes which handle the workload. So, <code>mpiexec.exe</code> and <code>smpd.exe</code> are parts of <a href="https://msdn.microsoft.com/en-us/library/bb524831%28v=vs.85%29.aspx?f=255&amp;MSPPError=-2147217396"><strong>Microsoft MPI</strong></a> which is an implementation of MPI which is a communication protocol for programming parallel computers. We talk briefly about MPI a bit later in this post, but first, let us understand the flow.</p>
+<p>Well, that is interesting! In <em>Figure 7</em> we now see not only the &ldquo;usual&rdquo; RTerm and <code>BxlServer.exe</code> processes but also a new hosting process, outlined in red, <code>mpiexec.exe</code>. Underneath the <code>mpiexec.exe</code> process we see the <code>smpd.exe</code> process (outlined in green) and then four RTerm processes with <code>BxlServer.exe</code> processes which handle the workload. So, <code>mpiexec.exe</code> and <code>smpd.exe</code> are parts of 
+
+<a href="https://msdn.microsoft.com/en-us/library/bb524831%28v=vs.85%29.aspx?f=255&amp;MSPPError=-2147217396" target="_blank" rel="noopener"><strong>Microsoft MPI</strong></a> which is an implementation of MPI which is a communication protocol for programming parallel computers. We talk briefly about MPI a bit later in this post, but first, let us understand the flow.</p>
 <h4 id="flow">Flow</h4>
-<p>We execute <code>sp_execute_external_script</code> and that &ldquo;spins up&rdquo; the usual RTerm and BxlServer process which we discussed in quite a few <a href="/sql_server_2k16_r_services">Internals</a> posts. SQL Server creates the compute context via another <code>sp_execute_external_script</code> call to the Launchpad service.</p>
+<p>We execute <code>sp_execute_external_script</code> and that &ldquo;spins up&rdquo; the usual RTerm and BxlServer process which we discussed in quite a few 
+
+<a href="/sql_server_2k16_r_services">Internals</a> posts. SQL Server creates the compute context via another <code>sp_execute_external_script</code> call to the Launchpad service.</p>
 <blockquote>
 <p><strong>NOTE:</strong> Above I say <em>another <code>sp_execute_external_script</code> call</em>, it is in fact two calls. Hopefully a future post covers why and how there are multiple calls</p>
 </blockquote>
@@ -768,7 +794,9 @@ if (!doNotTrack) {
 <li>The results are merged back into one result.</li>
 </ul>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 

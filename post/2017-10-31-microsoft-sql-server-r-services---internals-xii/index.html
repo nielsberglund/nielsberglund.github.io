@@ -240,10 +240,14 @@ if (!doNotTrack) {
                 post-container">
 
                 
-                <p>This is the 13:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 12:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to <a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
+                <p>This is the 13:th post in a series about <strong>Microsoft SQL Server R Services</strong>, and the 12:th post that drills down into the internal of how it works. To see other posts (including this) in the series, go to 
+
+<a href="/sql_server_2k16_r_services"><strong>SQL Server R Services</strong></a>.</p>
 <p>The last few posts in this series has been about communication between SQL Server and SqlSatellite. We have discussed the connection between the two, and we have also seen how packets are sent from SQL Server to SqlSatellite. In this post we&rsquo;ll continue looking at what causes the packets to be send and what sends them. We will specifically look at the packet containing the external script, as well as the packet that contains the data (<code>@input_data_set_1</code>).</p>
 <h2 id="recap">Recap</h2>
-<p>In <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, we executed code looking like so:</p>
+<p>In 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>, we executed code looking like so:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -273,8 +277,12 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 1:</strong> <em>Process Monitor Output Data Select</em></p>
-<p>By using <em>WireShark</em> we determined that the two highlighted packets (length 350, and 6300 respectively) contained the external script (packet with length 350), and the result from the <code>SELECT</code> (length 6300). We could however not determine what the two initial packets were, and what caused them to be sent - and in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we set out to try to find out more about those packets.</p>
-<p>By doing some <em>WinDbg</em> <a href="http://queue.acm.org/detail.cfm?id=945136">&ldquo;spelunking&rdquo;</a> we found out that the two packets are sent during authentication between SQL Server and the SqlSatellite and they are sent inside the <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> routine. The flow of calls can be illustrated as in the figure below:</p>
+<p>By using <em>WireShark</em> we determined that the two highlighted packets (length 350, and 6300 respectively) contained the external script (packet with length 350), and the result from the <code>SELECT</code> (length 6300). We could however not determine what the two initial packets were, and what caused them to be sent - and in 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a> we set out to try to find out more about those packets.</p>
+<p>By doing some <em>WinDbg</em> 
+
+<a href="http://queue.acm.org/detail.cfm?id=945136" target="_blank" rel="noopener">&ldquo;spelunking&rdquo;</a> we found out that the two packets are sent during authentication between SQL Server and the SqlSatellite and they are sent inside the <code>sqllang!CSQLSatelliteConnection::AuthenticateConnection</code> routine. The flow of calls can be illustrated as in the figure below:</p>
 <p>
   <img src="/images/posts/sql_r_services_11_calls.png" alt="">
 
@@ -282,9 +290,15 @@ if (!doNotTrack) {
 <p><strong>Figure 2:</strong> <em>Flow in SQL Server</em></p>
 <p>It is worth noting that the second <code>WriteAsync</code> is done on a separate thread from the first, but still within the <code>AuthenticateConnection</code> routine. We now know what causes the two first packets to be sent, and what routines are involved. We also know what the two following packets are for (script and data), but we do not know what routines are involved (other than <code>WriteMessage</code>), and we definitely don&rsquo;t know what the two packets with a length of 28 is for. As mentioned in the beginning of this post, this is now what we will try and figure out.</p>
 <h2 id="helper-tools">Helper Tools</h2>
-<p>To help us figure out the things we want, we will use <em>WinDbg</em> and <em>Process Monitor</em>. In the case of <em>Process Monitor</em>, we&rsquo;ll use it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</p>
+<p>To help us figure out the things we want, we will use <em>WinDbg</em> and <em>Process Monitor</em>. In the case of <em>Process Monitor</em>, we&rsquo;ll use it to filter TCP traffic. If you want to refresh your memory about how to do it, we covered that in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</p>
 <h4 id="windbg">WinDbg</h4>
-<p>We have used <em>WinDbg</em> throughout this series, and in <a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we discussed how to set it up etc. The <em>WinDbg</em> we have used up until now is the &ldquo;classic&rdquo; <em>WinDbg</em>, that has been available throughout the years. In August Microsoft released a preview version of a more modern <a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86"><em>WinDbg</em> application</a>.</p>
+<p>We have used <em>WinDbg</em> throughout this series, and in 
+
+<a href="/post/2017-03-18-microsoft-sql-server-r-services---internals-i/">Internals - I</a> we discussed how to set it up etc. The <em>WinDbg</em> we have used up until now is the &ldquo;classic&rdquo; <em>WinDbg</em>, that has been available throughout the years. In August Microsoft released a preview version of a more modern 
+
+<a href="https://www.microsoft.com/en-us/store/p/windbg/9pgjgd53tn86" target="_blank" rel="noopener"><em>WinDbg</em> application</a>.</p>
 <p>It has been updated to have more modern visuals, faster windows, a full-fledged scripting experience, and Time Travel Debugging (whatever that is):</p>
 <p>
   <img src="/images/posts/sql_r_services_12_windbg1.jpg" alt="">
@@ -293,7 +307,9 @@ if (!doNotTrack) {
 <p><strong>Figure 3:</strong> <em>New WinDbg</em></p>
 <p>So, going forward in this series, the new <em>WinDbg</em> is the debugger I&rsquo;ll use.</p>
 <h2 id="script-packets">Script Packets</h2>
-<p>Let us first start with the script packets, and the code we&rsquo;ll use for this is what we also used in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>:</p>
+<p>Let us first start with the script packets, and the code we&rsquo;ll use for this is what we also used in 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
 <pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
@@ -313,7 +329,9 @@ if (!doNotTrack) {
 <p>Before executing the code in <em>Code Snippet 2</em>:</p>
 <ul>
 <li>start up <em>Process Monitor</em> and run it as admin</li>
-<li>set up the filters we used in <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
+<li>set up the filters we used in 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">Internals - X</a>.</li>
 </ul>
 <p>After <em>Process Monitor</em> has been set up, you can execute the code. When you execute, look closely at the <em>Process Monitor</em> output, especially what it looks like at the time you hit <code>Sys.sleep</code>. After execution the output should look like so:</p>
 <p>
@@ -321,7 +339,11 @@ if (!doNotTrack) {
 
 </p>
 <p><strong>Figure 4:</strong> <em>Process Monitor Output</em></p>
-<p>The red line in <em>Figure 4</em> illustrates where <code>Sys.sleep</code> happens. Now let us drill down into the two packets with length 204 and the packet with a length of 28. As we did in Internals - <a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a> and <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, we&rsquo;ll set some breakpoints in <em>WinDbg</em>:</p>
+<p>The red line in <em>Figure 4</em> illustrates where <code>Sys.sleep</code> happens. Now let us drill down into the two packets with length 204 and the packet with a length of 28. As we did in Internals - 
+
+<a href="/post/2017-08-29-microsoft-sql-server-r-services---internals-x/">X</a> and 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">XI</a>, we&rsquo;ll set some breakpoints in <em>WinDbg</em>:</p>
 <ul>
 <li>Start <em>WinDbg</em> as admin.</li>
 <li>Attach to the SQL Server process - (as I have said so many times before, DO NOT do this on a production machine)</li>
@@ -332,8 +354,12 @@ if (!doNotTrack) {
 <li><code>bp sqllang!CSQLSatelliteConnection::WriteMessage</code></li>
 <li><code>bp sqllang!Tcp::WriteAsync</code></li>
 </ul>
-<p>We use the <code>ConnectToSatellite</code> break-point as a &ldquo;navigation&rdquo; aid, e.g. we know that what we are interested in will happen after <code>ConnectToSatellite</code>. We should also keep in mind that there will be two <code>sqllang!Tcp::WriteAsync</code> calls after <code>ConnectToSatellite</code>, which is related to the authentication between SQL Server and SqlSatellite (see <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>), and whatever we are interested in comes after those two calls.</p>
-<p>Execute the code in <em>Code Snippet 2</em>, and continue when you hit the first <code>WriteMessage</code> (this call is related top the named pipe connection between SQL Server and the launchpad service). Notice how you break at <code>ConnectToSatellite</code>, and when you continue, there are two <code>WriteAsync</code> straight after it (this is the authentication calls we covered in <a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>). Now things are getting somewhat interesting; after the second <code>WriteAsync</code>, continue past <code>WriteMessage</code>, and you will break at <code>WriteAsync</code>, which is where the script is being sent to SqlSatellite.</p>
+<p>We use the <code>ConnectToSatellite</code> break-point as a &ldquo;navigation&rdquo; aid, e.g. we know that what we are interested in will happen after <code>ConnectToSatellite</code>. We should also keep in mind that there will be two <code>sqllang!Tcp::WriteAsync</code> calls after <code>ConnectToSatellite</code>, which is related to the authentication between SQL Server and SqlSatellite (see 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>), and whatever we are interested in comes after those two calls.</p>
+<p>Execute the code in <em>Code Snippet 2</em>, and continue when you hit the first <code>WriteMessage</code> (this call is related top the named pipe connection between SQL Server and the launchpad service). Notice how you break at <code>ConnectToSatellite</code>, and when you continue, there are two <code>WriteAsync</code> straight after it (this is the authentication calls we covered in 
+
+<a href="/post/2017-10-20-microsoft-sql-server-r-services---internals-xi/">Internals - XI</a>). Now things are getting somewhat interesting; after the second <code>WriteAsync</code>, continue past <code>WriteMessage</code>, and you will break at <code>WriteAsync</code>, which is where the script is being sent to SqlSatellite.</p>
 <p>At that point, let&rsquo;s have a look at the call-stack. If you use the old <em>WinDbg</em>, you do a <code>kc</code>, and in the new <em>WinDbg</em> you look at the call-stack window:</p>
 <p>
   <img src="/images/posts/sql_r_services_12_windbg_callstack.png" alt="">
@@ -634,7 +660,9 @@ if (!doNotTrack) {
 <li>where did the data packet originate from, but no <code>sqllang!Tcp::WriteAsync</code> were called?</li>
 <li>we saw two packets with a length of 28, we know one must be the script end packet, but which is it, and what is the other packet?</li>
 </ol>
-<p>Let&rsquo;s start with point 1, where does the input data come from? For one reason or another it doesn&rsquo;t originate from a <code>WriteMessage</code> followed by an <code>sqllang!Tcp::WriteAsync</code>. However, we do know that the data is sent as a TCP packet, so somewhere some code having to do with sockets need to be called. If we &ldquo;spelunk&rdquo; down in Windows documentation, we can see that there is a function named <code>WSPSend</code>. According to the <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms742292(v=vs.85).aspx">documentation</a>: &ldquo;The WSPSend function sends data on a connected socket.&rdquo;.</p>
+<p>Let&rsquo;s start with point 1, where does the input data come from? For one reason or another it doesn&rsquo;t originate from a <code>WriteMessage</code> followed by an <code>sqllang!Tcp::WriteAsync</code>. However, we do know that the data is sent as a TCP packet, so somewhere some code having to do with sockets need to be called. If we &ldquo;spelunk&rdquo; down in Windows documentation, we can see that there is a function named <code>WSPSend</code>. According to the 
+
+<a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms742292%28v=vs.85%29.aspx" target="_blank" rel="noopener">documentation</a>: &ldquo;The WSPSend function sends data on a connected socket.&rdquo;.</p>
 <p>With that in mind, perhaps there is something in SQL Server that would be named something similar; <code>x *!*WSPSend*</code>:</p>
 <div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
@@ -849,7 +877,9 @@ if (!doNotTrack) {
 <li>The second end packet is sent.</li>
 </ol>
 <h2 id="-finally">~ Finally</h2>
-<p>If you have comments, questions etc., please comment on this post or <a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
+<p>If you have comments, questions etc., please comment on this post or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me.</p>
 
                 
 
