@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-3-1.png">
+    <meta property="twitter:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-3-1.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 3 - Architecting an AI-Native System" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 3 - Architecting an AI-Native System" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 3 - Architecting an AI-Native System" />
+    
+
+    
+    <meta name="description" content="Stop building dashboards—build AI-native systems. Part 3 shows how Claude Code helps architect an event management system using MCP servers, PostgreSQL, and natural language interfaces.">
+    <meta property="og:description" content="Stop building dashboards—build AI-native systems. Part 3 shows how Claude Code helps architect an event management system using MCP servers, PostgreSQL, and natural language interfaces." />
+    <meta property="twitter:description" content="Stop building dashboards—build AI-native systems. Part 3 shows how Claude Code helps architect an event management system using MCP servers, PostgreSQL, and natural language interfaces." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 3 - Architecting an AI-Native System | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2025-12-28-building-an-event-management-system-with-claude-code-part-3---architecting-an-ai-native-system/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-3-1.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/mcp-servers" title="MCP Servers">
+                            MCP Servers
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 3 - Architecting an AI-Native System</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, December 28, 2025
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Welcome back to <strong>Building an Event Management System with Claude Code</strong> blog post series! If you&rsquo;ve been following along, you know we&rsquo;ve covered how to install Claude Code (which has gotten significantly simpler since we started - see edited 
+
+<a href="/post/2025-07-29-building-an-event-management-system-with-claude-code-claude-code-installation-and-initialisation/">Part 1</a> and 
+
+<a href="/post/2025-08-13-building-an-event-management-system-with-claude-code-part-2---ide-integration-and-advanced-features/">Part 2</a>) and how to integrate it with your IDE. We even built a basic <code>Node.js</code> application with some API endpoints. That was all great learning, but here&rsquo;s the thing: I&rsquo;ve been so busy organising <strong>Data &amp; AI Community Day Durban</strong> events that I haven&rsquo;t had time to write about building a system to manage them. The irony is not lost on me.</p>
+<ul>
+<li>To see all posts in the series, go to: 
+
+<a href="/contact-event-claude-code">Building an Event Management System with Claude Code</a>.</li>
+</ul>
+<p>While not working on this blogpost series, but instead organising and prepping demos for a couple of events, I had time to reflect on what I would like the system to be. When I started this series, I had a clear picture in my head of what I wanted. However, when prepping event demos and seeing what LLMs together with MCP Servers are capable of, I wanted something different.</p>
+<hr>
+<h2 id="plot-twist">Plot Twist</h2>
+<p>Initially, I thought a simple web app with forms to manage events, attendees, and speakers would suffice. But as I explored the capabilities of LLMs and MCP servers more deeply, I realised that I could build something much more powerful, something that leverages AI not just to help me code faster, but to fundamentally change how I interact with the event management system. So, we&rsquo;re going to build an <strong>AI-native system</strong>, not just using AI to build a traditional web application.</p>
+<p>What&rsquo;s the difference? An AI-native system uses artificial intelligence not just in its construction but also in its core operations. Instead of building a traditional CRUD application with web forms and dashboards, I&rsquo;m building a system where the primary interface is conversational; where I can ask questions like &ldquo;How many people attended last year&rsquo;s event?&rdquo; or &ldquo;Email all speakers from 2024 about the next conference&rdquo;, and the system just handles it.</p>
+<p>This is the perfect use case for <strong>Model Context Protocol</strong> (<strong>MCP</strong>) servers, and that&rsquo;s what makes this blog series timely and valuable to you.</p>
+<hr>
+<h2 id="understanding-what-we-actually-need">Understanding What We Actually Need</h2>
+<p>Before we dive into architecture and technology choices, let me clarify what this system actually needs to do. It&rsquo;s not a full-featured event management platform; we&rsquo;re not replacing Eventbrite or building registration systems. What we need is something more focused: a <strong>Contact Relationship Management (CRM) and Communications Hub</strong> specifically for the <strong>Data &amp; AI Community Day Durban</strong> events.</p>
+<p>Here&rsquo;s the reality of my workflow:</p>
+<ul>
+<li><strong>Attendee registration</strong> happens through Quicket (a third-party ticketing platform)</li>
+<li><strong>Speaker submissions</strong> happen through Sessionize (a speaker management platform)</li>
+<li><strong>Check-ins</strong> happen through Quicket on the day of the event</li>
+<li><strong>Everything else</strong> currently happens through Brevo or manual spreadsheet juggling</li>
+</ul>
+<p>It is the last bullet, &ldquo;Everything else&rdquo;, that I want this system for. More specifically:</p>
+<ol>
+<li><strong>Stores contacts:</strong> A unified database of all attendees and speakers with their participation history</li>
+<li><strong>Tracks participation:</strong> Who registered for which event, who actually attended, who spoke at which event</li>
+<li><strong>Handles communications:</strong> Email workflows for speakers and attendees, pulling contacts from our database</li>
+<li><strong>Provides insights:</strong> &ldquo;Show me speaker retention&rdquo;, &ldquo;How many first-time attendees did we have?&rdquo;, &ldquo;Which topics had the highest attendance?&rdquo;</li>
+<li><strong>Imports data:</strong> Batch upload registration data from Quicket, speaker data from Sessionize</li>
+</ol>
+<p>Critically, I don&rsquo;t want to build another web dashboard full of forms and tables. I want to ask questions and give commands in natural language, and have the system handle it. That&rsquo;s where MCP comes in.</p>
+<hr>
+<h2 id="the-ai-native-architecture-vision">The AI-Native Architecture Vision</h2>
+<p>Let me start with how I envision using this system daily, because that vision drives the architecture:</p>
+<p><strong>Me:</strong> &ldquo;Is Jane Smith registered for the upcoming conference?&rdquo; <br>
+<strong>System:</strong> &ldquo;Yes, Jane Smith (
+
+<a href="mailto:jane.smith@example.com">jane.smith@example.com</a>) registered on December 15, 2024. She also attended the 2023 and 2024 conferences as an attendee.&rdquo;</p>
+<p><strong>Me:</strong> &ldquo;How many people attended last year&rsquo;s event compared to 2023?&quot;<br>
+<strong>System:</strong> &ldquo;2024 had 287 attendees (92% of registrations). In 2023, 245 attendees (88% of registrations) attended. That&rsquo;s a 17% increase in attendance.&rdquo;</p>
+<p><strong>Me:</strong> &ldquo;Send an email to all 2024 speakers announcing the call for papers for 2025.&rdquo; <br>
+<strong>System:</strong> &ldquo;I&rsquo;ve queued an email to 23 speakers from 2024. Would you like to preview the email list before sending?&rdquo;</p>
+<p>This conversational interface isn&rsquo;t science fiction; it&rsquo;s absolutely achievable with MCP servers and Claude (or any LLM). The system consists of:</p>
+<ol>
+<li><strong>Data Layer:</strong> PostgreSQL database with our contacts, events, and participation records</li>
+<li><strong>MCP Server Layer:</strong> Tools that let Claude interact with the database and external services</li>
+<li><strong>Conversational Interface:</strong> Claude.ai/Gemini (initially), where I interact with the system</li>
+</ol>
+<p>No web forms. No admin dashboards. Just conversations that get things done.</p>
+<hr>
+<h2 id="using-claude-code-for-requirements-analysis">Using Claude Code for Requirements Analysis</h2>
+<p>Now, here&rsquo;s where Claude Code gets really interesting. Before I start building anything, I want to have a conversation with Claude Code about what we&rsquo;re building. Not to write code yet, but to think through the architecture.</p>
+<p>So let us do that. The code for this will be in a new directory <code>event-contact-management-2</code>:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># create a new directory for the project</span>
+</span></span><span style="display:flex;"><span>$ mkdir event-contact-management-2
+</span></span><span style="display:flex;"><span>$ <span style="color:#cb4b16">cd</span> event-contact-management-2
+</span></span><span style="display:flex;"><span>$ claude update
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># start a new Claude Code session</span>
+</span></span><span style="display:flex;"><span>$ claude
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Code Snippet 1:</strong> <em>Starting a new Claude Code session for Requirements Analysis</em></p>
+<p>Notice in <em>Code Snippet 1</em> that I call <code>claude update</code> to ensure I have the latest version of Claude Code before starting a new session. When I execute the code, I eventually see something like so:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-default-model.png">
+    
+    
+    <figcaption><b>Figure 1: </b><em>Claude Code up and Running</em></figcaption>
+</figure>
+<p>The reason I am showing you this is what is outlined in red in <em>Figure 1</em>. You can see the model and which subscription plan I am on. This is important because Claude Code&rsquo;s capabilities depend on the model you are using. Sonnet 4.5 is the default model, but for the upcoming discussion, I want to use the Opus 4.5 model because it has better reasoning capabilities, which are crucial for architectural discussions.</p>
+<p>To change the model, I simply type <code>/model</code> in Claude&rsquo;s input textbox, press enter and select <code>Opus 4.5</code> from the list. Now I&rsquo;m ready to discuss the architecture.</p>
+<blockquote>
+<p><strong>NOTE:</strong> If you don&rsquo;t see the model selection option, ensure your Claude Code installation is up to date and that your subscription plan supports multiple models. Also, be aware that the Opus model is more costly to use, so monitor your usage accordingly.</p>
+</blockquote>
+<h3 id="conversation">Conversation</h3>
+<p>When &ldquo;talking&rdquo; to Claude Code, you get the best results by providing clear context and specific requirements. The naive approach would be to just say something like:</p>
+<pre tabindex="0"><code>I need to build an event management system, but it&#39;s really more of a CRM and communications hub. Here&#39;s my workflow: I am creating events for Data &amp; AI Community Day Durban. Attendee registration happens through Quicket, and speaker submissions through Sessionize. I then want to upload the attendee and speaker registrations to the system. Attendee check-in also happens through Quicket, and after the event, the check-ins need to be imported too.
+
+What I want is to be able to ask questions like &#34;How many people attended last year?&#34; and have the system answer. I also want to send emails to specific groups, like &#34;all speakers from 2024&#34;. What&#39;s the best architecture for this?
+</code></pre><p><strong>Code Snippet 2:</strong> <em>Naive Prompt to Claude Code for Architectural Discussion</em></p>
+<p>Why do I say &ldquo;naive&rdquo;? I actually used that prompt initially &#x1f604;, and Claude Code&rsquo;s response was very generic &#x1f61e;. So I altered my approach and tried to be very specific about what I wanted.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    When using Claude Code for architectural discussions, always provide as much context as possible. Use external files for detailed specs, and encourage thoughtful analysis by prompting for step-by-step plans.
+  </div>
+</div>
+<p>I created a 
+
+<a href="https://gist.github.com/nielsberglund/357e06005ae3ef43db6c2166557c836c" target="_blank" rel="noopener"><code>spec.md</code></a> file in the project directory that outlines all the context and high-level requirements. Then I told Claude Code to read that file and help me design the architecture based on it:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-prompt.png">
+    
+    
+    <figcaption><b>Figure 2: </b><em>Claude Code Prompt</em></figcaption>
+</figure>
+<p>You see in <em>Figure 2</em> my prompt to Claude Code. Notice how I:</p>
+<ul>
+<li>Refer to the <code>spec.md</code> file for context (outlined in yellow).</li>
+<li>Tell Claude Code to <em>Think hard</em>, which encourages Claude Code to engage in a more thoughtful analysis of the problem (I mentioned this in 
+
+<a href="/post/2025-08-13-building-an-event-management-system-with-claude-code-part-2---ide-integration-and-advanced-features/">Part 2</a>).</li>
+<li>Outlined in red, you see how I switched <code>plan mode on</code> (<strong>shift+tab</strong>) so that Claude Code can outline a step-by-step plan for the architecture.</li>
+</ul>
+<p>When executing the prompt in <em>Figure 2</em>, Claude Code &ldquo;goes away&rdquo;, it asks some clarifying questions, and then comes back with a plan:</p>
+<pre tabindex="0"><code>
+[snipped for brevity]
+
+## Conclusion
+
+**Your vision is not only feasible - it&#39;s architecturally superior for your use case.**
+
+The LLM/MCP approach gives you:
+- **Flexibility**: Ask any question, not just pre-built reports
+- **Speed**: No frontend development for Phase 1
+- **Intelligence**: Context-aware, conversational responses
+- **Safety**: Preview/confirmation workflows
+- **Extensibility**: Add capabilities without UI changes
+- **Future-proof**: Same backend works with any frontend
+
+**Recommended Next Step:** Start with Phase 1 (Claude.ai/Claude Code + MCP servers). This lets you validate the approach, refine the data model, and understand your real usage patterns before investing in a web UI.
+
+The database schema and MCP servers you build for Phase 1 will work unchanged in Phase 2 - you&#39;re not throwing away any work.
+</code></pre><p><strong>Code Snippet 3:</strong> <em>Claude Code Plan</em></p>
+<p>In <em>Code Snippet 3</em>, you see the last part of the plan. You can see the 
+
+<a href="https://gist.github.com/nielsberglund/c0b16d2a83b81956b0e1a59c957fc928" target="_blank" rel="noopener">complete plan here</a>. When you read the entire plan, you see that Claude Code has outlined a comprehensive architecture. It breaks down the data model, integration points, and query patterns. Is the plan 100%? No, but it&rsquo;s a fantastic starting point. I can now iterate on this plan, ask follow-up questions, and refine the architecture further.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    <p>You may ask yourself, &ldquo;How did you get the plan, so it could be uploaded as a gist?&rdquo; Good question! After Claude Code said that the plan we done I asked it to write the plan to a file: <code>plan.md</code>. Once that was done, I used the command line to create a gist from that file:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ gh gist create plan.md --public
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+  </div>
+</div>
+<p>This is powerful, despite the plan being nowhere near perfect. Because Claude Code isn&rsquo;t just writing code, it&rsquo;s helping you <strong>think through the problem</strong> before committing to an implementation. It&rsquo;s forcing you to articulate your requirements clearly, and it&rsquo;s suggesting architectural patterns you might not have considered.</p>
+<p>At Derivco, we&rsquo;ve found that spending time in this planning phase with Claude Code significantly speeds up development, because you catch design issues before they become code problems.</p>
+<p>Coming back to the plan. When reading the plan, I noticed that Claude Code suggested building custom MCP servers for everything. Is that the best solution?</p>
+<hr>
+<h2 id="discovering-existing-mcp-servers">Discovering Existing MCP Servers</h2>
+<p>Here&rsquo;s where things get really practical. Before I build a single custom MCP server, I need to know what already exists. The MCP ecosystem is growing rapidly, and there&rsquo;s a good chance someone has already built tools for everyday operations, such as database access or email sending.</p>
+<p>Let&rsquo;s use Claude Code to research what&rsquo;s available:</p>
+<pre tabindex="0"><code>Me: In your plan you suggested to use MCP servers. Good! However it sounded you suggested to build customised MCP
+  servers. Before we do that, can you please check if there are any existing PostgreSQL MCP servers, and if there are
+  what is the best one in your opinion.
+
+Claude Code: [searches and finds several options]
+
+Excellent question! I found several existing PostgreSQL MCP servers. Here&#39;s my analysis:
+
+  Available PostgreSQL MCP Servers
+
+  1. Postgres MCP Pro (Crystal DBA) ⭐ Best Option
+
+  Repository: https://github.com/crystaldba/postgres-mcp
+
+  Features:
+  - ✅ Configurable read/write access (unrestricted for dev, restricted for production)
+  - ✅ 8 comprehensive tools including:
+    - execute_sql - Run queries with safety controls
+    - list_schemas, list_objects, get_object_details - Schema exploration
+    - explain_query - Query performance analysis
+    - analyze_db_health - Database health monitoring
+    - analyze_workload_indexes - Index recommendations
+  - ✅ Production-ready with safety features
+  - ✅ Actively maintained
+  - ✅ Easy installation (Docker, pipx, or uv)
+
+  2. Official @modelcontextprotocol/server-postgres (Anthropic)
+
+  Status: ⚠️ ARCHIVED (May 2025)
+  - Read-only access only
+  - Basic schema inspection and queries
+  - Still available but deprecated
+  - 20,000 weekly NPM downloads (legacy usage)
+
+  [snipped for brevity]
+
+  My Verdict
+
+  Start with Postgres MCP Pro directly (Option 1) to validate your architecture quickly. If you find the LLM struggles with schema complexity or you want more control, add a custom layer later.
+
+[snipped for brevity]
+</code></pre><p><strong>Code Snippet 4:</strong> <em>Claude Code Researching Existing PostgreSQL MCP Servers</em></p>
+<p>This discovery phase is critical. It&rsquo;s tempting to just start coding, but by finding existing MCP servers first, I can:</p>
+<ul>
+<li><strong>Save development time</strong> - Why build what already exists?</li>
+<li><strong>Learn patterns</strong> - Study how others have solved similar problems</li>
+<li><strong>Combine tools</strong> - Use multiple MCP servers together for complex workflows</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> After Claude Code came back with the above, I asked it to update the plan in <code>plan.md</code> and&rsquo; CLAUDE.md&rsquo; to reflect this new information about existing MCP servers.</p>
+</blockquote>
+<p>I then did the same for CSV/Excel import. In this case, Claude Code came back with a recommended hybrid option:</p>
+<pre tabindex="0"><code>My Verdict
+
+Go with Option 1: Use csv-mcp-server for foundation + FastMCP for custom Quicket/Sessionize import tools.
+
+Why:
+- 80% of functionality (validation, quality, duplicates) comes free from csv-mcp-server
+- 20% custom code handles domain-specific formats
+- Best balance of leverage vs. control
+- FastMCP makes custom development fast and Pythonic
+
+Implementation Plan:
+1. Install csv-mcp-server for general CSV operations
+2. Build custom &#34;import-mcp-server&#34; using FastMCP with 5-6 tools for Quicket/Sessionize
+3. Custom server internally uses Pandas (same as csv-mcp-server) for CSV parsing
+4. Custom server calls Postgres MCP Pro to insert validated data
+
+Code Estimate: ~500-800 lines of Python for custom import server (FastMCP + Pandas + validation logic)
+
+Would you like me to update CLAUDE.md and plan.md with these findings and recommendations?
+</code></pre><p><strong>Code Snippet 5:</strong> <em>Claude Code Researching Existing CSV/Excel MCP Servers</em></p>
+<p>It is interesting to see in <em>Code Snippet 5</em> how Claude Code now asks me if I also want to update <code>CLAUDE.md</code> and <code>plan.md</code> with these findings and recommendations (I said yes).</p>
+<hr>
+<h2 id="choosing-an-email-service">Choosing an Email Service</h2>
+<p>It would now be tempting to ask the same for email MCP servers. However, in the original plan, Claude Code mentioned SendGrid as an email service. I am not sure that is the best option, so I asked Claude to research the email service options a bit more:</p>
+<pre tabindex="0"><code>Can you now research what email sending servers are out there. I do have some requirements:
+1. I have the contact database. I do not want to be reliant on a database sitting with the service. They may require
+ schemas that I do not want.
+2. It would be great if the service has a drag and drop template editor, alternatively email editor supporting
+Markdown
+3. Cost is always a factor. I do not see me sending more than 6,000 emails per year, ~1,500 per quarter.
+</code></pre><p><strong>Code Snippet 5:</strong> <em>Claude Code Researching Email Services</em></p>
+<p>The question in <em>Code Snippet 5</em> is quite specific about my requirements. When Claude Code comes back with the answer, it is somewhat surprising (remember, initially Claude Code mentioned SendGrid):</p>
+<pre tabindex="0"><code> Final Recommendation
+
+  Recommended Stack:
+
+  1. Email Service: Brevo (FREE plan)
+     └─ Covers 109,500 emails/year (18x your need)
+     └─ Drag-and-drop template editor
+     └─ API-first, no contact DB required
+
+  2. MCP Integration: Build custom Email MCP Server
+     └─ Use FastMCP framework (Python)
+     └─ Integrate with Brevo API
+     └─ Tools: preview_recipients, send_email, get_templates, etc.
+     └─ ~300-500 lines of code
+
+  3. Template Workflow:
+     Option A: Use Brevo&#39;s drag-and-drop editor (easiest)
+     Option B: Create MJML templates, store in repo, send via API
+</code></pre><p><strong>Code Snippet 6:</strong> <em>Claude Code Recommended Email Services</em></p>
+<p>That was unexpected! Claude Code is now recommending Brevo (formerly Sendinblue) instead of SendGrid. The reason is that Brevo&rsquo;s free plan covers my email volume, has a drag-and-drop editor, and doesn&rsquo;t require me to manage a contact database on their side. This is a perfect fit for my needs (at least at first glance).</p>
+<h3 id="alternative-email-services">Alternative Email Services</h3>
+<p>Above, I said Claude&rsquo;s recommendation was unexpected. The reason is that, in the original plan, Claude Code suggested SendGrid without me asking. However, when I specifically asked for email services that met my requirements, it returned Brevo instead. I am still not 100% that this is the best option, so I wanted to get a second option. I decided to ask Gemini Pro via the web interface. I asked the same question as in <em>Code Snippet 5</em> and I got the same answer: Brevo. So both Claude Code and Gemini Pro agree on this. However, it also has a new option: MailGun, which then led me to a third option: MailJet.</p>
+<p>Since we are now going truly down the rabbit hole, I decided to as Claude Code to compare the three options: Brevo, MailGun, and MailJet. Here is the comparison I got back:</p>
+<pre tabindex="0"><code>| Feature                   | Brevo            | MailJet                  | Mailgun                  |
+|---------------------------|------------------|--------------------------|--------------------------|
+| Free Tier (emails/year)   | 109,500          | 72,000                   | 36,000                   |
+| Free Tier Cost            | $0               | $0                       | $0                       |
+| Actual Cost for Your Use  | ✅ $0            | ❌ $25/month ($300/year) | ❌ $15/month ($180/year) |
+| Database Independence     | ✅ Yes           | ✅ Yes                   | ⚠️ Yes (paid only)       |
+| Drag-and-Drop Editor      | ✅ Yes           | ✅ Yes                   | ❌ No                    |
+| MJML Support              | ⚠️ Import only   | ✅ Native                | ❌ No                    |
+| Transactional API (Free)  | ✅ Yes           | ❌ No (Premium only)     | ⚠️ 5 recipients max      |
+| Unrestricted Sending      | ✅ Yes           | ⚠️ Yes (Essential+)      | ❌ No (Foundation+)      |
+| Marketing + Transactional | ✅ Both          | ✅ Both                  | ❌ Transactional only    |
+| Ease of Use               | ⭐⭐⭐⭐⭐      | ⭐⭐⭐⭐                | ⭐⭐ (dev-only)         |
+</code></pre><p><strong>Code Snippet 7:</strong> <em>Claude Code Email Service Comparison</em></p>
+<p>So, according to <em>Code Snippet 7</em>, Brevo is the best option for my use case. It offers the highest free tier, supports both marketing and transactional emails, includes a drag-and-drop editor, and doesn&rsquo;t require a contact database on its end. MailJet is a close second, but it costs $25/month for my usage. MailGun falls short in several areas, especially since I want both marketing and transactional emails. The final question then is whether there are existing MCP servers for Brevo. Asking Claude Code again, I get the answer that there are a couple of existing Brevo MCP servers, and it recommended one: <code>houtini-ai/brevo-mcp</code>.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    Please remember that Claude Code (or any other coding agent) is not infallible. If you are uneasy about something it suggests, do your own research. The research, as in this case, can be as simple as asking another LLM (like Gemini Pro) for a second opinion.
+  </div>
+</div>
+<p>Based on all we have discussed so far, we should now be ready to look at the actual architecture.</p>
+<hr>
+<h2 id="system-architecture-design--strategy">System Architecture Design &amp; Strategy</h2>
+<p>Claude Code did a great job outlining the architecture in the plan. However, now that we have more information about existing MCP servers and services, we can refine that architecture further, so we ask Claude Code:</p>
+<pre tabindex="0"><code>Both in the @CLAUDE.md and @plan.md you have an architecture diagram. That diagram was based in initial assumptions. Can you now edit that diagram to reflect properly with regards to MCP servers as well as Email services.
+</code></pre><p><strong>Code Snippet 8:</strong> <em>Claude Code Updating Architecture Diagram</em></p>
+<p>After having done that, I asked Claude Code to generate the diagram in Excalidraw format, which I then exported as a PNG and included below:</p>
+<figure>
+    
+    <img src="/images/posts/Architecture-1-2025-12-28-1051.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Event Contact Management System Architecture</em></figcaption>
+</figure>
+<blockquote>
+<p><strong>NOTE:</strong> I had to slightly modify the diagram in Excalidraw to get the layout right, but the content is exactly what Claude Code generated.</p>
+</blockquote>
+<h3 id="mcp-server-strategy">MCP Server Strategy</h3>
+<p>Based on our research, here&rsquo;s the practical strategy:</p>
+<p><strong>1. PostgreSQL MCP Server (Use Existing: Postgres MCP Pro)</strong></p>
+<ul>
+<li>Handles all database queries</li>
+<li>Natural language → SQL translation</li>
+<li>Analytics and reporting</li>
+<li>Data insertion for imports</li>
+<li>Potentially pre-created queries for common reports</li>
+</ul>
+<p><strong>2. Import MCP Server (Use Existing: csv-mcp-server + Build Custom)</strong></p>
+<ul>
+<li>Specific to Quicket and Sessionize export formats</li>
+<li>Data validation and transformation</li>
+<li>Duplicate detection</li>
+<li>Batch upload orchestration</li>
+</ul>
+<p><strong>3. Brevo MCP Server (Use Existing: @houtini/brevo-mcp)</strong></p>
+<ul>
+<li>Email campaign management</li>
+<li>Contact list operations</li>
+<li>Email templates</li>
+<li>Send to filtered contact groups</li>
+</ul>
+<p>The beauty of this approach: I only need to build a thin, custom Import MCP server that the Import MCP server calls. This thin layer handles Quicket/Sessionize-specific format parsing. Everything else already exists.</p>
+<hr>
+<h2 id="technology-stack-summary">Technology Stack Summary</h2>
+<p>We are nearing the end of this post. Let&rsquo;s consolidate our decisions:</p>
+<p><strong>Database:</strong> PostgreSQL (most likely the latest version)</p>
+<ul>
+<li>Robust, mature, excellent for relational data</li>
+<li>Strong community support</li>
+<li>Perfect for our contact and participation tracking needs</li>
+</ul>
+<p><strong>MCP Servers:</strong></p>
+<ol>
+<li><strong>Postgres MCP Pro</strong> - Database access and querying</li>
+<li><strong>csv-mcp-server + custom import MCP Server</strong> - Quicket/Sessionize imports</li>
+<li><strong>@houtini/brevo-mcp</strong> - Email operations</li>
+</ol>
+<p><strong>Conversational Interface:</strong> Claude.ai (initially)</p>
+<ul>
+<li>Later can expand to Claude Code for more integrated workflows</li>
+<li>Potential future: Custom chatbot interface</li>
+</ul>
+<p><strong>Data Import Format:</strong> CSV/Excel exports from Quicket and Sessionize</p>
+<ul>
+<li>Batch upload via custom MCP server</li>
+<li>Data validation and duplicate detection</li>
+<li>Transform to match our schema</li>
+</ul>
+<p><strong>Email Delivery:</strong> Brevo</p>
+<ul>
+<li>Contacts pulled from our PostgreSQL database</li>
+<li>Templates and campaigns managed via @houtini/brevo-mcp MCP server</li>
+<li>Delivery and analytics through Brevo API</li>
+</ul>
+<hr>
+<h2 id="the-development-workflow">The Development Workflow</h2>
+<p>Here&rsquo;s how development will actually work with this architecture:</p>
+<p><strong>Phase 1: Database Setup</strong> (Part 4)</p>
+<ol>
+<li>Set up a PostgreSQL database</li>
+<li>Create schema (contacts, events, event_participation, communications)</li>
+<li>Install and configure Postgres MCP Pro</li>
+<li>Test natural language queries with Claude</li>
+</ol>
+<p><strong>Phase 2: Data Import</strong> (Part 5)</p>
+<ol>
+<li>Build custom Import MCP server</li>
+<li>Handle Quicket CSV format (registrations, check-ins)</li>
+<li>Handle Sessionize CSV format (speakers, sessions)</li>
+<li>Test batch imports with real exported data</li>
+</ol>
+<p><strong>Phase 3: Email Integration</strong> (Part 6)</p>
+<ol>
+<li>Install and configure the Brevo MCP server</li>
+<li>Create email templates</li>
+<li>Implement filtered contact list</li>
+<li>Test email workflows (speaker invitations, attendee communications)</li>
+</ol>
+<p><strong>Phase 4: Real-World Usage</strong> (Part 7)</p>
+<ol>
+<li>Import actual Data &amp; AI Community Day data</li>
+<li>Document common query patterns</li>
+<li>Create email campaigns</li>
+<li>Generate participation reports and analytics</li>
+</ol>
+<hr>
+<h2 id="what-makes-this-ai-native">What Makes This AI-Native?</h2>
+<p>Let me be explicit about what makes this system different from a traditional web application:</p>
+<p><strong>Traditional Approach:</strong></p>
+<ul>
+<li>Build admin dashboard with forms</li>
+<li>Create pages for contacts, events, reports</li>
+<li>Write custom queries for each report type</li>
+<li>Build email composer interface</li>
+<li>Manual data import screens</li>
+</ul>
+<p><strong>AI-Native Approach:</strong></p>
+<ul>
+<li>Ask questions in natural language</li>
+<li>Claude translates to SQL via MCP server</li>
+<li>Email operations through conversational commands</li>
+<li>Data import described in conversation, not forms</li>
+<li>Reports generated on-demand by describing what you want</li>
+<li>New functionality can be implemented in the MCP layer. Not touching the client.</li>
+</ul>
+<p>The system has no &ldquo;user interface&rdquo; in the traditional sense; the interface IS the conversation. This is only possible because of MCP servers, bridging the gap between natural language and system operations.</p>
+<hr>
+<h2 id="setting-up-for-part-4">Setting Up for Part 4</h2>
+<p>In the next post, we&rsquo;ll get hands-on. We&rsquo;ll:</p>
+<ol>
+<li>Set up a PostgreSQL database (I&rsquo;ll show both local and cloud options)</li>
+<li>Create our schema with proper indexes</li>
+<li>Install and configure Postgres MCP Pro</li>
+<li>Have our first conversations with the database</li>
+<li>Test complex queries like &ldquo;Show me speaker retention across years&rdquo;</li>
+</ol>
+<p>We&rsquo;ll start entering data into the system and see how natural-language database access works in practice. No more theory; it&rsquo;s time to build.</p>
+<hr>
+<h2 id="conclusion-why-this-matters">Conclusion: Why This Matters</h2>
+<p>Look, I could have built a traditional CRUD application with a web interface. It would work fine. But here&rsquo;s what I&rsquo;ve learned at Derivco as we&rsquo;ve gone all-in on AI-assisted development: <strong>the best use of AI isn&rsquo;t just writing code faster; it&rsquo;s rethinking how systems should work in an AI-first world.</strong></p>
+<p>If I&rsquo;m going to spend my time building this system, I want it to be genuinely useful, not just another admin dashboard. I want to be able to pull up Claude.ai on my phone at a conference and ask, &ldquo;How many people checked in so far?&rdquo; without logging in. I want to say &ldquo;Email all speakers their session times&rdquo; while I&rsquo;m having coffee, not fill out forms.</p>
+<p>That&rsquo;s the promise of AI-native systems, and that&rsquo;s what we&rsquo;re building here. Not because it&rsquo;s trendy, but because it&rsquo;s actually better for how I work.</p>
+<p>And here&rsquo;s the thing about Claude Code that this post has hopefully demonstrated: it&rsquo;s not just a faster way to write code; it&rsquo;s a thinking partner for architecture and planning. Throughout this entire post, Claude Code helped me research existing MCP servers, compare email service options, validate architectural decisions, and even push back when I wasn&rsquo;t being specific enough in my requirements.</p>
+<p>At Derivco, we&rsquo;ve discovered that the real productivity gain from AI-assisted coding isn&rsquo;t the speed of writing code; it&rsquo;s the quality of decisions made before any code is written. Claude Code forced me to articulate my requirements clearly, suggested patterns I hadn&rsquo;t considered, and helped me discover existing solutions rather than reinventing the wheel. The plan we developed together isn&rsquo;t perfect. Still, it&rsquo;s dramatically better than what I would have created alone, and we did it in hours instead of weeks. This collaborative planning approach is why I&rsquo;m confident we&rsquo;re building the right system, not just building a system right.</p>
+<p>In Part 4, we&rsquo;ll make this real. We&rsquo;ll install PostgreSQL, set up the database, configure our first MCP server, and start having conversations with our data. If you&rsquo;ve been following this series from the beginning, you&rsquo;ll see how far we&rsquo;ve come, from installing Claude Code to architecting a genuinely innovative system.</p>
+<p>The irony of being too busy to write about event management while managing events? Still there. But now I&rsquo;m building something that might help with that.</p>
+<p>See you in Part 4!</p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>That&rsquo;s all for now. I hope you find this information valuable. Please share your thoughts and ideas on this post, or 
+
+<a href="mailto:niels.it.berglund@gmail.com">ping</a> me if you have any suggestions. Your input is highly valued and can help shape the direction of our discussions. If you found this post helpful, please share it with your network. Follow me on 
+
+<a href="https://www.linkedin.com/in/nielsberglund/" target="_blank" rel="noopener">LinkedIn</a> for more updates on this project and other AI-related topics.</p>
+
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2025-12-21-interesting-stuff---week-51-2025/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 51, 2025">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2025
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
