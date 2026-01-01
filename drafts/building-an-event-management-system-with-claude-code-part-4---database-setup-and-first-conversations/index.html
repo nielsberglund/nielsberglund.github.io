@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="http://localhost:1313//images/thumbnails/posts/claude-code-ai-4.png">
+    <meta property="twitter:image" content="http://localhost:1313//images/thumbnails/posts/claude-code-ai-4.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations" />
+    
+
+    
+    <meta name="description" content="Build production-ready database infrastructure using Claude Code. Learn PostgreSQL setup on Neon, Postgres MCP Pro configuration, and AI-assisted troubleshooting.">
+    <meta property="og:description" content="Build production-ready database infrastructure using Claude Code. Learn PostgreSQL setup on Neon, Postgres MCP Pro configuration, and AI-assisted troubleshooting." />
+    <meta property="twitter:description" content="Build production-ready database infrastructure using Claude Code. Learn PostgreSQL setup on Neon, Postgres MCP Pro configuration, and AI-assisted troubleshooting." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations | Niels Berglund</title>
+
+    <link rel="canonical" href="/drafts/building-an-event-management-system-with-claude-code-part-4---database-setup-and-first-conversations/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-4.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/postgresql" title="PostgreSQL">
+                            PostgreSQL
+                        </a>
+                        
+                        <a class="tag" href="/tags/mcp-servers" title="MCP Servers">
+                            MCP Servers
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-native-development" title="AI-Native Development">
+                            AI-Native Development
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Tuesday, December 30, 2025
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Welcome back to the <strong>Building an Event Management System with Claude Code</strong> series! If you&rsquo;ve been following along, you know we&rsquo;ve covered installation, IDE integration, and architectural planning. Today, we&rsquo;re moving from planning to building, setting up our PostgreSQL database and having our first AI-powered conversations with it.</p>
+<ul>
+<li>To see all posts in the series, go to: 
+
+<a href="/contact-event-claude-code">Building an Event Management System with Claude Code</a>.</li>
+</ul>
+<p>In Part 3, we made a crucial decision: we&rsquo;re not building a traditional web application with forms and dashboards. Instead, we&rsquo;re building an <strong>AI-native system</strong> with a primary conversational interface. No admin panels, no CRUD forms, just natural language queries that get things done.</p>
+<p>Today, we make that vision real.</p>
+<hr>
+<h2 id="what-well-accomplish-today">What We&rsquo;ll Accomplish Today</h2>
+<p>By the end of this post, you&rsquo;ll have:</p>
+<ul>
+<li>✅ A properly structured GitHub repository (created with Claude Code&rsquo;s help)</li>
+<li>✅ A complete audit trail of your development process (using <code>claude-code-transcripts</code>)</li>
+<li>✅ A production-ready PostgreSQL database in the cloud</li>
+<li>✅ Postgres MCP Pro installed and configured</li>
+<li>✅ Verified connection between Claude and your database</li>
+<li>✅ Understanding of the infrastructure that enables AI-native development</li>
+</ul>
+<p>But before we dive into database setup, I need to address something practical: how do we not lose all this work?</p>
+<hr>
+<h2 id="setting-up-the-project-with-claude-code">Setting Up the Project with Claude Code</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>Before We Dive In: Repository Setup and Conversation History</em></strong>
+</p>
+<h3 id="the-practical-reality-of-starting">The Practical Reality of Starting</h3>
+<p>In the previous posts, we worked in &ldquo;temporary&rdquo; directories (<code>claude-test</code>, <code>event-contact-management-2</code>), but now we&rsquo;re building something real. I needed proper version control, a GitHub repository, and a project structure that makes sense.</p>
+<p>Rather than doing this manually, I decided to let Claude Code handle it. After all, if we&rsquo;re building an AI-native system, we should use AI-native development practices from the start.</p>
+<h3 id="asking-claude-code-to-set-up-the-repository">Asking Claude Code to Set Up the Repository</h3>
+<p>I opened Claude Code in the <code>event-contact-management-2</code> directory: <code>claude --continue</code>.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    You may wonder what <code>--continue</code> does. Claude Code automatically saves conversation history for each session (
+
+<a href="#the-power-of-conversation-history">more about that later</a>), and starting it with <code>--continue</code> tells it to pick up where we left off in this directory, preserving conversation history and context. This is crucial for maintaining continuity in AI-native development.
+  </div>
+</div>
+<p>With Claude Code running, I initiated the conversation:</p>
+<pre tabindex="0"><code>Right now, the folder we are in is just that, a folder. Please now create a repo structure here, taking into consideration what you know about this project and what we want to do.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 1:</strong> <em>Asking Claude Code to Create a Repo</em>
+</p>
+<p>In <em>Code Snippet 1</em>, you see how I asked Claude Code to create a proper project structure. In hindsight, I should have been more specific about what I wanted.</p>
+<p>Claude went off and started thinking about what the structure should look like. It then started creating &ldquo;stuff&rdquo;:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-1.png">
+    
+    
+    <figcaption><b>Figure 1: </b><em>Claude Code Creating the Complete Project Structure</em></figcaption>
+</figure>
+<p>We see in <em>Figure 1</em> how Claude Code is creating files and directories. It generated a complete project structure, including documentation files, a comprehensive <code>.gitignore</code>, and a <code>README.md</code>.</p>
+<h3 id="git-initialisation">Git Initialisation</h3>
+<p>After some time, Claude Code initialised the git repository and showed the structure:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-2.png">
+    
+    
+    <figcaption><b>Figure 2: </b><em>Claude Code Showing the Initialized Git Repository and Project Structure</em></figcaption>
+</figure>
+<p>The structure in <em>Figure 2</em>:</p>
+<ul>
+<li>Separates database schema from application code</li>
+<li>Has a dedicated folder for each MCP server we&rsquo;ll build</li>
+<li>Sets up documentation structure</li>
+</ul>
+<p>After the initialisation, Claude Code made the first commit:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-3.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Claude Code First Commit</em></figcaption>
+</figure>
+<p>Notice the <strong>detailed commit message</strong>. Claude Code doesn&rsquo;t just write &ldquo;Initial commit&rdquo;; it documents what was created and why. This is professional-grade version control.</p>
+<h3 id="pushing-to-github">Pushing to GitHub</h3>
+<p>I obviously wanted this on GitHub, so I had another quick conversation with Claude Code:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-4.png">
+    
+    
+    <figcaption><b>Figure 4: </b><em>Asking Claude Code to Create a GitHub Repository</em></figcaption>
+</figure>
+<p>In <em>Figure 4</em>, we see how I asked Claude Code to help me create a GitHub repository and push the initial commit. Since I have the GitHub CLI (<code>gh</code>) installed, Claude Code did everything for me:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-5.png">
+    
+    
+    <figcaption><b>Figure 5: </b><em>Claude Code Creating the GitHub Repository and Pushing the Initial Commit</em></figcaption>
+</figure>
+<p>Finally, Claude Code confirmed the push:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-6.png">
+    
+    
+    <figcaption><b>Figure 6: </b><em>Claude Code Confirming Repository Successfully Created and Pushed</em></figcaption>
+</figure>
+<p>And just like that (as we see in <em>Figure 6</em>), the <strong>project is on GitHub</strong>, with a proper structure, comprehensive documentation, and a clean commit history.</p>
+<h3 id="the-power-of-conversation-history">The Power of Conversation History</h3>
+<p>Here&rsquo;s where things get really interesting. I didn&rsquo;t take screenshots during the repository setup process; I was just focused on getting it done. But then I discovered something incredibly useful: the 
+
+<a href="https://github.com/simonw/claude-code-transcripts/" target="_blank" rel="noopener"><code>claude-code-transcripts</code></a> tool. The screenshots above were recreated from the actual conversation history extracted using this tool.</p>
+<h4 id="what-is-claude-code-transcripts">What is <code>claude-code-transcripts</code>?</h4>
+<p><code>claude-code-transcripts</code> is a tool that extracts and formats all Claude Code conversations from a project&rsquo;s history. Claude Code stores conversation data in <code>~/.claude/projects/</code>, and this tool makes it human-readable.</p>
+<p><strong>Installation &amp; Usage</strong></p>
+<p>To install:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ uv tool install claude-code-transcripts
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 2:</strong> <em>Installing `claude-code-transcripts`</em>
+</p>
+<p>To view all conversations run:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># View all conversations</span>
+</span></span><span style="display:flex;"><span>$ claude-code-transcripts
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 3:</strong> <em>Viewing All Conversations</em>
+</p>
+<p>When you run the command in <em>Code Snippet 3</em>, you get a list of all conversations, and you can then click on the one you want to see:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-7.png">
+    
+    
+    <figcaption><b>Figure 7: </b><em>Choosing claude-code-transcripts</em></figcaption>
+</figure>
+<p><strong>Figure 7</strong> shows, outlined in red, the session I chose to get the conversation to create the images above.</p>
+<p>To see all you can do with <code>claude-code-transcripts</code>, look at the 
+
+<a href="https://github.com/simonw/claude-code-transcripts/blob/main/README.md" target="_blank" rel="noopener"><strong>README.md</strong></a> file.</p>
+<h3 id="why-im-showing-you-all-this">Why I&rsquo;m Showing You All This</h3>
+<p>I included this detailed setup section because it demonstrates something crucial about AI-native development:</p>
+<p><strong>Claude Code isn&rsquo;t just for writing application code; it&rsquo;s for the entire development lifecycle.</strong></p>
+<p>This is the paradigm shift:</p>
+<p><strong>Traditional Approach</strong>:</p>
+<ol>
+<li>Manually create project structure</li>
+<li>Google &ldquo;Python gitignore template&rdquo;</li>
+<li>Copy-paste, modify</li>
+<li>Create README from scratch</li>
+<li><code>git init</code>, <code>git add .</code>, <code>git commit</code></li>
+<li>Create a repo on GitHub</li>
+<li>Follow GitHub&rsquo;s instructions to push</li>
+<li>Manually configure settings</li>
+</ol>
+<p><strong>AI-Native Approach</strong>:</p>
+<ol>
+<li>Describe what you need in conversation</li>
+<li>Claude Code creates everything</li>
+<li>Review and refine through conversation</li>
+<li>Professional results in minutes</li>
+</ol>
+<p>The time savings are obvious, but that&rsquo;s not the main benefit. The real value is <strong>quality and thoughtfulness</strong>. Claude Code created a better structure than I would have because it considered:</p>
+<ul>
+<li>Future scalability needs</li>
+<li>Best practices</li>
+<li>Documentation workflows</li>
+<li>Testing organisation</li>
+<li>Migration strategy</li>
+</ul>
+<p>And I have a complete transcript of every decision.</p>
+<p>Now that our project is properly set up and version-controlled, let&rsquo;s move on to the database.</p>
+<hr>
+<h2 id="database-setup-decision-local-vs-cloud">Database Setup Decision: Local vs Cloud</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>Using Claude Code for Infrastructure Planning</em></strong>
+</p>
+<p>Before I start installing PostgreSQL, I need to decide: <strong>local database or cloud-hosted?</strong></p>
+<p>In traditional development, I&rsquo;d probably spin up a local PostgreSQL instance and deal with cloud deployment later. But let&rsquo;s think about our AI-native use case:</p>
+<ul>
+<li>I want to query this database from Claude.ai on my phone</li>
+<li>I want it accessible from multiple machines</li>
+<li>I don&rsquo;t want to deal with SSH tunnels or port forwarding</li>
+<li>I want to focus on building, not DevOps</li>
+</ul>
+<p>This calls for a conversation with Claude Code about infrastructure.</p>
+<h3 id="the-conversation">The Conversation</h3>
+<p>Since Claude Code was already open in the project directory:</p>
+<pre tabindex="0"><code>We are now ready to start thinking about the database. Think about whether I should use local PostgreSQL (via Docker) or a cloud service like Supabase, Neon, or Railway for this project?
+
+Consider:
+
+- I&#39;m building an MVP for personal use
+- The MVP, if successful, will be productionised shortly after MVP completion.
+- I need it accessible from Claude.ai on mobile (natural language queries)
+- Further down the line, it needs to be accessible from a web chatbot
+- Budget is minimal (~$0-20/month acceptable)
+- I want to focus on development, not infrastructure management
+- Need to connect via Postgres MCP Pro
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 4:</strong> <em>Asking Claude Code for Database Hosting Recommendation</em>
+</p>
+<p>Notice I&rsquo;m using <strong>&ldquo;Think about&rdquo;</strong> to encourage deeper analysis. This triggers Claude Code&rsquo;s reasoning mode. Claude Code then went off and thought through the options. It came back with its preferred option:</p>
+<pre tabindex="0"><code>TL;DR: Use Neon ⭐
+
+Recommendation: Neon (Free tier → Launch plan $19/month)
+
+Why Neon Wins
+
+1. Mobile Access ✅ (Critical!)
+
+[snipped for brevity]
+
+2. Perfect Budget Fit ✅
+
+[snipped for brevity]
+
+3. Database Branching 🎯 (Unique!)
+
+[snipped for brevity]
+
+4. Zero Infrastructure ✅
+
+[snipped for brevity]
+
+5. Smooth MVP → Production ✅
+
+[snipped for brevity]
+
+Why NOT Other Options
+
+❌ Local Docker: Can&#39;t access from Claude.ai mobile (deal-breaker)
+🟡 Supabase: $25/month for production (over budget) + features you won&#39;t use
+🟡 Railway: Usage-based pricing is unpredictable
+
+[snipped for brevity]
+
+Would you like me to help you set up Neon and configure the connection?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5:</strong> <em>Claude Code&#39;s Database Hosting Recommendation</em>
+</p>
+<p>What you see in <em>Code Snippet 5</em> is the <strong>final recommendation</strong>. It has thought through the options and provided a reasoned choice. The complete analysis was much longer, and Claude Code output it to the conversation and to a document <code>docs/planning/database-hosting-analysis.md</code>. I have published the document as a <code>gist</code> 
+
+<a href="https://gist.github.com/nielsberglund/710b5245e9bcc9023f11bd048f8fc94a" target="_blank" rel="noopener">here</a>. I encourage you to read through th document and see Claude Code&rsquo;s reasoning, and the decision matrix it created:</p>
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Feature</th>
+          <th style="text-align: left">Local Docker</th>
+          <th style="text-align: left">Supabase</th>
+          <th style="text-align: left"><strong>Neon</strong></th>
+          <th style="text-align: left">Railway</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Mobile Access</td>
+          <td style="text-align: left">❌ No</td>
+          <td style="text-align: left">✅ Yes</td>
+          <td style="text-align: left">✅ Yes</td>
+          <td style="text-align: left">✅ Yes</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">MVP Cost</td>
+          <td style="text-align: left">$0</td>
+          <td style="text-align: left">$0</td>
+          <td style="text-align: left">$0</td>
+          <td style="text-align: left">~$5/mo</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Production Cost</td>
+          <td style="text-align: left">N/A</td>
+          <td style="text-align: left">$25/mo</td>
+          <td style="text-align: left">$19/mo</td>
+          <td style="text-align: left">$20/mo+</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Setup Time</td>
+          <td style="text-align: left">Hours</td>
+          <td style="text-align: left">Minutes</td>
+          <td style="text-align: left">Seconds</td>
+          <td style="text-align: left">Minutes</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Backup/Recovery</td>
+          <td style="text-align: left">Manual</td>
+          <td style="text-align: left">Auto (Pro)</td>
+          <td style="text-align: left">Auto (Launch)</td>
+          <td style="text-align: left">Auto</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Scaling</td>
+          <td style="text-align: left">Manual</td>
+          <td style="text-align: left">Auto</td>
+          <td style="text-align: left">Auto</td>
+          <td style="text-align: left">Auto</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">PG Features</td>
+          <td style="text-align: left">Full</td>
+          <td style="text-align: left">Full</td>
+          <td style="text-align: left">Full</td>
+          <td style="text-align: left">Full</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Unique Feature</td>
+          <td style="text-align: left">Control</td>
+          <td style="text-align: left">REST API</td>
+          <td style="text-align: left">Branching</td>
+          <td style="text-align: left">Simplicity</td>
+      </tr>
+  </tbody>
+</table>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Table 1:</strong> <em>Database Hosting Decision Matrix Created by Claude Code</em>
+</p>
+<p>Claude Code&rsquo;s analysis is excellent. Claude Code didn&rsquo;t just give me an answer; it:</p>
+<ul>
+<li>Reasoned through my requirements</li>
+<li>Compared specific services</li>
+<li>Provided concrete pros/cons</li>
+<li>Made a clear recommendation with rationale</li>
+<li>Offered to help with next steps</li>
+</ul>
+<p>So now we have the recommendation. Time to set up the database.</p>
+<h3 id="setting-up-the-database">Setting Up the Database</h3>
+<p>Since Claude Code asked me (<em>Code Snippet 5</em>) if I wanted help setting up Neon, I responded:</p>
+<pre tabindex="0"><code>Yes, please, walk me through the Neon setup. But also show me how the local Docker approach would work, if I were to go down that road instead. Please document both approaches.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 6:</strong> <em>Asking Claude to Help with Database Setup</em>
+</p>
+<p>Claude Code responded with a detailed step-by-step guide for both approaches, including commands, explanations, and other details. It also created <code>.env</code> file templates for both methods.</p>
+<p>As I asked Claude Code to document everything, it created two new documents in <code>docs/setup-guides</code>. I generated a <code>gist</code> with the complete setup guides 
+
+<a href="https://gist.github.com/nielsberglund/923933acce57ea92bc220a7139a2ac99" target="_blank" rel="noopener">here</a>. When you browse the <code>gist</code>, you&rsquo;ll see that Claude Code also included instructions for setting up the PostgreSQL MCP Server. We&rsquo;ll look at that 
+
+<a href="#installing-postgres-mcp-pro">below</a>.</p>
+<hr>
+<h2 id="setting-up-postgresql-on-neon">Setting Up PostgreSQL on Neon</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>From Zero to Database in 8 Minutes</em></strong>
+</p>
+<p>Let me walk you through the actual setup process.</p>
+<h3 id="step-1-create-neon-account">Step 1: Create Neon Account</h3>
+<p>I went to 
+
+<a href="https://neon.tech" target="_blank" rel="noopener">neon.tech</a> and signed up with GitHub (one click, uses my Google identity).</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-8.png">
+    
+    
+    <figcaption><b>Figure 8: </b><em>Neon sign-up using Google authentication</em></figcaption>
+</figure>
+<p>After choosing Google authentication, I am now prompted to create a project.</p>
+<h3 id="step-2-create-project">Step 2: Create Project</h3>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-9.png">
+    
+    
+    <figcaption><b>Figure 9: </b><em>Neon Project Creation Screen</em></figcaption>
+</figure>
+<p>The project settings are as follows (see <em>Figure 9</em>):</p>
+<ul>
+<li><strong>Name</strong>: <code>event-contact-management</code></li>
+<li><strong>Region</strong>: <code>Azure Germany West Central (Frankfurt)</code></li>
+<li><strong>PostgreSQL version</strong>: <code>17</code></li>
+</ul>
+<p>I chose PostgreSQL 17 to stay current and to host it in Azure. My thinking is that when I eventually host a web chatbot, I would do it on Azure, so keeping everything in the same cloud provider makes sense.</p>
+<p>Clicking on the <strong>Create project</strong> button (outlined in red), Neon creates the database instantly, no waiting for provisioning, and takes me to the project dashboard:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-10.png">
+    
+    
+    <figcaption><b>Figure 10: </b><em>Neon Project Dashboard</em></figcaption>
+</figure>
+<h3 id="step-3-get-connection-details">Step 3: Get Connection Details</h3>
+<p>Let&rsquo;s get the connection details. In the dashboard (see <em>Figure 10</em>), I click on the <strong>Connect</strong> button (outlined in red) within the <strong>Connect to your database</strong> block. When I do that, a modal dialog appears:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-11.png">
+    
+    
+    <figcaption><b>Figure 11: </b><em>Connect to your database</em></figcaption>
+</figure>
+<p>Hmm, look at the part outlined in red in <em>Figure 11</em>: the <strong>Database</strong> drop-down. It seems that when you create a Neon project, it automatically creates a default database named <code>neondb</code>. I want the database used by this system to have a different name, <code>event_contact_db</code>, so I need to create it first. If you drop down the <strong>Database</strong> selector, you not only see <code>neondb</code>, but also an option to <strong>Create new database</strong>:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-12.png">
+    
+    
+    <figcaption><b>Figure 12: </b><em>Create New Neon Database</em></figcaption>
+</figure>
+<p>After selecting <strong>Create new database</strong> in the drop-down in <em>Figure 11</em>, the <strong>Database creation</strong> dialog appears (<em>Figure 12</em>). I just enter the database name I want (highlighted in yellow in <em>Figure 12</em>), and click create (outlined in red). This takes me back to the <strong>Connect to your database</strong> dialog, but now with my new database selected:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-13.png">
+    
+    
+    <figcaption><b>Figure 13: </b><em>New Neon Database</em></figcaption>
+</figure>
+<p>In <em>Figure 13</em>, you see the connection string to my new database <code>event_contact_db</code> (highlighted in red):</p>
+<pre tabindex="0"><code>postgresql://neondb_owner:****************@ep-raspy-sun-a9vrlwfl-pooler.gwc.azure.neon.tech/event_contact_db?sslmode=require&amp;channel_binding=require
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 7:</strong> <em>Neon Database Connection String</em>
+</p>
+<p>This is the connection string I&rsquo;ll use in my application. Let&rsquo;s break it down:</p>
+<ul>
+<li><strong>Host</strong>: <code>ep-raspy-sun-a9vrlwfl-pooler.gwc.azure.neon.tech</code></li>
+<li><strong>Database</strong>: <code>event_contact_db</code></li>
+<li><strong>User</strong>: <code>neondb_owner</code></li>
+<li><strong>Password</strong>: In the connection string (hidden in screenshot)</li>
+<li><strong>SSL Mode</strong>: <code>require</code> (always encrypted)</li>
+</ul>
+<h3 id="step-4-secure-the-credentials">Step 4: Secure the Credentials</h3>
+<p>To secure the credentials, I created an <code>.env</code> file in the project root:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># .env</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">DATABASE_URL</span>=postgresql://nielsb:AbC123DeF456...@ep-cool-meadow-123456.us-east-1.aws.neon.tech/event_contact_db?sslmode=require
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># Note: This file is in .gitignore - never commit it!</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 8:</strong> <em>Neon Database Connection String in .env</em>
+</p>
+<p>As it says in <em>Code Snippet 8</em>, I made sure that <code>.env</code> is in <code>.gitignore</code>,  so I don&rsquo;t accidentally commit sensitive credentials.</p>
+<h3 id="step-5-test-the-connection">Step 5: Test the Connection</h3>
+<p>Since I don&rsquo;t have <code>psql</code> installed locally, I decided to use VSCode and the Microsoft PostgreSQL extension to test the connection. I set up a new connection profile using the details from the connection string:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-14.png">
+    
+    
+    <figcaption><b>Figure 14: </b><em>VSCode PostgreSQL Connection Details</em></figcaption>
+</figure>
+<p>After entering the connection details (see <em>Figure 14</em>), I clicked the <strong>Advanced</strong> button to set the port to <code>5432</code>. I clicked <strong>Connect</strong>. A few seconds later, I was connected:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-15.png">
+    
+    
+    <figcaption><b>Figure 15: </b><em>VSCode PostgreSQL Connected to Neon Database</em></figcaption>
+</figure>
+<p>You see in <em>Figure 15</em> that I&rsquo;m connected to the Neon (outlined in blue) and, more importantly, my new database <code>event_contact_db</code> (outlined in red). To be absolutely sure, I ran a simple query to get the PostgreSQL version:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-16.png">
+    
+    
+    <figcaption><b>Figure 16: </b><em>VSCode PostgreSQL Querying Neon Database</em></figcaption>
+</figure>
+<p>In <em>Figure 16</em>, you see the query <code>SELECT version()</code> (outlined in green), as well as the result (outlined in red), confirming I&rsquo;m connected to PostgreSQL <code>17.7</code> on Neon.</p>
+<p>✅ <strong>Connected successfully!</strong> Database is ready.</p>
+<p><strong>Total time:</strong> 8 minutes from account creation to working database.</p>
+<h3 id="what-we-have-now">What We Have Now</h3>
+<p>At this point, we have:</p>
+<ul>
+<li>✅ Production-ready PostgreSQL 17 database</li>
+<li>✅ Cloud-hosted on Neon (accessible from anywhere)</li>
+<li>✅ SSL encryption enabled</li>
+<li>✅ Connection string secured in <code>.env</code></li>
+<li>✅ Zero cost (free tier)</li>
+</ul>
+<p>The database is empty (no tables yet), but it&rsquo;s ready to receive our schema. We&rsquo;ll design and create the schema in Part 5.</p>
+<hr>
+<h2 id="installing-postgres-mcp-pro">Installing Postgres MCP Pro</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>Conversational Installation with Claude Code</em></strong>
+</p>
+<p>Now for the magic: installing and configuring Postgres MCP Pro so Claude can interact with our database through natural language. But rather than just following installation commands, let&rsquo;s ask Claude Code to help us through this process.</p>
+<h3 id="what-is-postgres-mcp-pro">What is Postgres MCP Pro?</h3>
+<p>First, let me have a conversation with Claude Code to understand what we&rsquo;re installing:</p>
+<pre tabindex="0"><code>Thanks to your help, I now have PostgreSQL installed on Neon. Now I need to install Postgres MCP Pro so I can connect to the database with tools like Claude.ai and interact with it via natural language.
+
+Please explain what PostgreSQL MCP Pro is and help me install it. Please document the steps to install.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 9:</strong> <em>Asking Claude Code About Postgres MCP Pro Installation</em>
+</p>
+<p>Asking Claude Code what is in <em>Code Snippet 9</em>, it thought about it. After a few moments, it came back with a detailed explanation and installation guide:</p>
+<pre tabindex="0"><code>&lt;thinking&gt;
+● I&#39;ll explain what Postgres MCP Pro is and create a comprehensive installation guide for you:
+
+● Write(docs\setup-guides\postgres-mcp-pro-setup.md)
+
+[snipped for brevity]
+
+● I&#39;ve created a comprehensive guide at docs/setup-guides/postgres-mcp-pro-setup.md. Let me give you the quick explanation:
+
+What is Postgres MCP Pro?
+
+Postgres MCP Pro is a &#34;bridge&#34; that lets Claude AI talk to your PostgreSQL database through natural language.
+
+How it works:
+
+You: &#34;How many contacts are in my database?&#34;
+  ↓
+Claude AI: Understands query → Decides to use Postgres MCP Pro
+  ↓
+Postgres MCP Pro: Executes &#34;SELECT COUNT(*) FROM contacts&#34;
+  ↓
+Your Neon Database: Returns result (e.g., 287)
+  ↓
+Claude: &#34;You have 287 contacts in your database.&#34;
+
+What tools does it provide?
+
+[snipped for brevity]
+
+---
+Full Details
+
+See docs/setup-guides/postgres-mcp-pro-setup.md for:
+- Detailed explanation of how MCP works
+- Troubleshooting guide
+- Security best practices
+- What you can do with natural language queries
+- Examples of analytics queries
+
+Would you like me to help you through the installation now?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 10:</strong> <em>Claude Code&#39;s Explanation of Postgres MCP Pro and Setup</em>
+</p>
+<p>What you see in <em>Code Snippet 10</em> is an excerpt of the very detailed explanation. Claude Code created a complete setup guide at <code>docs/setup-guides/postgres-mcp-pro-setup.md</code>, which you can view as a <code>gist</code> 
+
+<a href="https://gist.github.com/nielsberglund/d7646f59854ddc06c760fe1cb92e710a" target="_blank" rel="noopener">here</a>.</p>
+<p>When you browse through the <code>gist</code>, you&rsquo;ll see that Claude Code recommended using Docker to install Postgres MCP Pro:</p>
+<pre tabindex="0"><code>## Installation Options
+
+Postgres MCP Pro can be installed 3 ways:
+
+### Option 1: Docker (Recommended) ⭐
+
+[snipped for brevity]
+
+### Option 2: pipx (Python)
+
+[snipped for brevity]
+
+### Option 3: uv (Modern Python)
+
+[snipped for brevity]
+
+**We&#39;ll use Docker (recommended for simplicity).**
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 11:</strong> <em>Claude Code&#39;s Installation Options for Postgres MCP Pro</em>
+</p>
+<p>We could follow the Docker installation instructions in the setup document, but since this is about AI-assisted coding, let&rsquo;s see how Claude Code would help us install it.</p>
+<h3 id="installing-with-docker">Installing with Docker</h3>
+<p>Since Claude Code in <em>Code Snippet 10</em> asked if it should help with installation, I responded in the positive (&ldquo;Please help me &hellip;&rdquo; or something similar), Claude Code went off, and:</p>
+<pre tabindex="0"><code>● Perfect! I&#39;ll walk you through the installation step-by-step, checking with you before any configuration changes.
+
+● Step 1: Verify Docker is Running
+
+  Let me check if Docker is installed and running on your system:
+
+● Bash(docker --version)
+  ⎿  Docker version 28.5.1, build e180ab8
+
+● Bash(docker ps)
+  ⎿  Error: Exit code 1
+     error during connect: Get &#34;http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/v1.51/containers/json&#34;: open
+     //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+
+● ✅ Docker is installed (version 28.5.1)
+
+  ❌ Docker Desktop is not running
+
+  You need to start Docker Desktop first:
+
+  1. Windows:
+    - Look for Docker Desktop in your Start Menu
+    - Click to launch it
+    - Wait for the &#34;Docker Desktop is running&#34; notification
+    - You&#39;ll see a Docker whale icon in your system tray
+  2. Alternative: Press Windows key and type &#34;Docker Desktop&#34;, then click to open
+
+  Please start Docker Desktop now, then let me know when you see it&#39;s running (you should see the Docker whale icon in your system tray).
+
+  Once Docker Desktop is running, I&#39;ll continue with the next step.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12:</strong> <em>Claude Code Guiding Docker Installation</em>
+</p>
+<p>In <em>Code Snippet 12</em>, Claude Code checked if Docker was installed and running. It found Docker was installed but not running, so it guided me to start Docker Desktop.</p>
+<p>After I started Docker Desktop, I told Claude Code that Docker Desktop was running. Claude Code continued:</p>
+<pre tabindex="0"><code>● Perfect! Let me verify Docker is now accessible:
+
+[snipped for brevity]
+
+● Excellent! ✅ Docker is running.
+
+  Step 2: Pull Postgres MCP Pro Docker Image
+
+  Now I&#39;ll download the Postgres MCP Pro Docker image from Docker Hub. This is the official image from Crystal DBA.
+
+● Bash(docker pull crystaldba/postgres-mcp:latest)
+  ⎿  latest: Pulling from crystaldba/postgres-mcp
+     254e724d7786: Pulling fs layer
+     0c2a5709b400: Pulling fs layer
+     … +35 lines (ctrl+o to expand)
+
+● Bash(docker images crystaldba/postgres-mcp)
+  ⎿  REPOSITORY                TAG       IMAGE ID       CREATED        SIZE
+     crystaldba/postgres-mcp   latest    6a415ab285c6   7 months ago   282MB
+
+● Perfect! ✅ Postgres MCP Pro image downloaded successfully (282MB)
+
+[snipped for brevity]
+  ---
+  Step 3: Test MCP Server Connection
+
+  Before configuring Claude Desktop, let&#39;s test that the MCP server can connect to your Neon database.
+
+  I need your Neon PostgreSQL connection string to test this.
+
+[snipped for brevity]
+
+  Please paste your Neon connection string here (I&#39;ll use it to test the connection, then we&#39;ll add it to Claude Desktop&#39;s config).
+
+  Note: Your connection string contains a password, but it&#39;s safe to share here in our local session - it won&#39;t be committed to Git or shared anywhere.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 13:</strong> <em>Claude Code Continuing Postgres MCP Pro Installation</em>
+</p>
+<p>In <em>Code Snippet 13</em>, Claude Code pulled the Postgres MCP Pro Docker image and verified the download. It then asked for my Neon connection string to test the connection.</p>
+<p>I provided the connection string from my <code>.env</code> file:</p>
+<pre tabindex="0"><code>● Perfect! Thank you. Now let me test if Postgres MCP Pro can connect to your Neon database:
+
+● Bash(echo &#34;Testing connection...&#34; &amp;&amp; docker run --rm -i -e POSTGRES_CONNECTION_STRING=&#34;postgresql://neond  timeout:
+         
+  [snipped for brevity, and to protect password])
+
+● I see the issue - the MCP server expects the environment variable to be named DATABASE_URI instead of POSTGRES_CONNECTION_STRING. Let me try again with the correct variable name:
+
+[snipped for brevity]
+
+● Excellent! ✅ Connection test successful!
+
+  Test results:
+  - ✅ MCP server started in UNRESTRICTED mode
+  - ✅ Successfully connected to your Neon database
+  - ✅ Connection pool initialized
+
+  The important finding: The environment variable should be DATABASE_URI (not POSTGRES_CONNECTION_STRING).
+
+  ---
+  Step 4: Configure Claude Desktop
+
+  Now I need to add this MCP server to your Claude Desktop configuration.
+
+  Before I proceed, I need to:
+  1. Locate your Claude Desktop config file
+  2. Create or update it with the Postgres MCP Pro configuration
+
+  Location on Windows:
+  %APPDATA%\Claude\claude_desktop_config.json
+  Full path: C:\Users\niels\AppData\Roaming\Claude\claude_desktop_config.json
+
+  The configuration I&#39;ll add:
+  {
+    &#34;mcpServers&#34;: {
+      &#34;postgres&#34;: {
+        &#34;command&#34;: &#34;docker&#34;,
+        &#34;args&#34;: [
+          &#34;run&#34;,
+          &#34;--rm&#34;,
+          &#34;-i&#34;,
+          &#34;-e&#34;,
+          &#34;DATABASE_URI=postgresql://neondb_owner:****************@ep-raspy-sun-a9vrlwfl-pooler.gwc.azure.neon.tech/event_contact_db?sslmode=require&amp;channel_binding=require&#34;,
+          &#34;crystaldba/postgres-mcp:latest&#34;
+        ]
+      }
+    }
+  }
+
+  Questions before I proceed:
+  1. Do you want me to check if this file already exists and show you its current contents (if any)?
+  2. Are you okay with me creating/updating this file with the Postgres MCP Pro configuration?
+
+  Let me know and I&#39;ll proceed!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 14:</strong> <em>Claude Code Preparing to Configure Claude Desktop for Postgres MCP Pro</em>
+</p>
+<p>One interesting thing about what you see in <em>Code Snippet 14</em> is that Claude Code detected I&rsquo;m on Windows and provided the correct path to the Claude Desktop config file. It also prepared the configuration block to add. It also initially received an exception due to an environment variable name, which it corrected on its own.</p>
+<h3 id="configuring-claude-desktop">Configuring Claude Desktop</h3>
+<p>I will now let Claude Code proceed with the configuration. I&rsquo;d like to see how it handles editing the config file, since it already exists with another MCP server configured. So I ask it to check whether the file exists first, and if it does, show me the contents before proceeding:</p>
+<pre tabindex="0"><code>● Bash(ls -la &#34;$APPDATA/Claude/claude_desktop_config.json&#34; 2&gt;&amp;1)
+  ⎿  -rw-r--r-- 1 niels 197609 440 Oct 23 18:44 C:\Users\niels\AppData\Roaming/Claude/claude_desktop_config.json
+
+● The file exists! It was last modified on October 23, 2024 (440 bytes).
+
+  Let me show you the current contents:
+
+● Read(C:\Users\niels\AppData\Roaming\Claude\claude_desktop_config.json)
+  ⎿  Read 17 lines
+
+● Great! I can see you already have an MCP server configured - mssql_mcp for SQL Server.
+
+  Current configuration:
+  - Has 1 MCP server: mssql_mcp (SQL Server MCP)
+  - Connects to a local SQL Server instance
+
+[continues in Code Snippet 16]
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 15:</strong> <em>Claude Code Checking Existing Claude Desktop Config</em>
+</p>
+<p>Yep, it looks like the file exists. Claude Code read the existing configuration (see <em>Code Snippet 15</em>) and found the existing MCP server for SQL Server. That&rsquo;s cool! One thing, though: when you look at what Claude Code says about the file, it says it was last modified on October 23, 2024, at 18:44. October 23 and 18:44 are correct, but the year is off by 1. It should have been 2025. Well, I won&rsquo;t bother investigating this now. That is a problem for another day. Continuing on:</p>
+<pre tabindex="0"><code>[continued from Code Snippet 15]
+
+---
+  I&#39;ll add the Postgres MCP Pro alongside your existing mssql_mcp server.
+
+  Here&#39;s what the updated configuration will look like:
+
+  {
+    &#34;mcpServers&#34;: {
+      &#34;mssql_mcp&#34;: {
+        &#34;type&#34;: &#34;stdio&#34;,
+        &#34;command&#34;: &#34;node&#34;,
+       [snipped for brevity]
+        }
+      },
+      &#34;postgres&#34;: {
+        &#34;command&#34;: &#34;docker&#34;,
+        &#34;args&#34;: [
+          &#34;run&#34;,
+          &#34;--rm&#34;,
+          &#34;-i&#34;,
+          &#34;-e&#34;,
+          &#34;DATABASE_URI=pmy-connection-string-here&#34;,
+          &#34;crystaldba/postgres-mcp:latest&#34;
+        ]
+      }
+    }
+  }
+
+  Changes:
+  - ✅ Keeps your existing mssql_mcp server unchanged
+  - ✅ Adds new postgres server for your Neon database
+  - ✅ You&#39;ll have access to both SQL Server and PostgreSQL from Claude
+
+  Do you want me to update the file with this configuration?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 16:</strong> <em>Claude Code Preparing to Update Claude Desktop Config</em>
+</p>
+<p>In <em>Code Snippet 16</em>, Claude Code prepared the updated configuration, keeping the existing SQL Server MCP and adding the new Postgres MCP Pro. I asked it to update the configuration file:</p>
+<pre tabindex="0"><code>● Update(C:\Users\niels\AppData\Roaming\Claude\claude_desktop_config.json)
+  ⎿  Added 12 lines, removed 1 line
+      1  [snipped for brevity]
+
+● Perfect! ✅ Configuration file updated successfully!
+
+  What was added:
+  - New postgres MCP server configuration
+  - Connects to your Neon database
+  - Kept your existing mssql_mcp server intact
+
+  You now have 2 MCP servers configured:
+  1. mssql_mcp - SQL Server (existing)
+  2. postgres - PostgreSQL/Neon (new)
+
+  ---
+  Step 5: Restart Claude Desktop
+
+  For the changes to take effect, you need to completely quit and restart Claude Desktop.
+
+  Important: Just closing the window is not enough - you must quit the application.
+
+  How to Quit Claude Desktop:
+
+  Option 1: System Tray
+  1. Look for the Claude icon in your system tray (bottom-right corner of Windows taskbar)
+  2. Right-click the Claude icon
+  3. Click &#34;Quit&#34; or &#34;Exit&#34;
+
+  Option 2: Task Manager
+  1. Press Ctrl + Shift + Esc to open Task Manager
+  2. Find &#34;Claude&#34; in the list
+  3. Click &#34;Claude&#34; and click &#34;End Task&#34;
+
+  Option 3: Alt+F4
+  1. Make sure Claude Desktop window is focused
+  2. Press Alt + F4
+  3. If prompted, confirm you want to quit
+
+  ---
+  After quitting:
+  1. Wait a few seconds
+  2. Restart Claude Desktop from Start Menu
+
+  Please quit and restart Claude Desktop now, then let me know when it&#39;s back up!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 17:</strong> <em>Claude Code Completing Postgres MCP Pro Installation</em>
+</p>
+<p>Claude Code updated the configuration file (see <em>Code Snippet 17</em>). It then guided me to completely quit and restart Claude Desktop for the changes to take effect.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Claude Desktop only reads the MCP server configuration at startup, so a full restart is necessary.</p>
+</blockquote>
+<h3 id="testing-the-connection">Testing the Connection</h3>
+<p>As Claude Code instructed, I quit Claude Desktop completely using the system tray method, waited a few seconds, and then restarted it from the Start Menu. Once it was back up, I informed Claude Code:</p>
+<pre tabindex="0"><code>● Excellent! ✅ Claude Desktop restarted.
+
+  ---
+  Step 6: Test Database Connection via Claude Desktop
+
+  Now let&#39;s verify that Claude Desktop can access your Neon PostgreSQL database through the MCP server!
+
+  Visual Check First
+
+  Look for MCP indicators in Claude Desktop:
+  - Some versions show a &#34;🔧 Tools&#34; icon or badge
+  - Or a small &#34;MCP&#34; indicator
+  - Or &#34;Connected to 2 servers&#34; message
+
+  Test Queries
+
+  Open a new conversation in Claude Desktop and try these test queries:
+
+  Test 1: Check MCP Servers Available
+
+  Ask Claude Desktop:
+  What MCP servers are available to you?
+
+  Expected response: Should mention both mssql_mcp and postgres servers.
+
+  ---
+  Test 2: List Database Tables
+
+  Ask Claude Desktop:
+  What tables are in my PostgreSQL database?
+
+  Expected response: Should list tables (even if database is empty, it might show system tables or should say &#34;no tables yet&#34;).
+
+  ---
+  Test 3: Check Database Connection
+
+  Ask Claude Desktop:
+  Can you connect to my Neon PostgreSQL database and tell me the database name and PostgreSQL version?
+
+  Expected response: Should show:
+  - Database name: event_contact_db
+  - PostgreSQL version: 16.x
+
+  ---
+  What to Do:
+
+  1. Open Claude Desktop
+  2. Start a new conversation
+  3. Try the test queries above
+  4. Report back: Let me know what responses you get!
+
+  If everything works, you should see Claude successfully querying your Neon database! 🎉
+
+  Please try these tests and let me know the results.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 18:</strong> <em>Claude Code Guiding Postgres MCP Pro Testing</em>
+</p>
+<p>In <em>Code Snippet 18</em>, Claude Code guided me through testing the connection. I followed the steps and asked the test questions. Here are the results:</p>
+<ul>
+<li>Visual Check: ✅</li>
+<li>Test 1: ✅ - Both MCP servers listed</li>
+<li>Test 2: ❌ - failure, with message &ldquo;SSL connection has been closed unexpectedly.&rdquo;</li>
+</ul>
+<p>That&rsquo;s not good. What to do?</p>
+<h3 id="using-ai-to-troubleshoot-the-issue">Using AI to Troubleshoot the Issue</h3>
+<p>Instead of googling/Stackoverflow-ing the error message, I decided to report the issue back to Claude Code for help:</p>
+<pre tabindex="0"><code>The visual test works fine, and Test 1 is OK. However when I try Test 2, connection to the database it fails with: &#34;SSL connection has been closed unexpectedly&#34;
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 19:</strong> <em>Reporting Postgres MCP Pro Test Failure to Claude Code</em>
+</p>
+<p>When telling Claude Code about the issue, it goes off and comes back with:</p>
+<pre tabindex="0"><code>● I see the issue! This is a common SSL connection problem with Neon. The channel_binding=require parameter in your connection string can cause issues with some PostgreSQL clients.
+
+  Let me fix this by updating your Claude Desktop configuration with a modified connection string:
+
+● The issue: The channel_binding=require parameter is causing the SSL connection to fail.
+
+  The fix: Remove channel_binding=require from the connection string.
+
+  Let me update your Claude Desktop configuration:
+
+● Update(C:\Users\niels\AppData\Roaming\Claude\claude_desktop_config.json)`  
+
+[snipped for brevity]
+
+● Perfect! ✅ Configuration updated - removed the channel_binding=require parameter.
+
+  Let me quickly test this connection works now:
+
+[snipped for brevity]
+
+● Excellent! ✅ Connection test successful with the updated configuration!
+ 
+  ---
+  Next Step: Restart Claude Desktop Again
+
+  You need to restart Claude Desktop one more time to pick up the fixed configuration.
+
+  Please:
+  1. Quit Claude Desktop (same as before - right-click system tray icon → Quit)
+  2. Wait a few seconds
+  3. Restart Claude Desktop
+  4. Try Test 2 again: Ask &#34;What tables are in my PostgreSQL database?&#34;
+
+  This should now work without the SSL error!
+
+  Let me know when you&#39;ve restarted and tested again.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 20:</strong> <em>Claude Code Fixing Postgres MCP Pro SSL Connection Issue</em>
+</p>
+<p>I restarted Claude Desktop again as instructed. This time, when I asked Test 2 (&ldquo;What tables are in my PostgreSQL database?&rdquo;). It worked perfectly:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-4-17.png">
+    
+    
+    <figcaption><b>Figure 17: </b><em>Claude Desktop Successfully Listing Tables from Neon Database</em></figcaption>
+</figure>
+<p>As we see in <em>Figure 17</em>, Claude Desktop successfully listed the tables in my Neon database (which is currently empty, so it shows no user tables). I told Claude Code that everything is now working, and Claude Code asked me what I wanted to do now. I responded that I wanted to create a configuration template file for the repository, so others would know how to set up Postgres MCP Pro. Claude Code went off and:</p>
+<ul>
+<li>Created the template.</li>
+<li>Created a <code>README.md</code> file for the Postgres MCP Pro setup.</li>
+<li>Committed all changes and pushed to GitHub</li>
+</ul>
+<p><strong>We have successfully installed and configured Postgres MCP Pro with Claude Desktop, and verified it can connect to our Neon PostgreSQL database.</strong></p>
+<hr>
+<h2 id="the-value-of-conversational-installation">The Value of Conversational Installation</h2>
+<p>Let&rsquo;s reflect on what just happened with Claude Code:</p>
+<p><strong>Traditional Installation Experience</strong>:</p>
+<ol>
+<li>Read the <code>README.md</code> on GitHub</li>
+<li>Copy-paste commands blindly</li>
+<li>Hit an error</li>
+<li>Google the error message</li>
+<li>Try various StackOverflow solutions</li>
+<li>Eventually get it working</li>
+<li>Forget how you fixed it</li>
+</ol>
+<p><strong>AI-Native Installation Experience</strong>:</p>
+<ol>
+<li>Ask Claude Code to help install</li>
+<li>Claude explains what it&rsquo;s doing</li>
+<li>Claude handles the installation</li>
+<li>Claude tests the installation and handles errors</li>
+<li>Claude creates configuration templates</li>
+<li>Claude updates documentation</li>
+<li>Everything is documented in conversation history</li>
+</ol>
+<p><strong>Key Differences</strong>:</p>
+<ul>
+<li>✅ Understanding throughout (not just commands)</li>
+<li>✅ Proactive troubleshooting (test script created)</li>
+<li>✅ Documentation updated automatically</li>
+<li>✅ Complete audit trail in transcripts</li>
+<li>✅ Reproducible for others</li>
+</ul>
+<p>This is what <strong>AI-native development</strong> looks like, not just faster, but fundamentally more thoughtful and better documented.</p>
+<hr>
+<h2 id="what-weve-accomplished">What We&rsquo;ve Accomplished</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>Foundation for AI-Native Development</em></strong>
+</p>
+<p>Let&rsquo;s take stock of what we built today:</p>
+<h3 id="infrastructure-in-place">Infrastructure in Place</h3>
+<p>✅ <strong>Professional Project Structure</strong></p>
+<ul>
+<li>Organised directories for database, MCP servers, and docs</li>
+<li>Comprehensive <code>.gitignore</code></li>
+<li>Documentation templates</li>
+<li>Configuration examples</li>
+</ul>
+<p>✅ <strong>Version Control</strong></p>
+<ul>
+<li>Git repository initialised</li>
+<li>Pushed to GitHub with clean commit history</li>
+<li>Proper <code>.gitignore</code> protecting sensitive data</li>
+</ul>
+<p>✅ <strong>Conversation History Tool</strong></p>
+<ul>
+<li><code>claude-code-transcripts</code> installed</li>
+<li>Complete audit trail of all decisions</li>
+<li>Reproducible development workflow</li>
+</ul>
+<p>✅ <strong>Production Database</strong></p>
+<ul>
+<li>PostgreSQL 17 on Neon cloud</li>
+<li>Accessible from anywhere (including mobile)</li>
+<li>Automatic backups configured</li>
+<li>SSL encryption enabled</li>
+<li>Zero cost on the free tier</li>
+</ul>
+<p>✅ <strong>MCP Server Connection</strong></p>
+<ul>
+<li>Postgres MCP Pro installed and configured</li>
+<li>Verified working connection</li>
+<li>8 professional database tools available</li>
+<li>Ready for natural language queries</li>
+</ul>
+<h3 id="time-investment">Time Investment</h3>
+<p><strong>Total time</strong>: ~45 minutes of actual work</p>
+<ul>
+<li>Repository setup: 10 minutes</li>
+<li>Database decision &amp; setup: 15 minutes</li>
+<li>MCP Pro installation: 10 minutes</li>
+<li>Testing &amp; verification: 10 minutes</li>
+</ul>
+<p><strong>Traditional approach</strong>: Would take 4-6 hours</p>
+<ul>
+<li>Manual project setup: 30 minutes</li>
+<li>Database research &amp; setup: 1-2 hours</li>
+<li>Tool installation &amp; configuration: 1-2 hours</li>
+<li>Documentation writing: 1 hour</li>
+<li>Testing &amp; troubleshooting: 1 hour</li>
+</ul>
+<h3 id="what-makes-this-different">What Makes This Different</h3>
+<p><strong>It&rsquo;s Not Just About Speed</strong></p>
+<p>The productivity gain is obvious, but the real transformation is <strong>how we work</strong>:</p>
+<p><strong>Traditional Mindset</strong>:</p>
+<ul>
+<li>&ldquo;What database provider should I choose?&rdquo;</li>
+<li>&ldquo;How do I configure connection pooling?&rdquo;</li>
+<li>&ldquo;Where should I host this?&rdquo;</li>
+<li>&ldquo;What query builder should I use?&rdquo;</li>
+</ul>
+<p><strong>AI-Native Mindset</strong>:</p>
+<ul>
+<li>&ldquo;What do I want to do with this data?&rdquo;</li>
+<li>&ldquo;How do I want to ask questions?&rdquo;</li>
+<li>&ldquo;What infrastructure gets out of my way?&rdquo;</li>
+<li>&ldquo;How can I make this conversational?&rdquo;</li>
+</ul>
+<p>We&rsquo;re <strong>building for conversation, not for forms</strong>.</p>
+<hr>
+<h2 id="whats-next-part-5-preview">What&rsquo;s Next: Part 5 Preview</h2>
+<p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong><em>Schema Design and First Conversations</em></strong>
+</p>
+<p>In the next post, we&rsquo;ll bring this database to life by:</p>
+<h3 id="part-5-database-schema-and-natural-language-queries">Part 5: Database Schema and Natural Language Queries</h3>
+<p><strong>What We&rsquo;ll Build</strong>:</p>
+<ol>
+<li><strong>Conversational Schema Design</strong>   
+<ul>
+<li>Use Claude Code to analyse requirements</li>
+<li>Design an entity-relationship model through conversation</li>
+<li>Generate production-ready SQL</li>
+<li>Create indexes strategically</li>
+<li>Add helpful views and functions</li>
+</ul>
+</li>
+<li><strong>Schema Creation</strong>
+<ul>
+<li>Execute the SQL</li>
+<li>Verify table structure</li>
+<li>Test constraints</li>
+</ul>
+</li>
+<li><strong>Sample Data Generation</strong>
+<ul>
+<li>Use Claude Code to create realistic test data</li>
+<li>5 events (2021-2025)</li>
+<li>30 contacts (realistic South African names)</li>
+<li>Participation records (showing patterns)</li>
+<li>Speaker sessions and ratings</li>
+</ul>
+</li>
+<li><strong>First Natural Language Queries</strong>
+<ul>
+<li>Simple counts</li>
+<li>Filtered queries</li>
+<li>Complex JOINs with aggregation</li>
+<li>Analytics across years</li>
+<li>Multi-step reasoning</li>
+</ul>
+</li>
+<li><strong>Performance Analysis</strong>
+<ul>
+<li>Use MCP&rsquo;s EXPLAIN tool</li>
+<li>Index optimisation</li>
+<li>Query tuning</li>
+</ul>
+</li>
+</ol>
+<p><strong>Example of What&rsquo;s Coming</strong>:</p>
+<pre tabindex="0"><code>Me: Who are our most engaged community members? Consider both 
+attendance and speaking.
+
+Claude: [analyses data, creates engagement metric, runs query]
+
+Top 10 Most Engaged:
+1. Niels Berglund - 20 points (5 events attended, 5 presentations)
+2. Lawrance Reddy - 20 points (5 events attended, 5 presentations)
+...
+
+Should I show you the scoring methodology I used?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 21:</strong> <em>Example Natural Language Query with Claude Code</em>
+</p>
+<p>This is where the <strong>paradigm shift becomes real</strong>, from writing SQL to having conversations about data.</p>
+<hr>
+<h2 id="summary-building-the-foundation">Summary: Building the Foundation</h2>
+<p>Phew! That was a lot. Let&rsquo;s summarise.</p>
+<h3 id="what-we-built-today">What We Built Today</h3>
+<p><strong>Technical Achievements</strong>:</p>
+<ul>
+<li>✅ Professional project structure with Git</li>
+<li>✅ Complete conversation history with <code>claude-code-transcripts</code></li>
+<li>✅ Production PostgreSQL database on Neon</li>
+<li>✅ Postgres MCP Pro installed and working</li>
+<li>✅ Verified end-to-end connection</li>
+<li>✅ Documentation for reproducibility</li>
+</ul>
+<p><strong>More Importantly</strong>:</p>
+<ul>
+<li>✅ Experienced AI-native development workflow</li>
+<li>✅ Learned to converse with Claude Code for infrastructure decisions</li>
+<li>✅ Built foundation for conversational database access</li>
+<li>✅ Removed infrastructure as an obstacle</li>
+<li>✅ Set up for mobile database queries</li>
+</ul>
+<h3 id="the-journey-continues">The Journey Continues</h3>
+<p><strong>Series Progress</strong>:</p>
+<ul>
+<li>✅ <strong>Part 1</strong>: Installation &amp; Setup - Claude Code on macOS/Windows</li>
+<li>✅ <strong>Part 2</strong>: IDE Integration - VSCode, workflows, advanced features</li>
+<li>✅ <strong>Part 3</strong>: Architecture Planning - AI-native design, MCP strategy</li>
+<li>✅ <strong>Part 4</strong>: Database Infrastructure - PostgreSQL, MCP Pro, foundations (this post)</li>
+<li>🚀 <strong>Part 5</strong>: Schema &amp; Conversations - Design, queries, AI-native queries</li>
+<li>📅 <strong>Part 6</strong>: Import Pipeline - Custom MCP server, real data</li>
+<li>📅 <strong>Part 7</strong>: Email Integration - Brevo MCP, communication workflows</li>
+<li>📅 <strong>Part 8</strong>: Production Usage - Real events, analytics, insights</li>
+</ul>
+<h3 id="why-this-matters">Why This Matters</h3>
+<p>We&rsquo;re not just building an event management system. We&rsquo;re demonstrating a <strong>new development paradigm</strong>:</p>
+<p><strong>2023-2024</strong>: AI helps write code faster<br>
+<strong>2025</strong>: AI becomes the primary interface<br>
+<strong>2026+</strong>: Conversational systems become standard</p>
+<p>This series documents that transition as it happens, showing:</p>
+<ul>
+<li>What works (and what doesn&rsquo;t)</li>
+<li>How to think differently about system design</li>
+<li>Practical patterns for real projects</li>
+<li>Why the productivity gains are transformative</li>
+</ul>
+<h3 id="ready-for-part-5">Ready for Part 5</h3>
+<p>With our infrastructure in place:</p>
+<ul>
+<li>Database ready to receive schema</li>
+<li>MCP server ready to execute queries</li>
+<li>Tools ready for AI-powered development</li>
+<li>Foundation solid for building upward</li>
+</ul>
+<p>In Part 5, we&rsquo;ll design our database schema conversationally with Claude Code, create the tables, generate test data, and have our first meaningful natural language conversations with our data.</p>
+<p><strong>The transformation from SQL to conversation starts next.</strong></p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>That&rsquo;s all for this post! We&rsquo;ve built the foundation:</p>
+<ul>
+<li>Proper project structure with version control</li>
+<li>Complete development conversation history</li>
+<li>Production-ready cloud database</li>
+<li>MCP server connecting Claude to our data</li>
+</ul>
+<p><strong>Next time</strong>: We&rsquo;ll design the database schema through conversation with Claude Code, create realistic test data, and experience what AI-native database access actually feels like.</p>
+<h3 id="your-turn">Your Turn</h3>
+<p>I encourage you to follow along:</p>
+<ol>
+<li>Set up your own Neon database (free tier)</li>
+<li>Install Postgres MCP Pro</li>
+<li>Configure Claude Desktop</li>
+<li>Test that you can query the database through conversation</li>
+</ol>
+<p>Experience the difference yourself. It&rsquo;s genuinely transformative.</p>
+<hr>
+<p><strong>Have questions or thoughts?</strong></p>
+<ul>
+<li>Ping me: 
+
+<a href="mailto:niels.it.berglund@gmail.com">niels.it.berglund@gmail.com</a></li>
+<li>Follow on LinkedIn: 
+
+<a href="https://www.linkedin.com/in/nielsberglund/" target="_blank" rel="noopener">linkedin.com/in/nielsberglund</a></li>
+</ul>
+<p><strong>Found this helpful?</strong> Share it with your network! The AI-native development journey is one we&rsquo;re all taking together.</p>
+<p>See you in Part 5, where we design our database schema conversationally! 🚀</p>
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/drafts/test/" data-toggle="tooltip" data-placement="top" title="test">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2026
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
