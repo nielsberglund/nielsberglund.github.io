@@ -1,0 +1,2110 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-5.png">
+    <meta property="twitter:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-5.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 5 - Database Schema and Natural Language Queries" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 5 - Database Schema and Natural Language Queries" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 5 - Database Schema and Natural Language Queries" />
+    
+
+    
+    <meta name="description" content="Transform database development with Claude Code and Postgres MCP Pro. Design schemas, generate test data, and run complex queries—all through conversation.">
+    <meta property="og:description" content="Transform database development with Claude Code and Postgres MCP Pro. Design schemas, generate test data, and run complex queries—all through conversation." />
+    <meta property="twitter:description" content="Transform database development with Claude Code and Postgres MCP Pro. Design schemas, generate test data, and run complex queries—all through conversation." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 5 - Database Schema and Natural Language Queries | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2026-01-04-building-an-event-management-system-with-claude-code-part-5---database-schema-and-natural-language-queries/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-5.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-desktop" title="Claude Desktop">
+                            Claude Desktop
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/postgresql" title="PostgreSQL">
+                            PostgreSQL
+                        </a>
+                        
+                        <a class="tag" href="/tags/mcp-servers" title="MCP Servers">
+                            MCP Servers
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-native-development" title="AI-Native Development">
+                            AI-Native Development
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 5 - Database Schema and Natural Language Queries</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, January 4, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Welcome back to the <strong>Building an Event Management System with Claude Code</strong> series! In Part 4, we built the infrastructure foundation: a properly structured GitHub repository, a production PostgreSQL database on Neon, and Postgres MCP Pro configured for Claude Desktop. Today, we bring that database to life through conversational schema design and our first natural language queries—using both Claude Code for development and Claude Desktop for querying.</p>
+<ul>
+<li>To see all posts in the series, go to: 
+
+<a href="/contact-event-claude-code"><strong>Building an Event Management System with Claude Code</strong></a>.</li>
+</ul>
+<p>If you&rsquo;ve been following this series from the beginning, you know we&rsquo;ve already made one major pivot. In Parts 1 and 2, I planned to build a traditional web application with forms and dashboards, using Claude Code to write the code faster. Then came Part 3&rsquo;s revelation: why make yet another CRUD application when we could create something fundamentally different? An AI-native system where the primary interface is conversation, not forms.</p>
+<hr>
+<h2 id="another-plot-twist">Another Plot Twist</h2>
+<p>Today, we&rsquo;re taking another evolutionary step in the same direction.</p>
+<p>The traditional approach, even in AI-assisted development, would be to:</p>
+<ol>
+<li>Ask Claude Code to generate SQL <code>CREATE TABLE</code> statements</li>
+<li>Copy those statements to a file</li>
+<li>Manually run the file against the database using <code>psql</code> or a SQL client</li>
+<li>Ask Claude Code to generate <code>INSERT</code> statements for test data</li>
+<li>Copy and run those too</li>
+<li>Write <code>SELECT</code> queries to verify everything worked</li>
+</ol>
+<p>But here&rsquo;s what I realized while preparing this post: <strong>if we&rsquo;re building an AI-native system, why is the database setup process still manual?</strong> Why am I copy-pasting SQL like it&rsquo;s 2015?</p>
+<p>So today, we&rsquo;re not just using Claude Code to <strong>generate</strong> SQL scripts. We&rsquo;re using Claude Code to <strong>design the schema through conversation</strong>, <strong>create the tables directly in Neon via MCP</strong>, <strong>generate realistic test data</strong>, and <strong>query everything using natural language</strong>. No copy-paste. No manual execution. Pure conversation.</p>
+<p>Here&rsquo;s the key insight: we now have <strong>two conversational interfaces</strong> working together:</p>
+<ul>
+<li><strong>Claude Code</strong> (development tool): Designs, creates, and populates the database via MCP</li>
+<li><strong>Claude Desktop</strong> (query interface): Lets us query and analyze the data in natural language</li>
+</ul>
+<p>This is the continuation of Part 3&rsquo;s paradigm shift, but applied to database development itself. Just as we moved from &ldquo;web forms&rdquo; to &ldquo;conversational queries&rdquo; for the end-user experience, we&rsquo;re now moving from &ldquo;SQL scripts&rdquo; to &ldquo;conversational schema design&rdquo; for the development experience.</p>
+<p>Let&rsquo;s see what that actually looks like in practice.</p>
+<hr>
+<h2 id="the-paradigm-shift">The Paradigm Shift</h2>
+<p>In Parts three and four, I mentioned we were building an AI-native system. Today, you&rsquo;ll see what that actually means in practice—and how Claude Code and Claude Desktop work together to create a completely new development and usage workflow.</p>
+<p><strong>What we&rsquo;re NOT doing:</strong></p>
+<ul>
+<li>Write SQL scripts in a text editor</li>
+<li>Manually run those scripts against the database</li>
+<li>Write separate scripts for test data</li>
+<li>Hand-craft queries to verify everything worked</li>
+</ul>
+<p><strong>Instead, we&rsquo;re using a dual-interface approach:</strong></p>
+<p><strong>Claude Code</strong> (our AI development partner) will:</p>
+<ul>
+<li>Design the database schema based on our requirements</li>
+<li>Create the tables directly in our Neon database via MCP</li>
+<li>Generate and insert realistic test data</li>
+<li>Generate migration scripts for version control</li>
+<li>Create comprehensive documentation</li>
+</ul>
+<p><strong>Claude Desktop</strong> (our AI query interface) will:</p>
+<ul>
+<li>Query the database using natural language</li>
+<li>Perform complex analytics through conversation</li>
+<li>Provide insights without writing SQL</li>
+<li>Verify the schema and data Claude Code created</li>
+</ul>
+<p>This is the transformation from <strong>coding</strong> to <strong>conversing</strong>, applied to both development (Claude Code) and usage (Claude Desktop). Together, they form a complete AI-native data workflow.</p>
+<hr>
+<h2 id="what-well-accomplish-today">What We&rsquo;ll Accomplish Today</h2>
+<p>By the end of this post, you&rsquo;ll have:</p>
+<p>✅ Claude Code configured to use Postgres MCP Pro for database operations<br>
+✅ A complete database schema created conversationally by Claude Code<br>
+✅ Realistic test data for 3 years of events, generated and inserted by Claude Code<br>
+✅ Migration scripts and documentation automatically generated<br>
+✅ Natural language database queries working in Claude Desktop<br>
+✅ A complete AI-native workflow from development to usage <br>
+✅ Documentation generated automatically</p>
+<p>Let&rsquo;s begin.</p>
+<hr>
+<h2 id="connecting-claude-code-to-postgres-mcp-pro">Connecting Claude Code to Postgres MCP Pro</h2>
+<h3 id="understanding-the-configuration-difference">Understanding the Configuration Difference</h3>
+<p>In Part 4, we configured Postgres MCP Pro for <strong>Claude Desktop</strong> (the GUI application). This allows us to query our database through natural language conversations. But now we need to set up <strong>Claude Code</strong> to use the same MCP server—this will enable Claude Code to actually create tables, insert data, and manage the database through conversation.</p>
+<p><strong>Why do we need both?</strong></p>
+<ul>
+<li><strong>Claude Desktop</strong>: Perfect for querying and analyzing data (what business users do)</li>
+<li><strong>Claude Code</strong>: Perfect for creating schemas and managing the database (what developers do)</li>
+</ul>
+<p>Both use the same MCP server but serve different purposes in our AI-native workflow.</p>
+<p><strong>Claude Desktop Configuration:</strong></p>
+<ul>
+<li>Location: <code>%APPDATA%\Roaming\Claude\claude_desktop_config.json</code> (Windows)</li>
+<li>Purpose: Interactive UI conversations</li>
+<li>Status: ✅ Already configured in Part 4</li>
+</ul>
+<p>So, how do we configure Claude Code?</p>
+<h3 id="claude-code-configuration---the-conversational-approach">Claude Code Configuration - The Conversational Approach</h3>
+<p>Above, I (rhetorically) asked how to configure Claude Code to use Postgres MCP Pro. By now, you should know the answer: <strong>we simply ask Claude Code to help us configure it</strong>. This is AI-native development, even the setup is conversational.</p>
+<p>Let&rsquo;s open Claude Code:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ <span style="color:#cb4b16">cd</span> event-contact-management-2
+</span></span><span style="display:flex;"><span>$ claude --continue
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 1::</strong> <em>Opening Claude Code with --continue Flag</em>
+</p>
+<p>Since I had closed down Claude Code after Part 4, I reopened it in the project directory with the <code>--continue</code> flag, as you see in <em>Code Snippet 1</em>. This tells Claude Code to resume our previous conversation in this directory, preserving all project context and &ldquo;memory&rdquo; of what we&rsquo;ve been building.</p>
+<p>With Claude Code running, I asked it about configuring MCP:</p>
+<pre tabindex="0"><code>Up until now, we have assumed that you will create the scripts for the database tables, test data, etc., and I will run them against the Neon PostgreSQL database. However, since we installed, configured, and used the PostgreSQL MCP Pro MCP Server from Claude Desktop, you can create the database scripts (so we can version-control them). Still, you would also use the PostgreSQL MCP server to create the tables, populate the test data, etc. 
+
+For that, we need to configure the PostgreSQL MCP server so you can use it. What options are available for configuring an MCP Server for your use? I.e., what locations can the config be in?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 2::</strong> <em>Claude Code&#39;s Prompt re. MCP Server</em>
+</p>
+<p>Notice what&rsquo;s happening here: I&rsquo;m not googling &ldquo;how to configure MCP for Claude Code&rdquo; or reading documentation. I&rsquo;m <strong>asking Claude Code itself</strong> to explain the configuration options and help me set it up. This is the AI-native development workflow—your development tool is also your technical advisor.</p>
+<p>Based on the prompt in <em>Code Snippet 2</em>, Claude Code responded with a detailed explanation of the configuration locations and the actual configuration needed for our project:</p>
+<pre tabindex="0"><code>● Great thinking! Yes, if I can access the Postgres MCP Pro server directly, I can create the database schema, add test data, and interact with your Neon database - all while keeping the SQL scripts in version control.
+
+  Let me check the official documentation on how to configure MCP servers for Claude Code:
+
+[snipped for brevity]
+
+● Perfect question! Here are your options for configuring MCP servers for Claude Code:
+
+  MCP Server Configuration Locations
+
+  1. Project Scope (Recommended for You) ⭐
+
+  Location: .mcp.json in your project root
+  Example: W:\OneDrive\repos\niels\event-contact-management-2\.mcp.json
+
+  Advantages:
+  - ✅ Version controlled (committed to Git)
+  - ✅ Shared with team members
+  - ✅ Project-specific configuration
+  - ✅ Uses environment variables for credentials (keeps secrets out of Git)
+
+ [snipped for brevity]
+
+  2. Local Scope (Personal Override)
+
+[snipped for brevity] 
+
+  3. User Scope (Global)
+
+[snipped for brevity]
+  ---
+  Recommended Approach for Your Project
+
+  Create a project-scoped .mcp.json file that:
+  1. ✅ Can be committed to Git (version controlled)
+  2. ✅ Uses environment variables for credentials (secure)
+  3. ✅ Works for both you and future team members
+
+  Option A: Simple Approach (Credentials in File)
+
+  Create W:\OneDrive\repos\niels\event-contact-management-2\.mcp.json:
+
+[snipped for brevity]
+  
+  ⚠️ Important: Add .mcp.json to .gitignore if using this approach!
+
+  Option B: Secure Approach (Environment Variables) ⭐ Recommended
+
+[snipped for brevity]
+  
+  Safe to commit to Git! ✅
+
+  Then set environment variable:
+  # Windows (PowerShell)
+  $env:NEON_DATABASE_URL = &#34;postgresql://neondb_owner:************@ep-raspy-sun-a9vrlwfl-pooler.gwc.azure.neon.tech/event_contact_db?sslmode=require&#34;
+
+  # Or add to your system environment variables permanently
+
+  ---
+  How This Will Work
+
+  Once configured:
+
+  [snipped for brevity]
+
+  ---
+  Next Steps
+
+  Would you like me to:
+  1. Create the .mcp.json configuration file for the project?
+  2. Use Option A (simple) or Option B (secure with env vars)?
+  3. Then test the connection to verify I can access your Neon database?
+
+  Let me know which approach you prefer, and I&#39;ll set it up!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 3::</strong> <em>Claude Code Explaining MCP Configuration Options</em>
+</p>
+<p>As you can see in <em>Code Snippet 3</em>, Claude Code didn&rsquo;t just tell me where to put a config file, it:</p>
+<ul>
+<li>Explained the three configuration scopes available</li>
+<li>Recommended the best approach for our use case (project-scoped with env vars)</li>
+<li>Explained the security implications of each option</li>
+<li>Offered to create the configuration file for us</li>
+<li>Asked clarifying questions about our preference</li>
+</ul>
+<p><strong>This is the power of conversational development:</strong> the tool doesn&rsquo;t just execute commands, it advises, explains, and guides you through decisions.</p>
+<p>I asked Claude Code to create a project-scoped configuration file using the secure approach with environment variables. Claude Code then created the <code>.mcp.json</code> file, configured it properly, and verified the connection to our Neon database, all through conversation. It also also created an <code>MCP-SETUP.md</code> file documenting the steps taken (another great practice for future reference). However:</p>
+<div class="callout callout-warning">
+  <div class="callout-title">
+    
+    ⚠️ WARNING
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    The <code>MCP-SETUP.md</code> should be committed to version control, and Claude Code wanted to do that. Just by pure chance I had a look in the file before it committed, and I noticed it contained the actual database URL with username and password in plain text. The warning here is to always review auto-generated files before committing them to version control, especially when they relate to configuration or secrets.
+  </div>
+</div>
+<p>I asked Claude Code to remove sensitive information from <code>MCP-SETUP.md</code> before committing, and it did so without issue.</p>
+<h3 id="system-environment-variable">System Environment Variable</h3>
+<p>I told Claude Code that I wanted the secure approach with environment variables. As mentioned, Claude Code documented everything in <code>MCP-SETUP.md</code>, including how to set the system environment variable for the database URL. However, I do not want to do it manually; I want Claude Code to do it. So I asked it to do it. The response was:</p>
+<pre tabindex="0"><code>● I&#39;ll set the system environment variable for you using PowerShell. This will set it permanently for your user account.
+
+[snipped for brevity]
+
+● Bash(powershell.exe -Command &#34;[System.Environment]::SetEnvironmentVariable(&#39;NEON_DATABASE_URL&#39;,
+      &#39;postgresql://neondb_owner:***************@ep-raspy-sun-a9vrlwfl-poo…)
+  ⎿  (No content)
+
+● Perfect! Now let me verify it was set correctly:
+
+[snipped for brevity]
+
+● Bash(powershell.exe -Command &#34;[System.Environment]::GetEnvironmentVariable(&#39;NEON_DATABASE_URL&#39;, &#39;User&#39;)&#34;)
+  ⎿ postgresql://neondb_owner:***************@ep-raspy-sun-a9vrlwfl-pooler.gwc.azure.neon.tech/event_contact_db?ss
+    lmode=require
+
+● Excellent! The environment variable has been set successfully. I can confirm it&#39;s stored:
+
+[snipped for brevity]
+
+  According to the MCP-SETUP.md documentation:
+
+  1. Restart Required: You need to restart your terminal/IDE for the environment variable to be available:
+    - Close all terminal windows
+    - Close Claude Code (if running)
+    - Reopen your terminal/IDE
+    - The environment variable will now be available to Claude Code
+  2. Verify Docker is Running: Make sure Docker Desktop is running since Postgres MCP Pro runs via Docker
+  3. Test the Connection: Once you&#39;ve restarted, we can test that Claude Code can access the database through the MCP server
+
+  The environment variable is now permanently set for your user account and will persist across reboots.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 4::</strong> <em>Claude Code Setting System Environment Variable</em>
+</p>
+<p>Claude Code successfully set the system environment variable for the database URL. Not that I don&rsquo;t trust Claude Code, but I always like to verify these things myself. So I &ldquo;spun up&rdquo; a new PowerShell window and ran:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-powershell" data-lang="powershell"><span style="display:flex;"><span><span style="color:#268bd2">PS</span>&gt; [<span style="color:#268bd2">System.Environment</span>]::<span style="color:#268bd2">GetEnvironmentVariable</span>(<span style="color:#2aa198">&#39;NEON_DATABASE_URL&#39;</span>, <span style="color:#2aa198">&#39;User&#39;</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5::</strong> <em>Verifying System Environment Variable in PowerShell</em>
+</p>
+<p>The output confirmed that the environment variable was set correctly.</p>
+<h3 id="testing-the-mcp-connection">Testing the MCP Connection</h3>
+<p>With the MCP configuration in place and the environment variable set, I asked Claude Code to test the connection to the Neon database, and it responded:</p>
+<pre tabindex="0"><code>● I&#39;ll test the connection to your Neon PostgreSQL database through the Postgres MCP Pro server. Let me start by verifying Docker is running:
+
+[snipped for brevity]
+
+● Excellent! The connection is successful! I can confirm:
+
+  ✅ Connected to PostgreSQL 17.7 on your Neon database
+  ✅ SSL connection working (sslmode=require)
+  ✅ Credentials are correct
+
+  Now let me check what tables currently exist in your database:
+
+[snipped for brevity]
+
+● Perfect! The connection test is successful:
+
+  Connection Test Results:
+  - ✅ Database: PostgreSQL 17.7 on Neon cloud
+  - ✅ Connection: Working with SSL
+  - ✅ Authentication: Successful
+  - ✅ Current state: Empty database (no tables yet)
+
+  The database is ready and waiting for the schema to be created. According to the project plan, the next step is to create the database schema with these tables:
+  - contacts - Unified person records (attendees + speakers)
+  - events - Event definitions
+  - participation - Registration and attendance tracking
+  - speaker_sessions - Speaker presentations
+  - speaker_ratings - Session ratings
+  - email_log - Communication history
+
+  Would you like me to create the database schema now?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 6::</strong> <em>Claude Code Successfully Testing MCP Connection</em>
+</p>
+<p>Cool, it looks like we are set now.</p>
+<hr>
+<h2 id="conversational-schema-design-with-claude-code">Conversational Schema Design with Claude Code</h2>
+<p>Now comes the exciting part. Instead of writing SQL CREATE TABLE statements manually, we&rsquo;re going to <strong>design the database schema through conversation</strong> with Claude Code.</p>
+<h3 id="the-design-conversation">The Design Conversation</h3>
+<p>Here&rsquo;s what traditional development looks like:</p>
+<ol>
+<li>Open a SQL editor or text file</li>
+<li>Write CREATE TABLE statements</li>
+<li>Think through relationships and constraints</li>
+<li>Add indexes manually</li>
+<li>Document the schema separately</li>
+<li>Save to a .sql file</li>
+</ol>
+<p>Here&rsquo;s what AI-native development with Claude Code looks like:</p>
+<ol>
+<li>Describe what you need in plain English</li>
+<li>Claude Code designs the schema</li>
+<li>Review and refine through conversation</li>
+<li>Claude Code creates the tables via MCP</li>
+<li>Claude Code generates documentation automatically</li>
+</ol>
+<p>Let&rsquo;s see it in action. I started by describing our requirements to Claude Code:</p>
+<pre tabindex="0"><code>Based on our architecture plan (in CLAUDE.md and plan.md), you do know the high-level requirements for our event contact management system. There are a couple of things to consider:
+
+- Typically, we&#39;d uniquely identify a contact based on email address. However, we are capturing contacts when someone registers for an event. At the time of registration, two people (think husband and wife) could share the same email address, but register with different names. Therefore, we cannot use email addresses as unique identifiers for contacts.
+- We will have multiple events per year.
+- For participants, one person may register for multiple tickets (e.g., one for themselves and one for a colleague). Therefore, we need to track registration/participation at the ticket level. A ticket has a ticket number, which is a `long`.
+- We rate speakers on the topic(s) and the presentation separately.
+- A speaker can both be an attendant and a speaker at the same event
+
+Think hard about the relationships, indices, and constraints we&#39;ll need. However, try to keep it simple. Don&#39;t overcomplicate the design. DO NOT create anything yet - just design and show me the schema.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 7::</strong> <em>Claude Code&#39;s Prompt for Schema Design</em>
+</p>
+<p>Notice in <em>Code Snippet 7</em> how I use &ldquo;Think hard&rdquo; to trigger Claude Code&rsquo;s deeper reasoning mode (as we discussed in Part 2).</p>
+<p>Notice what I&rsquo;m NOT doing:</p>
+<ul>
+<li>❌ Writing SQL</li>
+<li>❌ Googling best practices for database design</li>
+<li>❌ Manually planning foreign keys</li>
+<li>❌ Deciding on data types</li>
+</ul>
+<p>Instead, I&rsquo;m <strong>describing the business requirements</strong> and letting Claude Code translate them into a technical schema design.</p>
+<p><strong>Why this matters:</strong></p>
+<ul>
+<li><strong>Domain experts</strong> can participate in schema design without knowing SQL</li>
+<li><strong>Design decisions</strong> are explained and documented automatically</li>
+<li><strong>Best practices</strong> are applied consistently (Claude Code knows PostgreSQL patterns)</li>
+<li><strong>Iteration</strong> is easy, just have a conversation to refine the design</li>
+</ul>
+<p>Claude Code went off to think:</p>
+<pre tabindex="0"><code>● I&#39;ll design the database schema based on the requirements. Let me think through the relationships carefully.
+
+  Database Schema Design
+
+  Core Entities &amp; Relationships
+
+  Key Design Decisions:
+  1. Email is NOT unique - Use auto-increment ID as primary identifier
+  2. Ticket-level tracking - Separate purchaser from attendee to handle &#34;register for colleague&#34; scenario
+  3. Dual roles supported - Same contact can be both attendee (via ticket) and speaker at same event
+  4. Simple rating model - Two numeric ratings per session (topic + presentation)
+
+  [snipped for brevity proposed tables, etc]
+
+  Constraints &amp; Business Rules
+
+  ✅ Email NOT unique (family email sharing)
+  ✅ Ticket number IS unique (Quicket requirement)
+  ✅ One person can buy multiple tickets
+  ✅ Ticket purchaser ≠ attendee (register for colleague)
+  ✅ Speaker can also have ticket (dual role)
+  ✅ Multiple sessions per speaker per event
+  ✅ Multiple ratings per session (different sources)
+  ✅ Topic and presentation rated separately
+
+  ---
+  What do you think? Any adjustments needed before I create this schema?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 8::</strong> <em>Claude Code Thinking Through Schema Design</em>
+</p>
+<p>What you see in <em>Code Snippet 8</em> is a very brief excerpt of Claude Code&rsquo;s deep thinking process. It analyzed the requirements, identified core entities and relationships, and outlined key design decisions and constraints. I had a look at the proposal and saw some flaws, which I pointed out.</p>
+<pre tabindex="0"><code>This looks almost perfect. However, I realised that on the day of the event, we will have walk-ins, with no tickets. We still need to register them in the tickets table (and potentially contacts). So we can&#39;t have a unique index on the ticket number, since walk-ins will be assigned -1 as the ticket number. So maybe the unique index should be on ticket-number + email address? What do you think?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 9::</strong> <em>User Requesting Schema Adjustment</em>
+</p>
+<p>Claude Code went off and came back with a suggestion, which I didn&rsquo;t like. So we had another round of back-and-forths around the ticket number, plus other minor adjustments:</p>
+<pre tabindex="0"><code>Me: No, I also realised that the ticket number may not be globally unique, but only unique per event. I want ticket_number to default be nullable, but default to -1. Also the unique index should be on ticket_number+event_id+attendee_contact_id.
+
+Claude Code responds.
+
+Me: That looks good, We also need to capture what type a contact is: attendee, speaker, sponsor, organiser - and a contact can be multiple types. I.e. I can be an attendee, speaker and organiser.
+
+Claude Code responds: Great point! A contact can have multiple roles. Let me present two options:
+    - Option 1: Array column (Simple &amp; Practical) ⭐ Recommended
+        Some pro&#39;s and con&#39;s of option 1    
+    - Option 2: Junction table (Event-specific roles)
+        Some pro&#39;s and con&#39;s of option 2
+
+Me: I hear what you are saying but I prefer option 2, a junction table with one to many relationship between contacts and roles
+
+Claude Code responds: Perfect! Option 2 it is. Here&#39;s the complete contact_roles table design:
+    - Should I now create the complete SQL schema file that we can review and then execute against your Neon database?
+
+Me: Can you please create the complete SQL schema file for us to review. Do NOT execute against the database.     
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 10::</strong> <em>Refining Schema Design Through Conversation</em>
+</p>
+<p>When you look at <em>Code Snippet 10</em>, you see how the schema design evolved through conversation. I identified issues, Claude Code proposed solutions, and we iterated until we had a solid design. This back-and-forth is crucial to ensure the schema meets all requirements before creation.</p>
+<p>After my &ldquo;Can you please create the complete SQL schema &hellip;&rdquo; prompt, Claude Code responded with the full schema design and asked whether I wanted it to generate the actual SQL file next. I had a look at the proposed schema and told Claude Code to proceed with generating the SQL file. Claude Code responded:</p>
+<pre tabindex="0"><code>● I&#39;ll create the complete SQL schema file for review.
+
+● Write(database\schema.sql)
+ 
+[snipped for brevity] 
+
+● Perfect! I&#39;ve created the complete SQL schema file at database/schema.sql.
+
+  Schema Summary
+
+  7 Tables Created:
+
+  1. contacts - Person records with email (NOT unique)
+  2. events - Event definitions (multiple per year supported)
+  3. tickets - Ticket-level tracking (nullable ticket_number, defaults to -1)
+  4. speaker_sessions - Speaker presentations
+  5. speaker_ratings - Separate topic and presentation ratings
+  6. email_log - Email send history
+  7. contact_roles - Many-to-many contact role assignments
+
+  Key Features Implemented:
+
+  ✅ Email NOT unique (shared family emails)
+  ✅ Ticket-level tracking with walk-in support
+  ✅ ticket_number defaults to -1, unique per (event, attendee)
+  ✅ Dual roles (same person can be attendee and speaker)
+  ✅ Event-specific and global contact roles
+  ✅ Separate topic/presentation ratings
+  ✅ All indexes and constraints as discussed
+  ✅ Comprehensive comments and documentation
+
+  The file includes:
+  - DROP statements (commented out for safety)
+  - All table definitions in correct dependency order
+  - All indexes for performance
+  - All constraints for data integrity
+  - Extensive comments explaining design decisions
+
+  Please review the schema file. Once you&#39;re satisfied, I can execute it against your Neon database.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 11::</strong> <em>Claude Code Generating Complete SQL Schema File</em>
+</p>
+<p>The schema file was created at <code>database/schema.sql</code>. I have published the complete schema design Claude Code presented to me for review as a <code>gist</code> 
+
+<a href="https://gist.github.com/nielsberglund/87983d9d642c00909c597bc0018638b5" target="_blank" rel="noopener">here</a>.</p>
+<hr>
+<h2 id="creating-the-schema-via-mcp">Creating the Schema via MCP</h2>
+<p>Now for the moment of truth.</p>
+<h3 id="the-creation-process">The Creation Process</h3>
+<p>Instead of copying this SQL and running it manually, I&rsquo;ll ask Claude Code to execute it via MCP:</p>
+<pre tabindex="0"><code>This SQL looks perfect. Now create these tables in our Neon database via the Postgres MCP server. Create them one at a time, and verify each table was created successfully  before moving to the next one. make sure you create them in the correct dependency order. After all tables are created, provide me with a summary of the created tables, columns, indexes and constraints.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12::</strong> <em>User Requesting Table Creation via MCP</em>
+</p>
+<p>Claude Code responded:</p>
+<pre tabindex="0"><code>● I&#39;ll create the tables one at a time using the PostgreSQL client via Docker, verifying each step. Let me start in the correct dependency order.
+
+● Step 1: Creating contacts table
+
+[snipped for brevity]
+
+● ✅ contacts table created successfully!
+
+● Step 2: Creating events table
+
+[snipped for brevity]
+
+● ✅ events table created successfully!
+
+● Step 3: Creating tickets table
+
+[snipped for brevity]
+
+● ✅ tickets table created successfully!
+
+● Step 4: Creating speaker_sessions table
+
+[snipped for brevity]
+
+● ✅ speaker_sessions table created successfully!
+
+● Step 5: Creating speaker_ratings table
+
+[snipped for brevity]
+
+● ✅ speaker_ratings table created successfully!
+
+[snipped for brevity]
+
+● ✅ email_log table created successfully!
+
+● Step 7: Creating contact_roles table
+
+[snipped for brevity]
+
+● ✅ contact_roles table created successfully!
+
+● Generating Final Summary
+
+  Let me gather comprehensive information about all created database objects:
+
+[snipped for brevity]
+
+● ✅ Database Schema Creation Complete!
+
+  All 7 tables have been successfully created in your Neon PostgreSQL 17.7 database. Here&#39;s the comprehensive summary:
+
+  ---
+  📊 Tables Created (7)
+
+  [snipped for brevity]
+
+  ---
+  📈 Summary Statistics
+
+  - Total Tables: 7
+  - Total Indexes: 35 (including 7 primary keys, 2 unique indexes)
+  - Total Foreign Keys: 11
+  - Total Check Constraints: 16
+
+  ---
+  🔑 Key Design Features
+
+  ✅ Email NOT unique - Supports shared family email addresses
+  ✅ Ticket-level tracking - Walk-ins default to ticket_number = -1
+  ✅ Unique constraint - (ticket_number, event_id, attendee_contact_id)
+  ✅ Dual roles - Same person can be both attendee and speaker
+  ✅ Event-specific &amp; global roles - Flexible role assignments
+  ✅ Separate ratings - Topic (content) and presentation (delivery)
+  ✅ Comprehensive indexing - Optimized for common queries
+  ✅ Data integrity - Foreign keys with appropriate DELETE actions
+
+  ---
+  ✨ Database is Ready!
+
+  Your Neon PostgreSQL database is now fully configured and ready for:
+  - Contact management
+  - Event tracking
+  - Ticket registration and check-in
+  - Speaker session management
+  - Rating collection
+  - Email campaign logging
+  - Flexible role assignments
+
+  Next steps: Load sample data for testing! 🚀
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12::</strong> <em>Claude Code Creating Tables via MCP</em>
+</p>
+<p>Not that I don&rsquo;t trust Claude Code. But, just for sh*t and giggles, let&rsquo;s verify it ourselves. Obviously, I could have used some PostgreSQL client to connect to the database and check, but that is so not <strong>AI-Native</strong> development. Instead, I asked the Claude Desktop application that we set up in Part 4 to connect to the database:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-1.png">
+    
+    
+    <figcaption><b>Figure 1: </b><em>Claude Desktop Verifying Tables Created</em></figcaption>
+</figure>
+<p>As shown in <strong>Figure 1</strong>, Claude Desktop confirmed that all tables were created successfully. What is interesting is that Claude Desktop inferred what this database was for based on the table names and structure, even though we never told it (outlined in yellow).</p>
+<h3 id="generating-migration-scripts">Generating Migration Scripts</h3>
+<p>Best practice dictates we should have SQL migration scripts in version control, even though we created the tables conversationally. Let&rsquo;s have Claude Code generate those:</p>
+<pre tabindex="0"><code>Before we go on to generating sample data, best practice says we should have the sql scripts in version control. Can you generate the migration scripts as well create comprehensive database documentation, with ER diagram and table descriptions.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 13::</strong> <em>User Requesting Migration Scripts and Documentation</em>
+</p>
+<p>In addition to the migration scripts, I also asked Claude Code to generate comprehensive documentation, including an ER diagram in Mermaid format, table descriptions, relationships, indexes, constraints, and design decisions:</p>
+<pre tabindex="0"><code>● Excellent idea! I&#39;ll create proper migration scripts and comprehensive documentation with an ER diagram. Let me generate these files:
+
+[snipped for brevity]
+
+● Perfect! I&#39;ve created comprehensive migration scripts and documentation. Let me commit these to version control:
+
+[snipped for brevity]
+
+● ✅ Database Migrations and Documentation Complete!
+
+  I&#39;ve created comprehensive migration scripts and documentation, all committed to version control.
+
+  ---
+  📁 Files Created
+
+  Migration Scripts (database/migrations/)
+
+  [snipped for brevity]
+
+  Database Documentation (database/DATABASE.md)
+
+  Comprehensive 600+ line documentation including:
+
+  [snipped for brevity]
+
+  ---
+  📊 Documentation Statistics
+
+  - Total Lines: ~1,400 lines of SQL and documentation
+  - Tables: 7 fully documented
+  - Columns: 69 with descriptions
+  - Indexes: 35 documented
+  - Foreign Keys: 11 mapped
+  - Check Constraints: 16 explained
+  - SQL Examples: 8 common query patterns
+  - ER Diagram: Mermaid format (GitHub-compatible)
+
+  ---
+  🔄 Version Control Status
+
+  ✅ Committed to Git:
+  
+  [snipped for brevity]
+
+  ✅ Pushed to GitHub: All files successfully pushed
+
+  ---
+  🎯 Next Steps
+
+  Your database is now:
+  1. ✅ Created - All tables in Neon PostgreSQL 17.7
+  2. ✅ Documented - Comprehensive ER diagram and table docs
+  3. ✅ Version Controlled - Migration scripts in Git
+  4. ✅ Team-Ready - Documentation for collaborators
+
+  Ready for: Sample data generation and testing! 🚀
+
+  ---
+  📖 How to Use
+
+  View ER Diagram:
+  Open database/DATABASE.md on GitHub - the Mermaid diagram will render automatically
+
+  Apply Migration to New Database:
+  psql &#34;your-connection-string&#34; -f database/migrations/001_create_core_tables_up.sql
+
+  Rollback if Needed:
+  psql &#34;your-connection-string&#34; -f database/migrations/001_create_core_tables_down.sql
+
+  Read Documentation:
+  - database/DATABASE.md - Full reference documentation
+  - database/migrations/README.md - Migration management guide
+
+  All documentation is written in markdown and optimized for GitHub viewing!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 14::</strong> <em>Claude Code Generating Migration Scripts and Documentation</em>
+</p>
+<p>In <em>Code Snippet 14</em>, you see an excerpt of Claude Code&rsquo;s detailed response outlining the files created, documentation statistics, version control status, and next steps!</p>
+<p>The database documentation generated by Claude Code is available as a <code>gist</code> 
+
+<a href="https://gist.github.com/nielsberglund/a293684bebae08beaf16ea4f5152c987" target="_blank" rel="noopener">here</a>.</p>
+<h3 id="reflecting-on-the-experience">Reflecting on the Experience</h3>
+<p>This is the power of AI-native development. I didn&rsquo;t:</p>
+<ul>
+<li>Open a SQL client</li>
+<li>Copy-paste SQL</li>
+<li>Manually run scripts</li>
+<li>Check if it worked</li>
+<li>Create documentation by hand</li>
+</ul>
+<p>I just <strong>asked</strong> Claude Code to do it, and it:</p>
+<ul>
+<li>Executed each CREATE TABLE statement</li>
+<li>Verified each table was created correctly</li>
+<li>Checked all constraints and indexes</li>
+<li>Provided a comprehensive summary</li>
+</ul>
+<p>This is a massive productivity boost and a glimpse into the future of software development.</p>
+<hr>
+<h2 id="generating-test-data">Generating Test Data</h2>
+<p>Cool, I now have a database with tables created conversationally. Next, we need realistic test data to work with.</p>
+<h3 id="the-data-generation-conversation">The Data Generation Conversation</h3>
+<p>With our schema in place, we need realistic test data. In traditional development, this is tedious, writing <code>INSERT</code> statements or creating seed scripts. With Claude Code, we just <strong>describe</strong> what we want.</p>
+<pre tabindex="0"><code>Now generate realistic test data for our Data &amp; AI Community Day Durban events. I want:
+
+- I want events:
+    * 2 events in 2023
+    * 3 events in 2024
+    * 5 events in 2025
+
+- 60 contacts total:
+    * Use realistic South African names (mix of cultures: Zulu, Xhosa, Afrikaans, English)
+    * Mix of genders
+    * Companies from South Africa (real and fictional tech companies)
+    * 10 people who are both speakers and attendees
+    * 30 people who only attended
+    * 20 people who only spoke
+
+- Participation records showing realistic patterns:
+    * Realistic check-in rates (90-95% of registered attendees actually attended)
+    * 5-10 people attended all 3 years (core community)
+    * 10-15 people attended 2 years
+    * Remaining people attended 1 year (first-timers)
+  
+- Speaker sessions:
+    * 8-10 sessions per event
+    * Topics: AI, Machine Learning, Data Engineering, Azure, Cloud, Analytics, etc.
+    * Some speakers present at multiple events
+    * Varied tracks: Technical, Business, Ethics
+
+- Session ratings:
+    * 3-5 ratings per session (realistic attendance)
+    * Ratings mostly between 5-7 (generally positive feedback)
+    * Some variation (not all perfect 7s)
+    * Occasional written comments
+
+Make the data feel real - varied but believable for a South African tech conference.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 15::</strong> <em>User Requesting Realistic Test Data Generation</em>
+</p>
+<p>Let us see what Claude Code does with this:</p>
+<pre tabindex="0"><code>● I&#39;ll create realistic test data for your South African tech conference. Let me generate comprehensive seed data:
+
+[snipped for brevity]
+
+● Now let me create a README and a helper script for loading the seed data:
+
+[snipped for brevity]
+
+● Excellent! Now let me commit the seed data to version control:
+
+[snipped for brevity]
+
+● ✅ Realistic Test Data Created!
+
+  I&#39;ve generated comprehensive, realistic seed data for your South African Data &amp; AI Community Day events. All files are committed to version control.
+
+  ---
+  📁 Seed Files Created
+
+  database/seeds/001_sample_data.sql (550+ lines)
+
+  - 10 Events across 2023-2025
+  - 60 Contacts with authentic South African names
+  - ~90 Speaker Sessions with realistic topics
+
+  database/seeds/002_tickets_and_ratings.sql (280+ lines)
+
+  - ~200 Ticket Records with realistic attendance patterns
+  - ~60 Session Ratings (sample showing pattern)
+  - Contact Roles (organisers, sponsors, speakers)
+  - 10 Email Log Entries
+
+  database/seeds/README.md (Comprehensive guide)
+
+  - How to load seed data
+  - Data verification queries
+  - Customization instructions
+
+[snipped for brevity]
+
+  ---
+  🚀 Ready to Load Data!
+
+  Would you like me to load this test data into your Neon database now?
+
+  What I&#39;ll do:
+  1. Load 001_sample_data.sql (events, contacts, sessions)
+  2. Load 002_tickets_and_ratings.sql (tickets, ratings, roles)
+  3. Verify data loaded correctly
+  4. Run sample queries to show the data in action
+
+  Just say &#34;Yes, load the seed data&#34; and I&#39;ll execute it!
+
+  ---
+  📈 What You Can Test With This Data
+
+  ✅ Registration Queries: &#34;Is Thabo Mthembu registered for Event 10?&#34;
+  ✅ Attendance Tracking: &#34;How many checked in at March 2024?&#34;
+  ✅ Speaker History: &#34;How many times has Sarah presented?&#34;
+  ✅ Ratings Analysis: &#34;Top 5 rated speakers&#34;
+  ✅ Email Campaigns: &#34;Send email to all 2024 attendees&#34;
+  ✅ Core Community: &#34;Who attended all 3 years?&#34;
+  ✅ Walk-in Registration: Test walk-in flow
+  ✅ Duplicate Detection: Find shared email addresses
+  ✅ Attendance Trends: Compare attendance rates across events
+  ✅ Speaker Rankings: Average ratings by speaker
+
+  ---
+  🎯 Next Steps
+
+  Option 1: Load the seed data now (I can do it for you!)
+  Option 2: Review the SQL files first, then load manually
+  Option 3: Customize the data before loading
+
+  Let me know how you&#39;d like to proceed! 🚀
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 16::</strong> <em>Claude Code Generating Realistic Test Data</em>
+</p>
+<p>This is remarkable. Claude Code:</p>
+<ul>
+<li>Generated 434 total records (10 events + 60 contacts + 118 participation + 90 sessions + 44 ratings + 102 contact roles + 10 email log)</li>
+<li>Created realistic South African names and companies</li>
+<li>Built intentional patterns (retention cohorts, speaker loyalty)</li>
+<li>Varied the data appropriately</li>
+<li>Explained its strategy and results</li>
+</ul>
+<p>All through <strong>conversation</strong>, not manual SQL writing.</p>
+<p>The <code>README.md</code> file mentioned in <em>Code Snippet 16</em> is available as a <code>gist</code> 
+
+<a href="https://gist.github.com/nielsberglund/6385a269768e176f3e00dc5970600cc3" target="_blank" rel="noopener">here</a>.</p>
+<h3 id="loading-the-test-data">Loading the Test Data</h3>
+<p>When you look at the 
+
+<a href="https://gist.github.com/nielsberglund/6385a269768e176f3e00dc5970600cc3" target="_blank" rel="noopener">database/seeds/README.md</a>, you see that Claude Code provides clear instructions on loading the seed data. However, as before, I don&rsquo;t want to do it manually. We have the MCP server set up, and Claude Code asked whether I wished for Claude Code to load the data. Let&rsquo;s do that:</p>
+<pre tabindex="0"><code>I have looked at the seed data and it looks great. Please go ahead and load the seed data into our Neon database via the Postgres MCP server. Make sure to load the files in the correct order, and verify after each file that the data was loaded successfully before moving to the next file.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 17::</strong> <em>User Requesting Test Data Loading via MCP</em>
+</p>
+<p>Claude Code responded:</p>
+<pre tabindex="0"><code>● Perfect! I&#39;ll load the seed data into your Neon database, verifying each step. Let me start with the first file.
+
+● Step 1: Loading 001_sample_data.sql
+
+[snipped for brevity]
+
+● ✅ First file verified successfully!
+  - Events: 10 ✓
+  - Contacts: 60 ✓
+  - Speaker Sessions: 90 ✓
+
+● Step 2: Loading 002_tickets_and_ratings.sql
+
+[snipped for brevity]
+
+● ✅ Second file verified successfully!
+  - Tickets: 118 ✓
+  - Speaker Ratings: 44 ✓
+  - Contact Roles: 102 ✓
+  - Email Log: 10 ✓
+
+● Step 3: Running Sample Queries to Demonstrate the Data
+
+  Let me run some interesting queries to show what you can do with this data:
+
+[snipped for brevity]
+
+● Perfect! Walk-ins are tracked correctly. Let me complete the summary:
+
+● ✅ Seed Data Successfully Loaded!
+
+  All realistic test data has been loaded into your Neon PostgreSQL database and verified!
+
+[snipped for brevity]
+
+  ---
+  🚀 What You Can Do Now
+
+  Your database is fully populated with realistic data. Here are some things to try:
+
+  Natural Language Queries (via Claude)
+
+  &#34;Is Thabo Mthembu registered for the December 2025 event?&#34;
+  &#34;How many people attended the March 2024 event?&#34;
+  &#34;Who are the top 5 rated speakers?&#34;
+  &#34;Show me all speakers from Microsoft&#34;
+  &#34;How many first-time attendees at the July 2025 event?&#34;
+  &#34;Which companies have the most attendees?&#34;
+  &#34;Find all organisers&#34;
+
+  SQL Queries You Can Run
+
+[snipped for brevity]  
+
+  ---
+  🎨 Data Highlights
+
+  ✅ Realistic South African names - Mix of Zulu, Xhosa, Afrikaans, English, Indian
+  ✅ Real companies - Vodacom, Discovery, Takealot, Standard Bank, MTN, etc.
+  ✅ Attendance patterns - Core community, regulars, first-timers
+  ✅ No-shows - Realistic 5-10% no-show rate
+  ✅ Walk-ins - 2 on-site registrations tracked
+  ✅ Rating distribution - Mostly 4-5 stars, some 3s, varied comments
+  ✅ Event progression - ML basics → GenAI → Ethics (realistic topic evolution)
+  ✅ Dual roles - Speakers who are also attendees
+  ✅ Organisers - 3 core team members
+  ✅ Sponsors - Microsoft, AWS, Google, Databricks, etc.
+
+  ---
+  🏆 Database is Production-Ready!
+
+  Your Event Contact Management System now has:
+  - ✅ Complete schema (7 tables, 35 indexes, 11 FKs, 16 constraints)
+  - ✅ Realistic test data (434 records across all tables)
+  - ✅ Migration scripts (version-controlled)
+  - ✅ Comprehensive documentation (ER diagram, queries, guides)
+
+  Ready for: MCP server integration, natural language queries, email campaigns, analytics, and reporting! 🚀
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 18::</strong> <em>Claude Code Loading Test Data via MCP</em>
+</p>
+<p>From what we see in <em>Code Snippet 18</em>, everything appears to have loaded successfully.</p>
+<h3 id="verifying-the-test-data">Verifying the Test Data</h3>
+<p>Let&rsquo;s verify that we have data. For this, I used VSCode:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-2.png">
+    
+    
+    <figcaption><b>Figure 2: </b><em>Verifying Loaded Test Data in VSCode</em></figcaption>
+</figure>
+<p>As you see in <em>Figure 2</em>, I did a <code>COUNT(*)</code> on a couple of tables. All looks good.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Why didn&rsquo;t I ask Claude Code/Desktop to verify the data? Good question. I wanted to demonstrate that you can use any PostgreSQL client to connect to the Neon database and verify the data. You are not locked into using Claude Code/Desktop for everything. You can mix and match tools as needed.</p>
+</blockquote>
+<p>Our database should now have realistic, queryable data that demonstrates real-world patterns.</p>
+<hr>
+<h2 id="the-dual-interface-advantage-development--querying">The Dual Interface Advantage: Development + Querying</h2>
+<p>Now that Claude Code has created and populated our database, let&rsquo;s see the full AI-native workflow in action. We have:</p>
+<ol>
+<li><strong>Claude Code</strong> - which just created our entire database schema and test data</li>
+<li><strong>Claude Desktop</strong> - which we configured in Part 4 for querying</li>
+</ol>
+<p>Both connect to the same Neon database via Postgres MCP Pro, but they serve different purposes:</p>
+<h3 id="claude-code-the-development-interface">Claude Code: The Development Interface</h3>
+<p>Used for:</p>
+<ul>
+<li>✅ Designing and creating database schemas</li>
+<li>✅ Generating and inserting test data</li>
+<li>✅ Creating migration scripts</li>
+<li>✅ Database refactoring and changes</li>
+<li>✅ Generating documentation</li>
+</ul>
+<p><strong>Example conversation:</strong></p>
+<pre tabindex="0"><code>You: &#34;Create the database tables we just designed&#34;
+Claude Code: [uses postgres:execute_sql via MCP to create all tables, verifies each one]
+
+You: &#34;Generate realistic test data with South African names&#34;  
+Claude Code: [generates 40 contacts, 145 participation records, 42 sessions, 156 ratings via MCP]
+</code></pre><h3 id="claude-desktop-the-query-interface">Claude Desktop: The Query Interface</h3>
+<p>Used for:</p>
+<ul>
+<li>✅ Importing Quicket and Sessionize data</li>
+<li>✅ Querying data in natural language</li>
+<li>✅ Running analytics and reports</li>
+<li>✅ Exploring data without writing SQL</li>
+<li>✅ Ad-hoc questions and insights</li>
+<li>✅ Data verification</li>
+</ul>
+<p><strong>Example conversation:</strong></p>
+<pre tabindex="0"><code>You: &#34;How many people attended each year?&#34;
+Claude Desktop: [uses postgres:execute_sql via MCP to query, presents formatted results]
+
+You: &#34;Who are our most engaged community members?&#34;
+Claude Desktop: [crafts complex JOIN query, calculates engagement scores, explains methodology]
+</code></pre><p>Let&rsquo;s see both in action with real queries.</p>
+<hr>
+<h2 id="natural-language-queries-with-claude-desktop">Natural Language Queries with Claude Desktop</h2>
+<p>Now that Claude Code has created and populated our database, let&rsquo;s switch to <strong>Claude Desktop</strong> to query it. This demonstrates the complete AI-native workflow: develop with Claude Code, query with Claude Desktop.</p>
+<h3 id="simple-queries">Simple Queries</h3>
+<p>I opened Claude Desktop (the GUI application we configured in Part 4) and started asking questions about the data Claude Code just created. The queries and Claude Desktop&rsquo;s responses are shown in the following Figures. You see the natural language query outlined in yellow, Claude&rsquo;s thinking in blue, and the final response in red:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-3.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Basic Count</em></figcaption>
+</figure>
+<p><strong>What just happened:</strong></p>
+<ol>
+<li>I asked a question in plain English (no SQL)</li>
+<li>Claude Desktop understood I wanted a count from the contacts table</li>
+<li>It used the <code>postgres:execute_sql</code> tool via MCP to query the database</li>
+<li>It initially got an error but recovered.</li>
+<li>It presented the result in a clear, conversational format</li>
+</ol>
+<p><strong>This is the paradigm shift:</strong> Domain experts, event organizers, business analysts—anyone can query the database without knowing SQL.</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-4.png">
+    
+    
+    <figcaption><b>Figure 4: </b><em>Filtered Count</em></figcaption>
+</figure>
+<p>What we see in <em>Figure 4</em> is interesting because it shows Claude&rsquo;s reasoning process. It first received an error, corrected it, which didn&rsquo;t return any rows; checked the column names and filter values; corrected the query; and finally got the correct answer. Pretty amazing!</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-5.png">
+    
+    
+    <figcaption><b>Figure 5: </b><em>Recent Event Attendance</em></figcaption>
+</figure>
+<p>The last basic query in <em>Figure 5</em> shows how Claude Desktop retrieves the correct data and provides data insights, such as who is engaged and who attended more than one event (highlighted in green).</p>
+<h3 id="complex-analytical-queries">Complex Analytical Queries</h3>
+<p>Let us see if we can make things more interesting with some complex queries that require JOINs and aggregations:</p>
+<pre tabindex="0"><code>Who are our most engaged community members? Consider both attendance across years and speaking engagements. Create a scoring system that rewards both.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 19::</strong> <em>User Requesting Complex Engagement Analysis</em>
+</p>
+<p>What we ask for in <em>Code Snippet 19</em> is a complex query requiring Claude Code to:</p>
+<ol>
+<li>Understand &ldquo;engagement&rdquo; holistically</li>
+<li>Create a scoring methodology</li>
+<li>JOIN multiple tables</li>
+<li>Aggregate across years</li>
+<li>Present meaningful insights</li>
+</ol>
+<p>The initial thought process of Claude Desktop:</p>
+<pre tabindex="0"><code>The user wants to identify the most engaged community members by considering:
+
+* Attendance across years (not just 2024)
+* Speaking engagements
+
+I need to create a scoring system that rewards both. Let me think about this:
+
+* Attendance: Could give points per event attended
+* Speaking: Could give points per speaking engagement (probably should be worth more since speaking is higher engagement)
+
+Let me first understand what data I have:
+
+* Tickets table - shows who attended which events
+* Contact_roles table - shows who had what roles (speaker, organiser, sponsor)
+* Events table - has the events
+
+A good scoring system might be:
+
+* 1 point per event attended
+* 3-5 points per speaking engagement (since speaking is higher engagement)
+* Maybe bonus points for multi-year attendance
+
+Let me query:
+
+* Get all attendees with count of events attended
+* Get all speakers with count of speaking engagements
+* Combine them with a scoring formula
+
+I&#39;ll create a query that does this.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 20::</strong> <em>Claude Code&#39;s Thought Process for Engagement Scoring</em>
+</p>
+<p>Claude Desktop then created and executed the following SQL query:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#859900">WITH</span> <span style="color:#268bd2">attendance_score</span> <span style="color:#859900">AS</span> (
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">first_name</span> || <span style="color:#2aa198">&#39; &#39;</span> || <span style="color:#859900">c</span>.<span style="color:#268bd2">last_name</span> <span style="color:#859900">as</span> <span style="color:#268bd2">name</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">COUNT</span>(<span style="color:#859900">DISTINCT</span> <span style="color:#268bd2">t</span>.<span style="color:#268bd2">event_id</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">events_attended</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">COUNT</span>(<span style="color:#859900">DISTINCT</span> <span style="color:#268bd2">e</span>.<span style="color:#859900">year</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">years_active</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">COUNT</span>(<span style="color:#859900">DISTINCT</span> <span style="color:#268bd2">t</span>.<span style="color:#268bd2">event_id</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">attendance_points</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">FROM</span> <span style="color:#268bd2">contacts</span> <span style="color:#859900">c</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">JOIN</span> <span style="color:#268bd2">tickets</span> <span style="color:#268bd2">t</span> <span style="color:#859900">ON</span> <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span> = <span style="color:#268bd2">t</span>.<span style="color:#268bd2">attendee_contact_id</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">JOIN</span> <span style="color:#268bd2">events</span> <span style="color:#268bd2">e</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">t</span>.<span style="color:#268bd2">event_id</span> = <span style="color:#268bd2">e</span>.<span style="color:#268bd2">id</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">GROUP</span> <span style="color:#859900">BY</span> <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">first_name</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">last_name</span>
+</span></span><span style="display:flex;"><span>),
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">speaking_score</span> <span style="color:#859900">AS</span> (
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">first_name</span> || <span style="color:#2aa198">&#39; &#39;</span> || <span style="color:#859900">c</span>.<span style="color:#268bd2">last_name</span> <span style="color:#859900">as</span> <span style="color:#268bd2">name</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">COUNT</span>(<span style="color:#859900">DISTINCT</span> <span style="color:#268bd2">cr</span>.<span style="color:#268bd2">event_id</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">speaking_engagements</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">COUNT</span>(<span style="color:#859900">DISTINCT</span> <span style="color:#268bd2">cr</span>.<span style="color:#268bd2">event_id</span>) * <span style="color:#2aa198;font-weight:bold">5</span> <span style="color:#859900">as</span> <span style="color:#268bd2">speaking_points</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">FROM</span> <span style="color:#268bd2">contacts</span> <span style="color:#859900">c</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">JOIN</span> <span style="color:#268bd2">contact_roles</span> <span style="color:#268bd2">cr</span> <span style="color:#859900">ON</span> <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span> = <span style="color:#268bd2">cr</span>.<span style="color:#268bd2">contact_id</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">WHERE</span> <span style="color:#268bd2">cr</span>.<span style="color:#268bd2">role_type</span> = <span style="color:#2aa198">&#39;speaker&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">GROUP</span> <span style="color:#859900">BY</span> <span style="color:#859900">c</span>.<span style="color:#268bd2">id</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">first_name</span>, <span style="color:#859900">c</span>.<span style="color:#268bd2">last_name</span>
+</span></span><span style="display:flex;"><span>),
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">combined_score</span> <span style="color:#859900">AS</span> (
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">SELECT</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">id</span>, <span style="color:#268bd2">s</span>.<span style="color:#268bd2">id</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">contact_id</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">name</span>, <span style="color:#268bd2">s</span>.<span style="color:#268bd2">name</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">name</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">events_attended</span>, <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">events_attended</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">years_active</span>, <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">years_active</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">s</span>.<span style="color:#268bd2">speaking_engagements</span>, <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">speaking_engagements</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">attendance_points</span>, <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">attendance_points</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">s</span>.<span style="color:#268bd2">speaking_points</span>, <span style="color:#2aa198;font-weight:bold">0</span>) <span style="color:#859900">as</span> <span style="color:#268bd2">speaking_points</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">CASE</span> <span style="color:#859900">WHEN</span> <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">years_active</span>, <span style="color:#2aa198;font-weight:bold">0</span>) &gt; <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span>         <span style="color:#859900">THEN</span> (<span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">years_active</span>, <span style="color:#2aa198;font-weight:bold">0</span>) - <span style="color:#2aa198;font-weight:bold">1</span>) * <span style="color:#2aa198;font-weight:bold">2</span> 
+</span></span><span style="display:flex;"><span>         <span style="color:#859900">ELSE</span> <span style="color:#2aa198;font-weight:bold">0</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">END</span> <span style="color:#859900">as</span> <span style="color:#268bd2">multi_year_bonus</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">attendance_points</span>, <span style="color:#2aa198;font-weight:bold">0</span>) + 
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">s</span>.<span style="color:#268bd2">speaking_points</span>, <span style="color:#2aa198;font-weight:bold">0</span>) + 
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">CASE</span> <span style="color:#859900">WHEN</span> <span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">years_active</span>, <span style="color:#2aa198;font-weight:bold">0</span>) &gt; <span style="color:#2aa198;font-weight:bold">1</span> 
+</span></span><span style="display:flex;"><span>         <span style="color:#859900">THEN</span> (<span style="color:#268bd2">COALESCE</span>(<span style="color:#268bd2">a</span>.<span style="color:#268bd2">years_active</span>, <span style="color:#2aa198;font-weight:bold">0</span>) - <span style="color:#2aa198;font-weight:bold">1</span>) * <span style="color:#2aa198;font-weight:bold">2</span> 
+</span></span><span style="display:flex;"><span>         <span style="color:#859900">ELSE</span> <span style="color:#2aa198;font-weight:bold">0</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">END</span> <span style="color:#859900">as</span> <span style="color:#268bd2">total_score</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">FROM</span> <span style="color:#268bd2">attendance_score</span> <span style="color:#268bd2">a</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#859900">FULL</span> <span style="color:#859900">OUTER</span> <span style="color:#859900">JOIN</span> <span style="color:#268bd2">speaking_score</span> <span style="color:#268bd2">s</span> <span style="color:#859900">ON</span> <span style="color:#268bd2">a</span>.<span style="color:#268bd2">id</span> = <span style="color:#268bd2">s</span>.<span style="color:#268bd2">id</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span><span style="color:#859900">SELECT</span> 
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">name</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">events_attended</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">years_active</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">speaking_engagements</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">attendance_points</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">speaking_points</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">multi_year_bonus</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">total_score</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">FROM</span> <span style="color:#268bd2">combined_score</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">ORDER</span> <span style="color:#859900">BY</span> <span style="color:#268bd2">total_score</span> <span style="color:#859900">DESC</span>, <span style="color:#268bd2">events_attended</span> <span style="color:#859900">DESC</span>
+</span></span><span style="display:flex;"><span><span style="color:#859900">LIMIT</span> <span style="color:#2aa198;font-weight:bold">20</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 21::</strong> <em>Claude Code&#39;s Complex Engagement SQL Query</em>
+</p>
+<p>The query in <em>Code Snippet 21</em> eventually returned the following results:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5-6.png">
+    
+    
+    <figcaption><b>Figure 6: </b><em>Complex Engagement Analysis Results</em></figcaption>
+</figure>
+<p>I have made some cuts in the results in <em>Figure 6</em> to fit the image, but you get the idea.</p>
+<p><strong>This is transformative.</strong> I asked a vague question (&ldquo;most engaged&rdquo;), and Claude Desktop:</p>
+<ol>
+<li>✅ Invented a scoring methodology (explained in thinking)</li>
+<li>✅ Wrote a complex CTE query with multiple JOINs</li>
+<li>✅ Extracted business insights from the data</li>
+</ol>
+<p><strong>No SQL knowledge required.</strong> An event organizer could ask this exact question and get these insights, something impossible with traditional database tools.</p>
+<blockquote>
+<p><strong>NOTE:</strong> The scoring system used here is arbitrary and can be adjusted based on your definition of engagement. The key takeaway is that Claude Desktop/Code can understand complex requirements and translate them into SQL.</p>
+</blockquote>
+<h3 id="cohort-retention-analysis">Cohort Retention Analysis</h3>
+<p>We&rsquo;ll wrap up this part with some analytics that offer deeper insights. Let us look at retention:</p>
+<pre tabindex="0"><code>Analyze attendee retention. For people who attended in 2023, how many came back in subsequent years? Show this as a cohort analysis.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 22::</strong> <em>User Requesting Retention Cohort Analysis</em>
+</p>
+<p>The thought process of Claude Desktop:</p>
+<pre tabindex="0"><code>I&#39;ll create a cohort retention analysis starting with your 2023 attendees.## 2023 Cohort Retention Analysis
+
+### 📊 Executive Summary
+
+**Cohort Size:** 18 attendees who first joined in 2023
+
+**Retention Rates:**
+- **2024 Retention:** 55.6% (10 out of 18)
+- **2025 Retention:** 55.6% (10 out of 18)
+- **Complete Retention (all 3 years):** 55.6% (10 out of 18)
+
+### 🎯 Key Findings
+
+[snipped for brevity]
+
+**The retention is binary** - people either stayed fully engaged or dropped off completely. There were:
+- ✅ **No partial retention** (no one who attended 2024 but skipped 2025)
+- ✅ **No &#34;win-back&#34;** cases (no one who skipped 2024 then returned in 2025)
+
+### 📈 Engagement Intensity Over Time
+
+The 10 retained members didn&#39;t just stay - they **dramatically increased** their engagement:
+
+[snipped for brevity]
+
+**Key Insight:** While you lost half your cohort, those who stayed became **significantly more engaged**:
+
+[snipped for brevity]
+
+### 👥 The Loyal 10 (Retained All Years)
+
+[snipped for brevity]
+
+### 💡 Strategic Recommendations
+
+**Strengths:**
+- 55.6% retention is actually quite strong for community events
+- Those who stay become super-engaged (4.2 events per person in 2025!)
+- Zero churn after year 1 - if they make it past 2023, they stay
+
+**Opportunities:**
+- **Focus on Year 1 experience:** The 44.4% who didn&#39;t return all left after 2023. Improving the first-year experience could boost overall retention
+- **Early engagement matters:** Consider more touchpoints in the first 6 months
+- **Exit interviews:** Contact the 8 who left to understand why
+- **New member onboarding:** Create a buddy system pairing new attendees with your loyal 10
+
+**Questions to explore:**
+- What made 2023 different for those who left vs. those who stayed?
+- Did the 8 who left attend only 1 event in 2023, or both?
+- Were there any common characteristics among those who churned?
+
+Would you like me to dig deeper into any of these areas?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 23::</strong> <em>Claude Desktop&#39;s Retention Analysis Thought Process</em>
+</p>
+<p>Again, remarkable. I asked for &ldquo;cohort analysis&rdquo; and Claude Desktop:</p>
+<ul>
+<li>✅ Understood &ldquo;cohort analysis&rdquo; conceptually</li>
+<li>✅ Built appropriate SQL with CTEs</li>
+<li>✅ Calculated retention percentages</li>
+<li>✅ <strong>Contextualized results</strong> with insights</li>
+<li>✅ Provided <strong>strategic recommendations</strong></li>
+<li>✅ <strong>Proactively suggested</strong> follow-up analyses</li>
+</ul>
+<p><strong>This is the power of the dual interface:</strong></p>
+<ul>
+<li><strong>Claude Code</strong> created the schema and data (development)</li>
+<li><strong>Claude Desktop</strong> analyzes that data conversationally (usage)</li>
+</ul>
+<p>Together, they form a complete AI-native data workflow from development to insights.</p>
+<hr>
+<h2 id="what-weve-accomplished">What We&rsquo;ve Accomplished</h2>
+<p>Let&rsquo;s reflect on what we just did:</p>
+<h3 id="infrastructure-built">Infrastructure Built</h3>
+<ul>
+<li>✅ Claude Code configured for Postgres MCP Pro</li>
+<li>✅ Database schema designed through conversation</li>
+<li>✅ 7 tables created directly in Neon via MCP</li>
+<li>✅ Migration scripts generated for version control</li>
+<li>✅ Comprehensive documentation created automatically</li>
+</ul>
+<h3 id="data-generated">Data Generated</h3>
+<ul>
+<li>✅ 10 realistic events (2023-2025)</li>
+<li>✅ 60 diverse contacts with South African profiles</li>
+<li>✅ 118 participation records showing real patterns</li>
+<li>✅ 90 speaker sessions across topics</li>
+<li>✅ 44 session ratings with realistic distributions</li>
+</ul>
+<h3 id="capabilities-demonstrated">Capabilities Demonstrated</h3>
+<ul>
+<li>✅ Simple queries (counts, filters)</li>
+<li>✅ Complex multi-table JOINs</li>
+<li>✅ Analytical queries (cohort analysis, engagement scoring)</li>
+<li>✅ Natural language conversation throughout</li>
+</ul>
+<h3 id="time-investment">Time Investment</h3>
+<ul>
+<li>
+<p><strong>Traditional approach</strong>: 10-11 hours</p>
+<ul>
+<li>Schema design: 3 hours</li>
+<li>SQL writing: 2 hours</li>
+<li>Test data generation: 4-5 hours</li>
+<li>Testing and verification: 1 hour</li>
+</ul>
+</li>
+<li>
+<p><strong>AI-Native approach</strong>: ~30 minutes</p>
+<ul>
+<li>Configuration: 5 minutes</li>
+<li>Conversational design: 10 minutes</li>
+<li>Data generation: 10 minutes</li>
+<li>Verification queries: 5 minutes</li>
+</ul>
+</li>
+</ul>
+<p><strong>A lot, lot faster</strong>, and better documented.</p>
+<hr>
+<h2 id="the-paradigm-shift-realised">The Paradigm Shift Realised</h2>
+<p>Remember in Part 3 when I said we were building an <strong>AI-native system</strong>? Today, you saw what that actually means:</p>
+<p>In <strong>traditional development:</strong></p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- I write this
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">CREATE</span> <span style="color:#859900">TABLE</span> <span style="color:#268bd2">contacts</span> (
+</span></span><span style="display:flex;"><span>  <span style="color:#268bd2">id</span> <span style="color:#cb4b16">SERIAL</span> <span style="color:#859900">PRIMARY</span> <span style="color:#859900">KEY</span>,
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- I run this manually
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#268bd2">psql</span> -<span style="color:#268bd2">h</span> <span style="color:#268bd2">neon</span>.<span style="color:#268bd2">tech</span> -<span style="color:#268bd2">d</span> <span style="color:#268bd2">event_contact_db</span> -<span style="color:#268bd2">f</span> <span style="color:#859900">schema</span>.<span style="color:#859900">sql</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- I write more SQL
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">INSERT</span> <span style="color:#859900">INTO</span> <span style="color:#268bd2">contacts</span> <span style="color:#859900">VALUES</span> (...);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic">-- I write queries
+</span></span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"></span><span style="color:#859900">SELECT</span> <span style="color:#859900">COUNT</span>(*) <span style="color:#859900">FROM</span> <span style="color:#268bd2">contacts</span> <span style="color:#859900">WHERE</span> ...;
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 24::</strong> <em>Typical Traditional Development Workflow</em>
+</p>
+<p>Compare this with <strong>AI-Native Development:</strong></p>
+<pre tabindex="0"><code>Me: &#34;Design a database schema for our event management system&#34;
+Claude Code: [designs, creates, documents]
+
+Me: &#34;Add realistic test data&#34;
+Claude Code: [generates, inserts, verifies]
+
+Me: &#34;Who are our most engaged members?&#34;
+Claude Desktop/Code: [analyzes, queries, presents insights]
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 25::</strong> <em>AI-Native Development Workflow</em>
+</p>
+<p><strong>The difference is transformative.</strong></p>
+<hr>
+<h2 id="whats-next-part-6-preview">What&rsquo;s Next: Part 6 Preview</h2>
+<p>With our database populated with test data, Part 6 will focus on building a <strong>custom MCP server</strong> to import real data from Quicket and Sessionize.</p>
+<h3 id="what-well-build">What We&rsquo;ll Build</h3>
+<ol>
+<li>
+<p><strong>Custom Import MCP Server</strong> (using FastMCP framework)</p>
+<ul>
+<li><code>import_quicket_registrations()</code> - Parse Quicket CSV exports</li>
+<li><code>import_quicket_checkins()</code> - Update attendance from check-in data</li>
+<li><code>import_sessionize_speakers()</code> - Import speaker and session data</li>
+<li><code>import_speaker_ratings()</code> - Import session ratings and feedback</li>
+<li><code>preview_import()</code> - Dry-run validation before inserting</li>
+<li><code>validate_import_data()</code> - Format-specific validation</li>
+</ul>
+</li>
+<li>
+<p><strong>Real-World Data Processing</strong></p>
+<ul>
+<li>Handle Quicket&rsquo;s CSV format quirks</li>
+<li>Parse Sessionize&rsquo;s JSON exports</li>
+<li>Detect duplicates (email-based matching)</li>
+<li>Resolve conflicts (update vs skip vs merge)</li>
+</ul>
+</li>
+<li>
+<p><strong>Integration with Existing Infrastructure</strong></p>
+<ul>
+<li>Custom MCP server calls Postgres MCP Pro for inserts</li>
+<li>Uses csv-mcp-server for validation</li>
+<li>Provides conversational import workflow</li>
+</ul>
+</li>
+</ol>
+<h3 id="example-of-whats-coming">Example of What&rsquo;s Coming</h3>
+<p>Having built the custom MCP server, the import workflow will look like this:</p>
+<pre tabindex="0"><code>Me: &#34;Import this Quicket registration file&#34;
+[attaches CSV]
+
+Claude Code: 
+[uses import_quicket_registrations via custom MCP]
+&#34;Found 142 registrations. 3 people are already in the database. 
+How should I handle duplicates?&#34;
+
+Me: &#34;Update existing records with new registration info&#34;
+
+Claude Code:
+[processes data]
+&#34;Import complete:
+- 139 new contacts created
+- 3 existing contacts updated  
+- 142 participation records created
+- All linked to &#39;Data &amp; AI Day 2025&#39; event&#34;
+
+Me: &#34;Show me the new registrations from the past week&#34;
+
+Claude Code:
+[queries database]
+&#34;12 new registrations in the past week:
+[shows list with names, companies, registration dates]
+
+Notable: 5 are first-time attendees, 7 are returning from previous years&#34;
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 26::</strong> <em>Preview of Custom MCP Import Workflow</em>
+</p>
+<p>This continues the AI-native theme, <strong>import through conversation</strong>, not manual scripts.</p>
+<hr>
+<h2 id="summary-from-sql-to-conversation">Summary: From SQL to Conversation</h2>
+<p>Today, we crossed a major threshold. We didn&rsquo;t just use AI to <strong>write code faster</strong>, we fundamentally changed <strong>how we interact with databases</strong>, in both development and usage.</p>
+<p><strong>What We Built:</strong></p>
+<ul>
+<li>Production database schema created conversationally by Claude Code</li>
+<li>Realistic test data generated and inserted through dialogue</li>
+<li>Natural language querying working end-to-end in Claude Desktop</li>
+<li>Complete documentation and migration scripts generated automatically</li>
+<li>Foundation for AI-native data management with dual interfaces</li>
+</ul>
+<p><strong>What We Learned:</strong></p>
+<ul>
+<li>
+<p><strong>AI-native development is about conversation, not coding</strong></p>
+<ul>
+<li>Claude Code designs, creates, and populates databases via MCP</li>
+<li>No copy-pasting SQL or manual command execution</li>
+<li>Iteration happens through dialogue, not file editing</li>
+</ul>
+</li>
+<li>
+<p><strong>MCP servers enable true conversational data work</strong></p>
+<ul>
+<li>Same infrastructure serves both development (Claude Code) and usage (Claude Desktop)</li>
+<li>Natural language becomes the interface for both creating and querying</li>
+<li>Domain experts can participate without technical knowledge</li>
+</ul>
+</li>
+<li>
+<p><strong>Complex analytics can be expressed as simple questions</strong></p>
+<ul>
+<li>&ldquo;Who are our most engaged members?&rdquo; → Complex JOIN with scoring algorithm</li>
+<li>&ldquo;Analyze retention&rdquo; → Cohort analysis with percentages</li>
+<li>No SQL knowledge required from the person asking</li>
+</ul>
+</li>
+<li>
+<p><strong>Documentation happens automatically</strong></p>
+<ul>
+<li>Conversation history documents all design decisions</li>
+<li>Migration scripts generated alongside table creation</li>
+<li>Schema documentation created as part of the process</li>
+</ul>
+</li>
+</ul>
+<p><strong>Why This Matters:</strong></p>
+<p>This isn&rsquo;t just a faster way to build databases. It&rsquo;s a <strong>new way of thinking</strong> about data systems. When the interface is conversational:</p>
+<ul>
+<li><strong>Development</strong>: Domain experts can participate in schema design (Claude Code)</li>
+<li><strong>Usage</strong>: Business users can query directly without SQL (Claude Desktop)</li>
+<li><strong>Analysis</strong>: Insights emerge through dialogue, not predetermined reports</li>
+<li><strong>Iteration</strong>: Changes happen through conversation, not code rewrites</li>
+<li><strong>Documentation</strong>: Built-in through conversation history</li>
+</ul>
+<p>The paradigm shift is complete: we&rsquo;ve moved from <strong>SQL scripts</strong> to <strong>conversational data work</strong> for both developers (Claude Code) and users (Claude Desktop).</p>
+<p>In Part 6, we&rsquo;ll extend this to real-world data import, showing how the entire data pipeline can be conversational.</p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>That&rsquo;s all for Part 5! We&rsquo;ve transformed our empty Neon database into a fully populated, queryable system, all through conversation with Claude Code (for development) and Claude Desktop (for querying).</p>
+<p><strong>Key Takeaways:</strong></p>
+<ol>
+<li><strong>Dual interface power</strong>: Claude Code creates, Claude Desktop queries—both conversational</li>
+<li><strong>Schema design through dialogue</strong> is faster, better documented, and more accessible</li>
+<li><strong>Test data generation via AI</strong> creates realistic, varied datasets automatically</li>
+<li><strong>Natural language querying</strong> makes databases accessible to everyone</li>
+<li><strong>MCP architecture</strong> enables truly conversational data work from development to insights</li>
+</ol>
+<p><strong>Next time:</strong> We build a custom MCP server for importing real event data, completing our AI-native event management system.</p>
+<h3 id="your-turn">Your Turn</h3>
+<p>I encourage you to try this yourself:</p>
+<ol>
+<li>Configure Claude Code with Postgres MCP Pro (for development)</li>
+<li>Design a simple schema through conversation</li>
+<li>Let Claude Code create and populate it via MCP</li>
+<li>Use Claude Desktop to query with natural language</li>
+<li>Experience the dual-interface AI-native workflow</li>
+</ol>
+<p>Experience the shift from SQL to conversation—in both development and usage. It&rsquo;s genuinely transformative.</p>
+<hr>
+<p><strong>Have questions or thoughts?</strong></p>
+<p>Ping me: 
+
+<a href="mailto:niels.it.berglund@gmail.com">niels.it.berglund@gmail.com</a></p>
+<p>Follow on LinkedIn: 
+
+<a href="https://www.linkedin.com/in/nielsberglund/" target="_blank" rel="noopener">linkedin.com/in/nielsberglund</a></p>
+<p><strong>Found this helpful?</strong> Share it with your network! The AI-native development revolution is happening now, and you&rsquo;ve just seen how it works in practice.</p>
+<hr>
+<p><strong>Series Navigation:</strong></p>
+<ul>
+<li>✅ 
+
+<a href="/post/2025-07-29-building-an-event-management-system-with-claude-code-claude-code-installation-and-initialisation/">Part 1: Installation &amp; Setup</a></li>
+<li>✅ 
+
+<a href="/post/2025-08-13-building-an-event-management-system-with-claude-code-part-2---ide-integration-and-advanced-features/">Part 2: IDE Integration</a></li>
+<li>✅ 
+
+<a href="/post/2025-12-28-building-an-event-management-system-with-claude-code-part-3---architecting-an-ai-native-system/">Part 3: Architecture Planning</a></li>
+<li>✅ 
+
+<a href="/post/2026-01-01-building-an-event-management-system-with-claude-code-part-4---database-setup-and-first-conversations/">Part 4: Database Infrastructure</a></li>
+<li>✅ <strong>Part 5: Schema &amp; Natural Language Queries</strong> (you are here)</li>
+<li>🚀 Part 6: Custom MCP Server for Data Import (coming soon)</li>
+<li>📅 Part 7: Email Integration with Brevo MCP</li>
+<li>📅 Part 8: Production Usage and Real Events</li>
+</ul>
+<hr>
+<!--
+  post reference
+  [pkg1]: 
+-->  
+<!--
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong><em>&lt;sub-title&gt;</em></strong>
+  </p>
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong>&lt;code snippet/Table, etc&gt;:</strong> <em>Title</em>
+  </p>
+  <figure>
+      
+      <img src="%3cimage-path%20/images/posts/image.ext">
+      
+      
+      <figcaption><b>Fig Num: </b><em>Caption</em></figcaption>
+  </figure>
+  <div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    
+  </div>
+</div>
+-->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2026-01-01-building-an-event-management-system-with-claude-code-part-4---database-setup-and-first-conversations/" data-toggle="tooltip" data-placement="top" title="Building an Event Management System with Claude Code: Part 4 - Database Setup and First Conversations">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2026
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
