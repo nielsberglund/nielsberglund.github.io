@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="http://localhost:1313//images/thumbnails/posts/claude-code-ai-5.5.png">
+    <meta property="twitter:image" content="http://localhost:1313//images/thumbnails/posts/claude-code-ai-5.5.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 5.5 - Schema Refinement: When Real Data Reveals the Truth" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 5.5 - Schema Refinement: When Real Data Reveals the Truth" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 5.5 - Schema Refinement: When Real Data Reveals the Truth" />
+    
+
+    
+    <meta name="description" content="Database schema design mistake turned lesson: How uploading real CSV files to Claude Code revealed missing fields and enabled a 45-minute schema refinement migration.">
+    <meta property="og:description" content="Database schema design mistake turned lesson: How uploading real CSV files to Claude Code revealed missing fields and enabled a 45-minute schema refinement migration." />
+    <meta property="twitter:description" content="Database schema design mistake turned lesson: How uploading real CSV files to Claude Code revealed missing fields and enabled a 45-minute schema refinement migration." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 5.5 - Schema Refinement: When Real Data Reveals the Truth | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/building-an-event-management-system-with-claude-code-part-55---schema-refinement-when-real-data-reveals-the-truth/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-5.5.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-native-development" title="AI-Native Development">
+                            AI-Native Development
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 5.5 - Schema Refinement: When Real Data Reveals the Truth</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Monday, January 12, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Welcome to an unplanned post in the <strong>Building an Event Management System with Claude Code</strong> series. If you&rsquo;ve been following along, you know we designed our database schema in Part 5, set up our infrastructure in Part 4, and we&rsquo;re ready to build import tools in Part 6.</p>
+<ul>
+<li><strong>To see all posts in the series, go to: 
+
+<a href="/contact-event-claude-code">Building an Event Management System with Claude Code</a>.</strong></li>
+</ul>
+<p>But there&rsquo;s a problem. A problem I didn&rsquo;t realize until I started working on Part 6.</p>
+<hr>
+<h2 id="the-problem-designing-from-mental-models-vs-real-data">The Problem: Designing from Mental Models vs Real Data</h2>
+<p>In Part 5, when we designed our database schema, I approached it the traditional way: I told Claude Code what I thought we needed based on my mental model of the system.</p>
+<p><strong>What I said (sort of) to Claude Code in Part 5:</strong></p>
+<pre tabindex="0"><code>We need tables for:
+- contacts (people who attend or speak)
+- events (our conferences)
+- tickets (registration records)
+- speaker_sessions (who spoke about what)
+- speaker_ratings (feedback)
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 1:</strong> <em>Initial Schema Design Based on Mental Models</em>
+</p>
+<p>Claude Code designed a clean, normalized schema. It looked great. We created the tables, generated test data, and everything worked perfectly with natural language queries.</p>
+<p><strong>Then I started working on Part 6.</strong></p>
+<p>Part 6 is about building a custom MCP server to import real data from:</p>
+<ul>
+<li>Quicket (ticketing platform, registration and check-in) - CSV exports</li>
+<li>Sessionize (speaker management) - CSV exports</li>
+<li>Microsoft Forms (walk-in check-ins, speaker feedback) - CSV exports</li>
+</ul>
+<p>As I wrote the section on the actual CSV file formats, I kept noticing that many columns in the CSV files were not in the schema, and those columns could be important.</p>
+<p>For example, the Quicket export had columns like:</p>
+<ul>
+<li><code>Ticket Type</code></li>
+<li><code>Profession</code></li>
+<li><code>Area of Interest</code></li>
+<li><code>Link Campaign</code></li>
+</ul>
+<p>These fields could be very useful for segmentation and analysis, but they were not in our original schema. The same story with some of the other CSV files.</p>
+<p><strong>I realised: I made a fundamental mistake in Part 5.</strong></p>
+<hr>
+<h2 id="the-right-approach-let-real-data-drive-schema-design">The Right Approach: Let Real Data Drive Schema Design</h2>
+<p>Here&rsquo;s what I should have done in Part 5:</p>
+<p><strong>Instead of:</strong></p>
+<pre tabindex="0"><code>Me: &#34;We need tables for contacts, events, tickets, sessions, and ratings&#34;
+Claude Code: &#34;Here&#39;s a schema based on your description&#34;
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 2::</strong> <em>What I Did</em>
+</p>
+<p><strong>I should have done:</strong></p>
+<pre tabindex="0"><code>Me: &#34;Here are the actual CSV files we&#39;ll be importing from. Design a schema that efficiently handles this real-world data.&#34;
+[uploads quicket-registration.csv, sessionize-export.csv, feedback-form.csv, etc.]
+
+Claude Code: &#34;Based on these files, here&#39;s what you need...&#34;
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 3:</strong> <em>What I Should Have Done</em>
+</p>
+<p><strong>Why does this matter?</strong></p>
+<p>Real data reveals requirements that mental models miss:</p>
+<ul>
+<li>Field names and types</li>
+<li>Relationships between entities</li>
+<li>Data quality issues (NULLs, formats)</li>
+<li>Hidden complexity (order numbers, purchaser vs attendee)</li>
+<li>Actual cardinality (one-to-many relationships)</li>
+</ul>
+<p>This is a <strong>core principle of AI-native development</strong>: show the AI your real-world constraints first, then let it propose solutions. You get better designs faster because the AI sees patterns and edge cases you might overlook.</p>
+<p>So let&rsquo;s do it right now. Let&rsquo;s iterate.</p>
+<hr>
+<h2 id="starting-the-conversation-with-claude-code">Starting the Conversation with Claude Code</h2>
+<p>I re-engaged with Claude Code, and I needed Claude Code to analyse the actual CSV files and recommend schema changes.</p>
+<h3 id="upload-real-data-and-ask-for-analysis">Upload Real Data and Ask for Analysis</h3>
+<p>I started with setting the scene:</p>
+<pre tabindex="0"><code>I think that when we created the database schema and tables a couple of days ago, I approached it the wrong way. Instead of describing what was needed, I should have uploaded the individual CSV/Excel files to you. You would think about which columns, etc., from the files would be required, taking into account what we need for contacts, as well as for analysis.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 4:</strong> <em>Prompt to Claude Code for Schema Reevaluation</em>
+</p>
+<p>Remember, this was after I had started with the import tools in Part 6, so I wanted to make sure that Claude Code understood the context.</p>
+<p>Claude Code&rsquo;s response:</p>
+<pre tabindex="0"><code>You&#39;re absolutely right - that&#39;s excellent data-driven thinking! Looking at the actual CSV/Excel files would have given us:
+
+  1. Exact column names - not our guessed &#34;ticket_number&#34;, &#34;first_name&#34;, etc.
+  2. Real data formats - date formats, phone number patterns, how names are structured
+  3. Hidden valuable fields - columns we didn&#39;t think about that could be useful for analysis
+  4. Data quality issues - empty fields, inconsistencies, how duplicates actually appear
+  5. Structural quirks - multiple sheets in Excel, header rows, footer notes, etc.
+
+  This would have ensured our schema perfectly matches reality instead of our assumptions.
+
+  Good news: We can still do this! We have a few options:
+
+  Option 1: Review files now, adjust schema if needed
+
+[snipped for brevity]
+
+  Option 2: Review files, adjust import mappings only
+  
+[snipped for brevity]
+
+  Option 3: Hybrid approach
+
+[snipped for brevity]
+
+  Would you like to upload the actual files now? I can analyze:
+  - Quicket registration export (CSV)
+  - Quicket check-in export (CSV)
+  - Microsoft Forms walk-in export (CSV)
+  - Sessionize export (CSV/Excel)
+  - Speaker rating forms (CSV/Excel)
+
+  This will give us a reality check before we build the import MCP server.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5:</strong> <em>Claude Code&#39;s Response on Next Steps</em>
+</p>
+<p>As you see in <em>Code Snippet 5</em>, the response is positive. BTW, LLMs in general condenscending reply: &ldquo;You&rsquo;re absolutely right &hellip;&rdquo; starts to p*ss me off!   Anyway, Claude Code acknowledges the oversight and agrees that real data should drive schema design:</p>
+<pre tabindex="0"><code>I prefer Option 1, but let&#39;s start with uploading files. I will upload them one by one, and I want you to THINK HARD about what columns from the various files would be useful, both to store as well as for analytical purposes. Just return the columns you think and why, and then afterwrads we will decide what to do and not to do.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 6:</strong> <em>User&#39;s Decision to Proceed with Option 1</em>
+</p>
+<p>In <em>Code Snippet 6</em>, you see how I ask Claude Code to <strong>Think</strong> about each file&rsquo;s columns and their value. I may have mentioned this before, but the <code>think</code> &ldquo;keyword&rdquo; is a way to indicate to Claude Code about how much computational thinking time to allocate to your request. You have the following options:</p>
+<ul>
+<li><code>think</code> - Claude Code allocates a baseline amount of computational resources to consider your request.</li>
+<li><code>think hard</code> - signals Claude Code to dedicate more processing time to your request.</li>
+<li><code>think harder</code> - allocates substantial computational resources for complex problems that require deep analysis.</li>
+<li><code>ultrathink</code> - the highest level of computational dedication for the most challenging tasks. It is hard-coded to set the thinking token budget to exactly 31,999 tokens; the maximum allocation available.</li>
+</ul>
+<p>Claude Code went off and thought hard about the request, and came back with:</p>
+<pre tabindex="0"><code>● Perfect! I&#39;m ready to analyze each file carefully. Let me set up a todo list to track this analysis process, then you can upload the first file.
+
+● Excellent approach! I&#39;m ready to analyze the files one by one.
+
+  For each file, I&#39;ll:
+  1. Read the entire structure - all columns, data types, sample values
+  2. Think deeply about each column&#39;s value for:
+    - Core contact/event management needs
+    - Analytical queries (trends, patterns, insights)
+    - Deduplication and data quality
+    - Future reporting needs
+  3. Recommend which columns to keep with detailed reasoning
+  4. Flag any surprising/valuable data we might have missed in our schema design
+
+  Go ahead and upload the first file - which one would you like to start with?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 7:</strong> <em>Claude Code&#39;s Readiness to Analyze Uploaded Files</em>
+</p>
+<p>I uploaded file by file, and for each file, Claude Code returned a detailed analysis of which columns to keep and why. An example from the Quicket registration CSV:</p>
+<pre tabindex="0"><code> 3. Marketing Attribution Gold 🚨 SCHEMA GAP
+
+  - Column 27: Link Campaign - values seen:
+    - &#34;Priority&#34; (early bird?)
+    - &#34;Web&#34; (website registration)
+    - &#34;LinkedIn&#34; (LinkedIn campaign)
+    - &#34;Email&#34; (email campaign)
+    - Empty (direct/unknown)
+
+  Why this matters:
+  - Answer &#34;Which marketing channel drives most registrations?&#34;
+  - Track campaign ROI
+  - Optimize future marketing spend
+
+  Current schema issue: We don&#39;t capture marketing source.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 8:</strong> <em>Excerpt from Claude Code&#39;s Analysis of the Quicket Registration CSV</em>
+</p>
+<p>What we see in <em>Code Snippet 8</em> is a column I had not considered important when designing the schema, but Claude Code highlights its analytical value! In the analysis, Claude Coe also suggests how to adjust the schema to capture this data.</p>
+<p>Eventually, Claude Code was done:</p>
+<pre tabindex="0"><code>Ready to synthesize all findings and make final recommendations!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 9:</strong> <em>Claude Code&#39;s Completion of File Analysis</em>
+</p>
+<p>My response to Claude Code:</p>
+<pre tabindex="0"><code>Please synthesize all findings and make final recommendations. Please also output the recommendations to an .md file so i can review it properly. Do NOT do any schema changes yet. We will go through schema changes after I have reviewed the doc.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 10:</strong> <em>User&#39;s Request for Synthesis and Documentation</em>
+</p>
+<p>Claude Code synthesised everything into a detailed markdown document outlining the recommendations and schema changes:</p>
+<pre tabindex="0"><code>● Write(docs\planning\import-analysis-and-recommendations.md)
+  ⎿  
+[snipped for brevity]  
+
+● Perfect! I&#39;ve completed the comprehensive analysis and created a detailed recommendations document.
+
+  Summary
+
+  Document created: docs/planning/import-analysis-and-recommendations.md (32,000+ words)
+
+[snipped for brevity]
+
+  Next Steps:
+
+  1. Review the document - Check if recommendations align with your vision
+  2. Answer open questions (Section near end of doc)
+  3. Prioritize phases - Decide which to implement first
+  4. I&#39;ll await your feedback before making any schema changes
+
+  The document is ready for your review at docs/planning/import-analysis-and-recommendations.md!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 11:</strong> <em>Claude Code Creating the Review Document</em>
+</p>
+<p><strong>This was exactly what I needed.</strong> Claude Code identified every missing field, explained why it matters, proposed the exact SQL to fix it, and even considered indexing strategies.</p>
+<p>The created document is published as a <code>gist</code> for your reference: 
+
+<a href="https://gist.github.com/nielsberglund/784f6bfa8ac1972c322957a32d1df78b" target="_blank" rel="noopener"><strong>Import Data Analysis &amp; Schema Recommendations</strong></a>. Please have a read-through to see the depth of analysis Claude Code provided.</p>
+<p>I reviewed the document, identified some points I disagreed with, and asked Claude Code to change them. Claude Code made the changes, and we finalised the schema adjustments.</p>
+<p>So, we now need to migrate to the new schema.</p>
+<hr>
+<h2 id="creating-the-migration">Creating the Migration</h2>
+<p>With the new schema design finalised, I asked Claude Code to generate a migration script to alter the existing database structure:</p>
+<pre tabindex="0"><code>This is perfect, and I am happy with the schema. Can you now create a migration SQL file:
+
+1. Create: database/migrations/002_schema_refinement.sql
+2. Include:
+   - Header comment explaining what this migration does
+   - All ALTER TABLE statements
+   - All CREATE INDEX statements
+   - ROLLBACK statements (how to undo these changes if needed)
+3. Make it production-ready (idempotent, safe to run multiple times)
+
+Also update database/schema/01_initial_schema.sql to reflect the new 
+complete schema (for reference when someone clones the repo fresh).
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12:</strong> <em>User&#39;s Request for Migration Script</em>
+</p>
+<p>Claude Code&rsquo;s response to the prompt in <em>Code Snippet 12</em> was:</p>
+<pre tabindex="0"><code>● I&#39;ll create the migration file and update the initial schema. Let me start by reading the current schema to understand the existing structure.
+
+[Claude Code is doing &#34;stuff&#34; - snipped for brevity]
+
+● Perfect! I&#39;ve created both files and committed them to your repository. Here&#39;s what was created:
+
+  1. Migration File: database/migrations/002_schema_refinement.sql
+
+  Features:
+  - ✅ Idempotent - Safe to run multiple times (uses IF NOT EXISTS checks)
+  - ✅ Production-ready - Includes comprehensive error handling
+  - ✅ Documented - Detailed header explaining all changes
+  - ✅ Reversible - Complete rollback instructions at the bottom
+
+[snipped for brevity]
+
+  ---
+  2. Complete Schema: database/schema/01_initial_schema.sql
+
+  Purpose: Reference schema for fresh database setup (reflects post-migration state)
+
+[snipped for brevity]  
+
+  ---
+  Next Steps
+
+  To apply the migration to your Neon database:
+
+  # Option 1: Via Postgres MCP Pro (using Claude)
+  # Just tell Claude: &#34;Run the migration file 002_schema_refinement.sql&#34;
+
+  # Option 2: Via psql command line
+  psql $NEON_DATABASE_URL -f database/migrations/002_schema_refinement.sql
+
+  The migration will:
+  - ✅ Add all new tables and columns
+  - ✅ Create all indexes
+  - ✅ Update constraints
+  - ✅ Be safe to run multiple times (idempotent)
+
+  Commit: 60f6ed4 - &#34;Add schema refinement migration and updated complete schema&#34;
+
+  Everything is now ready for the next phase: building the import MCP server! 🎉
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 13:</strong> <em>Claude Code&#39;s Completion of Migration Script Creation</em>
+</p>
+<p>With that, we have successfully refined our schema based on real data insights and created a migration to update our database accordingly. You can view the migration script here: 
+
+<a href="https://gist.github.com/nielsberglund/f7e8d21c86b31c68bf1acbf78c3f4093" target="_blank" rel="noopener"><strong>Schema Refinement for Import Data Support</strong></a>.</p>
+<hr>
+<h2 id="running-the-migration">Running the Migration</h2>
+<p>Now that we have the migration script, the next step is to run it against our Neon database to apply the schema changes. As you see in <em>Code Snippet 13</em>, Claude Code provided two options for running the migration:</p>
+<ul>
+<li><strong>Option 1: Via Postgres MCP Pro (using Claude Code)</strong> - You can instruct Claude Code to run the migration file directly within the MCP Pro interface.</li>
+<li><strong>Option 2: Via psql command line</strong> - You can use the <code>psql</code> command line tool to execute the migration script against your database.</li>
+</ul>
+<p>Those were the two options provided by Claude Code, but there are actually more ways to run the migration. In previous parts of this series, we used VSCoded to connect to the Neon database, and we can open the migration script in VSCode and run it there.</p>
+<p>However, as this is all about AI-assisted coding, I opted to use <strong>Option 1</strong> and let Claude Code handle the migration execution:</p>
+<pre tabindex="0"><code>Apply the migration to Neon database, using the PostgreSQL MCP Pro MCP server. After the migration verify it succeeded by:
+
+- Checking that all new columns exist
+- Verifying indexes were created
+- Running a sample query that uses the new fields
+
+Show me the results.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 14:</strong> <em>User&#39;s Request to Apply Migration via MCP Pro</em>
+</p>
+<p>Claude Code executed the migration:</p>
+<pre tabindex="0"><code>● I&#39;ll apply the migration to your Neon database using Postgres MCP Pro and then verify everything was created successfully.
+
+[snipped for brevity]
+
+● Now I&#39;ll execute the migration using Postgres MCP Pro:
+
+[Claude Code creates tables - snipped for brevity]
+
+● Now adding columns to contacts table:
+
+[ Claude Code adds columns to contacts and other tables snipped for brevity]
+
+● Perfect! Migration completed. Now let me verify the results:
+
+[Claude Code verifies - snipped for brevity]
+
+● Excellent! The migration has been successfully applied to your Neon database. Here&#39;s a complete verification report:
+
+  ---
+  ✅ Migration 002: Schema Refinement - COMPLETED
+
+[snipped for brevity]
+
+  ---
+  🎯 Migration Complete - Ready for Import Tools
+
+  Your database schema is now fully prepared to support:
+  - ✅ Quicket registration imports (with marketing attribution)
+  - ✅ Quicket check-in imports
+  - ✅ Microsoft Forms walk-in imports
+  - ✅ Sessionize speaker/session imports
+  - ✅ Speaker evaluation/rating imports (1-7 scale)
+  - ✅ Interest topic tracking (normalized structure)
+  - ✅ Speaker enrichment data (separate table)
+
+  Next Steps:
+  - Build the custom Import MCP server (FastMCP)
+  - Test imports with real CSV/Excel files
+  - Populate the new fields with actual event data
+
+  The migration was idempotent and can be safely run again without errors. All changes have been successfully applied to your Neon PostgreSQL 17.7 database! 🎉
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 15:</strong> <em>Claude Code&#39;s Completion of Migration Execution and Verification</em>
+</p>
+<p>As we see in <em>Code Snippet 15</em>, Claude Code successfully executed the migration, verified that all new columns and indexes were created, and confirmed that the database is now ready for the import tools we will build in Part 6.</p>
+<hr>
+<h2 id="verification-natural-language-queries">Verification: Natural Language Queries</h2>
+<p>As in some of the other parts of this series, I wanted to verify for myself what has been done and that the changes work well with natural language queries. So I switched over to Claude Desktop and asked a few questions. I started with a simple one:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5.5-1.png">
+    
+    
+    <figcaption><b> Figure 1: </b><em>Table Count</em></figcaption>
+</figure>
+<p>As shown in <em>Figure 1</em>, Claude Desktop confirms that we have 10 tables in the database, up from 7 initially. When I ask about the schema of the <code>tickets</code> table:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5.5-2.png">
+    
+    
+    <figcaption><b> Figure 2: </b><em>Tickets Table Format</em></figcaption>
+</figure>
+<p><em>Figure 2</em> shows that the <code>tickets</code> table now has 15 columns, including the new ones we added based on real data analysis.</p>
+<p>Finally, I asked a more complex question to see if the schema changes have impacted analytical queries:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5.5-3.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Analytical Query Example</em></figcaption>
+</figure>
+<p>The last query I ran was the same as in Part 5, asking a cohort analysis question. The response is the same as in Part 5. All is good!</p>
+<blockquote>
+<p><strong>NOTE:</strong> We do not have any updated data in the database yet. Hence, the queries above were more to see that I hadn&rsquo;t broken anything with the schema changes. Once we build the import tools in Part 6 and load real data, we will be able to see real insights.</p>
+</blockquote>
+<hr>
+<h2 id="the-lesson-ai-native-schema-design-methodology">The Lesson: AI-Native Schema Design Methodology</h2>
+<p>This experience taught me an important lesson about designing with AI assistance.</p>
+<h3 id="traditional-dev-process-vs-ai-native-process">Traditional Dev Process vs AI-Native Process</h3>
+<p><strong>Traditional Development Process:</strong></p>
+<ol>
+<li>Think about what you need (mental model)</li>
+<li>Design schema</li>
+<li>Implement</li>
+<li>Discover gaps when building features</li>
+<li>Backfill with workarounds or migrate (painful)</li>
+</ol>
+<p><strong>AI-Native Development Process:</strong></p>
+<ol>
+<li><strong>Gather real-world constraints first</strong> (CSV files, API responses, actual data)</li>
+<li><strong>Show constraints to AI</strong> (upload files, show examples)</li>
+<li><strong>Let AI propose schema</strong> (it sees patterns you miss)</li>
+<li>Implement</li>
+<li>Discover gaps are minimal (AI saw edge cases upfront)</li>
+</ol>
+<h3 id="the-30-minute-investment-rule">The 30-Minute Investment Rule</h3>
+<p>Spending 30 minutes upfront to:</p>
+<ul>
+<li>Export sample CSV files from your data sources</li>
+<li>Upload them to Claude Code</li>
+<li>Ask &ldquo;design a schema that handles this data efficiently&rdquo;</li>
+</ul>
+<p><strong>Saves hours of:</strong></p>
+<ul>
+<li>Discovering missing fields later</li>
+<li>Writing migration scripts</li>
+<li>Refactoring import code</li>
+<li>Working around schema limitations</li>
+</ul>
+<p><strong>In this case:</strong></p>
+<ul>
+<li>Time spent on migration: 45 minutes</li>
+<li>Time saved in Part 6: Estimated 2-3 hours (no workarounds needed in import code)</li>
+</ul>
+<h3 id="updated-best-practice-schema-design-with-claude-code">Updated Best Practice: Schema Design with Claude Code</h3>
+<p><strong>For any new project:</strong></p>
+<figure>
+    
+    <img src="/images/posts/claude-code-5.5-4.png">
+    
+    
+    <figcaption><b>Figure 4: </b><em>Best Practice: Schema Design with Claude Code</em></figcaption>
+</figure>
+<p>As shown in <em>Figure 4</em>, the best practice is to <strong>upload real data examples first</strong>, then let Claude Code design the schema based on that data.</p>
+<p><strong>This is the AI-native way:</strong> show the AI your constraints, let it see the complexity, then design together.</p>
+<hr>
+<h2 id="documenting-the-iteration">Documenting the Iteration</h2>
+<p>I wanted to capture this learning moment properly, so I asked Claude Code to update our documentation:</p>
+<pre tabindex="0"><code>Update CLAUDE.md to document this iteration:
+
+1. Add a &#34;Schema Design Lessons Learned&#34; section
+2. Explain the mistake (designing from mental model vs real data)
+3. Document the correct approach (upload real data first)
+4. Reference this migration as an example of iterative development
+
+Frame this as a positive learning moment, not a failure. AI-native development embraces iteration.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 16:</strong> <em>Update CLAUDE.md with Learning</em>
+</p>
+<p>Claude Code updated <code>CLAUDE.md</code> with a new section that will help future developers (including future me) remember this lesson.</p>
+<p>It also created a note in docs/decisions/002-schema-refinement.md documenting:</p>
+<ul>
+<li>Why we made these changes</li>
+<li>What analysis led to the decision</li>
+<li>Impact on existing code</li>
+<li>Migration applied</li>
+</ul>
+<p>This creates an audit trail of architectural decisions.</p>
+<hr>
+<h2 id="bridge-to-part-6-ready-for-clean-import-implementation">Bridge to Part 6: Ready for Clean Import Implementation</h2>
+<p>With our schema refined, we&rsquo;re now ready to build the import MCP server in Part 6.</p>
+<p><strong>The difference:</strong></p>
+<p><strong>Without this refinement:</strong></p>
+<ul>
+<li>Import code would need workarounds for missing fields</li>
+<li>Either lose data (skip order_number, track, etc.)</li>
+<li>Or create hacky solutions (JSON columns, separate tables)</li>
+<li>More complex code to maintain</li>
+</ul>
+<p><strong>With this refinement:</strong></p>
+<ul>
+<li>Import code is straightforward (map CSV columns to database columns)</li>
+<li>No data loss (every important field has a home)</li>
+<li>Clean, maintainable implementation</li>
+<li>Import logic focuses on business rules, not schema workarounds</li>
+</ul>
+<p>In Part 6, we will build a FastMCP server that ingests the CSV files directly into our refined schema, leveraging all the new fields for richer data capture and analysis.</p>
+<p>The import code will be clean, understandable, and maintainable because the schema was designed with real data in mind.</p>
+<hr>
+<h2 id="summary-embracing-iteration-in-ai-native-development">Summary: Embracing Iteration in AI-Native Development</h2>
+<p><strong>What we accomplished in Part 5.5:</strong></p>
+<ul>
+<li>✅ Analysed real CSV exports from Quicket, Sessionize, and Microsoft Forms  </li>
+<li>✅ Identified missing fields and tables in our original schema  </li>
+<li>✅ Generated a backwards-compatible migration  </li>
+<li>✅ Applied the migration to our Neon database  </li>
+<li>✅ Verified natural language queries still work  </li>
+<li>✅ Enhanced test data to demonstrate new capabilities  </li>
+<li>✅ Documented the learning for future reference</li>
+</ul>
+<p><strong>Time invested:</strong> ~45 minutes<br>
+<strong>Time saved in Part 6:</strong> Estimated 2-3 hours (no schema workarounds)<br>
+<strong>Lesson learned:</strong> Start with real data samples when designing with AI</p>
+<p>This wasn&rsquo;t a mistake, it was an <strong>iteration</strong>. AI-native development embraces this:</p>
+<ol>
+<li><strong>Build → Learn → Refine → Repeat</strong></li>
+<li>Real-world constraints reveal themselves gradually</li>
+<li>AI helps you iterate quickly (45-minute migration vs. hours of manual work)</li>
+<li>Document the iterations (they&rsquo;re valuable learning)</li>
+</ol>
+<p>Traditional software development aims to get everything right upfront (the waterfall model). Agile development embraces iteration within sprints. <strong>AI-native development accelerates iteration to hours instead of weeks.</strong></p>
+<p><strong>This is how development should feel:</strong></p>
+<ul>
+<li>Discover a gap</li>
+<li>Have a 10-minute conversation with Claude Code about it</li>
+<li>Generate a solution</li>
+<li>Apply it</li>
+<li>Move forward</li>
+</ul>
+<p>Not:</p>
+<ul>
+<li>Discover a gap</li>
+<li>Schedule a meeting</li>
+<li>Debate solutions for days</li>
+<li>Write migration manually</li>
+<li>Test extensively</li>
+<li>Finally apply it a week later</li>
+</ul>
+<p><strong>Series Progress:</strong></p>
+<ul>
+<li>✅ 
+
+<a href="/post/2025-07-29-building-an-event-management-system-with-claude-code-claude-code-installation-and-initialisation/">Part 1: Installation &amp; Setup</a></li>
+<li>✅ 
+
+<a href="/post/2025-08-13-building-an-event-management-system-with-claude-code-part-2---ide-integration-and-advanced-features/">Part 2: IDE Integration</a></li>
+<li>✅ 
+
+<a href="/post/2025-12-28-building-an-event-management-system-with-claude-code-part-3---architecting-an-ai-native-system/">Part 3: Architecture Planning</a></li>
+<li>✅ 
+
+<a href="/post/2026-01-01-building-an-event-management-system-with-claude-code-part-4---database-setup-and-first-conversations/">Part 4: Database Infrastructure</a></li>
+<li>✅ 
+
+<a href="/post/2026-01-04-building-an-event-management-system-with-claude-code-part-5---database-schema-and-natural-language-queries/">Part 5: Schema Design &amp; Natural Language Queries</a></li>
+<li>✅ <strong>Part 5.5: Schema Refinement (this post)</strong></li>
+<li>🚀 Part 6: Custom Import MCP Server (next)</li>
+</ul>
+<p>With a solid, well-designed schema in place, we&rsquo;re ready to build the import infrastructure in Part 6.</p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>This unplanned post documents an important aspect of AI-native development: <strong>iteration is fast, and embracing it makes you more productive.</strong></p>
+<p>Traditional development punishes iteration (it&rsquo;s expensive and time-consuming). AI-native development <strong>rewards</strong> iteration (quick, conversational, well-documented).</p>
+<p><strong>The mindset shift:</strong></p>
+<ul>
+<li>Old: &ldquo;Get the schema perfect upfront or pay the price later&rdquo;</li>
+<li>New: &ldquo;Start with the best information available, iterate when you learn more&rdquo;</li>
+</ul>
+<p><strong>Key takeaway for your own projects:</strong></p>
+<p>When designing anything with Claude Code:</p>
+<ol>
+<li>Show it your real-world constraints first (files, APIs, examples)</li>
+<li>Let it see the complexity</li>
+<li>Design together</li>
+<li>Iterate as you learn</li>
+</ol>
+<p>See you in Part 6, where we&rsquo;ll build the import MCP server. It will be clean and straightforward because our schema is right.</p>
+<h3 id="questions-or-thoughts">Questions or thoughts?</h3>
+<ul>
+<li>Ping me: 
+
+<a href="mailto:niels.it.berglund@gmail.com">niels.it.berglund@gmail.com</a></li>
+<li>Follow on LinkedIn: 
+
+<a href="https://www.linkedin.com/in/nielsberglund/" target="_blank" rel="noopener">linkedin.com/in/nielsberglund</a></li>
+</ul>
+<p><strong>Found this helpful?</strong> Share it with your network! Sometimes the unplanned posts are the most valuable.</p>
+<!--
+  post reference
+  [pkg1]: 
+-->  
+<!--
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong><em>&lt;sub-title&gt;</em></strong>
+  </p>
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong>&lt;code snippet/Table, etc&gt;:</strong> <em>Title</em>
+  </p>
+  <figure>
+      
+      <img src="%3cimage-path%20/images/posts/image.ext">
+      
+      
+      <figcaption><b>Fig Num: </b><em>Caption</em></figcaption>
+  </figure>
+  <div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    
+  </div>
+</div>
+-->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2026-01-11-interesting-stuff---week-02-2026/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 02, 2026">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2026
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
