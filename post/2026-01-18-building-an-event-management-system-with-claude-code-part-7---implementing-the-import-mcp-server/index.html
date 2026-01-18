@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-7.png">
+    <meta property="twitter:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-7.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 7 - Implementing the Import MCP Server" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 7 - Implementing the Import MCP Server" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 7 - Implementing the Import MCP Server" />
+    
+
+    
+    <meta name="description" content="Part 7: Build an Import MCP Server with Claude Code; 3 hours vs 16 traditional. FastMCP implementation, validation tools, database troubleshooting, and real AI-native development lessons.">
+    <meta property="og:description" content="Part 7: Build an Import MCP Server with Claude Code; 3 hours vs 16 traditional. FastMCP implementation, validation tools, database troubleshooting, and real AI-native development lessons." />
+    <meta property="twitter:description" content="Part 7: Build an Import MCP Server with Claude Code; 3 hours vs 16 traditional. FastMCP implementation, validation tools, database troubleshooting, and real AI-native development lessons." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 7 - Implementing the Import MCP Server | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2026-01-18-building-an-event-management-system-with-claude-code-part-7---implementing-the-import-mcp-server/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-7.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/mcp-servers" title="MCP Servers">
+                            MCP Servers
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-native-development" title="AI-Native Development">
+                            AI-Native Development
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 7 - Implementing the Import MCP Server</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Sunday, January 18, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p><strong>Welcome back to the Building an Event Management System with Claude Code series!</strong> If you&rsquo;ve been following along, you know we&rsquo;ve moved from theory to practice, from planning to building. In Part 6, we spent quality time designing our Import MCP Server and uncovering crucial architectural insights that fundamentally changed how we think about MCP servers.</p>
+<ul>
+<li><strong>To see all posts in the series, go to:</strong> 
+
+<a href="/contact-event-claude-code"><strong>Building an Event Management System with Claude Code</strong></a>.</li>
+</ul>
+<p>Today is where the magic happens. We&rsquo;re going to build the actual Import MCP Server that transforms my 2-3 hours of post-event manual data wrangling into a 2-minute conversation with Claude Desktop.</p>
+<hr>
+<h2 id="the-promise-vs-the-reality">The Promise vs The Reality</h2>
+<p>Let me be honest about something: when I started this journey, I thought building an MCP server would be complex. I expected to spend days wrestling with protocol specifications, debugging connection issues, and fighting with CSV parsing edge cases.</p>
+<p>The reality? <strong>With Claude Code as a development partner, we built a production-ready MCP server in about 2-3 hours.</strong> Not because I&rsquo;m some coding wizard, but because we did the hard thinking first (Part 6&rsquo;s design work), and Claude Code handled the implementation details I would have spent hours researching.</p>
+<p>But it wasn&rsquo;t without challenges. We ran into CSV encoding issues, identified edge cases in duplicate detection, and learned some hard lessons about transaction management. I&rsquo;m going to show you all of it, the wins and the struggles, because that&rsquo;s real AI-native development.</p>
+<hr>
+<h2 id="what-well-accomplish-today">What We&rsquo;ll Accomplish Today</h2>
+<p>By the end of this post, you&rsquo;ll have:</p>
+<ul>
+<li>✅ A working Import MCP Server (7 tools defined, 2 tools implemented, ~850 lines)</li>
+<li>✅ Understanding of FastMCP project structure and patterns</li>
+<li>✅ Real implementation conversations with Claude Code</li>
+<li>✅ Integration with Claude Desktop for conversational imports</li>
+<li>✅ Tested workflows with actual event data</li>
+<li>✅ The experience of typing &ldquo;Import the March 2025 registrations&rdquo; and watching it happen</li>
+</ul>
+<p>What does this mean for you?</p>
+<ul>
+<li><strong>Time investment:</strong> ~2-3 hours of AI-assisted development</li>
+<li><strong>Time saved per event:</strong> ~2-3 hours of manual CSV wrangling</li>
+<li><strong>Break-even point:</strong> After the first import! 🎉</li>
+</ul>
+<hr>
+<h2 id="quick-recap-the-architecture-breakthrough">Quick Recap: The Architecture Breakthrough</h2>
+<p>Before we dive into code, let&rsquo;s recap the crucial lesson from Part 6 that guides everything we build today.</p>
+<h3 id="the-critical-mcp-insight">The Critical MCP Insight</h3>
+<p>In Part 6, we discovered something fundamental about MCP architecture that changed our entire design:</p>
+<p><strong>MCP servers are isolated processes. They cannot call each other.</strong></p>
+<p>This isn&rsquo;t just a technical detail—it&rsquo;s the architectural constraint that determines how we build everything. Let me show you what this means:</p>
+<pre tabindex="0"><code>❌ What I initially thought MCP servers could do:
+Import MCP → calls CSV MCP → calls Postgres MCP
+(Servers calling each other in a chain)
+
+✅ What actually happens:
+           Claude Desktop (Orchestrator)
+                /              \
+               /                \
+        Import MCP          Postgres MCP Pro
+    (self-contained)       (separate, for queries)
+    
+Each server talks ONLY to Claude, never to each other.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 1:</strong> <em>MCP Server Communication Model</em>
+</p>
+<p><strong>Why this matters:</strong> If MCP servers can&rsquo;t call each other, then our Import MCP server must be <strong>self-contained</strong>. It can&rsquo;t just delegate CSV parsing to <code>csv-mcp-server</code> or database operations to <code>Postgres MCP Pro</code>. It has to do everything itself.</p>
+<h3 id="what-leveraging-existing-tools-really-means">What &ldquo;Leveraging Existing Tools&rdquo; Really Means</h3>
+<p>So when we said in Part 3 that we&rsquo;d &ldquo;leverage existing MCP servers,&rdquo; what we actually meant was:</p>
+<ul>
+<li><strong>We don&rsquo;t call other MCP servers ❌</strong></li>
+<li><strong>We use the same battle-tested libraries they use ✅</strong></li>
+</ul>
+<p>Specifically:</p>
+<ul>
+<li><strong>pandas</strong> - Same library csv-mcp-server uses for CSV operations</li>
+<li><strong>asyncpg</strong> - An asynchronous PostgreSQL client library for Python</li>
+<li><strong>FastMCP</strong> - Same framework many MCP servers are built with</li>
+</ul>
+<p>This is the 80/20 principle in action:</p>
+<ul>
+<li><strong>80%</strong> = Proven libraries do the heavy lifting (parsing, validation, SQL)</li>
+<li><strong>20%</strong> = Our custom code (Quicket-specific formats, business rules, duplicate detection)</li>
+</ul>
+<h3 id="architecture-decision-summary">Architecture Decision Summary</h3>
+<p>Based on this constraint, we chose a <strong>self-contained Import MCP Server</strong> with 7 distinct tools:</p>
+<p><strong>Infrastructure Tools</strong> (build first):</p>
+<ol>
+<li><code>validate_import_data</code> - Fast format checking (50ms, no DB access)</li>
+<li><code>preview_import</code> - Shows what will be imported (reads DB)</li>
+</ol>
+<p><strong>Import Operations</strong> (build by priority):</p>
+<ol start="3">
+<li><code>import_quicket_registrations</code> - Creates contacts + tickets</li>
+<li><code>import_quicket_checkins</code> - Updates attendance status</li>
+<li><code>import_checkin_walkins</code> - Handles walk-in attendees</li>
+<li><code>import_sessionize_speakers</code> - Imports speakers + sessions</li>
+<li><code>import_speaker_ratings</code> - Links ratings to sessions</li>
+</ol>
+<p><strong>User experience:</strong></p>
+<pre tabindex="0"><code>User: &#34;Import the March 2025 Quicket registrations&#34;
+        ↓
+Claude Desktop: [single tool call]
+        ↓
+import_quicket_registrations() does everything:
+  - Parses CSV with pandas
+  - Validates data
+  - Detects duplicates
+  - Inserts into database with psycopg2
+  - Returns complete results
+        ↓
+Claude Desktop: &#34;✅ Imported 144 new contacts, 3 updated, 147 tickets&#34;
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 2:</strong> <em>Import MCP Server Workflow</em>
+</p>
+<p>What you see in <em>Code Snippet 2</em> is the entire import process condensed into a single tool call. No inter-server communication, no complex orchestration, just one tool that does it all.</p>
+<p><strong>Benefits of this architecture:</strong></p>
+<ul>
+<li>✅ Single tool call per import (fast, simple)</li>
+<li>✅ Atomic operations (import succeeds or fails as a unit)</li>
+<li>✅ Simpler for LLM to use (less orchestration complexity)</li>
+<li>✅ All import logic encapsulated (easier to maintain)</li>
+</ul>
+<p>Now that we&rsquo;re clear on the architecture, let&rsquo;s build it.</p>
+<hr>
+<h2 id="setting-up-the-import-mcp-project">Setting Up the Import MCP Project</h2>
+<p>Let&rsquo;s start by creating our project structure. I&rsquo;m going to show you the actual conversation I had with Claude Code, because this is what AI-native development looks like.</p>
+<h3 id="starting-the-conversation">Starting the Conversation</h3>
+<p>I started Claude Code in my project directory with the now familiar prompt: <code>claude --continue</code>.</p>
+<p>After Claude Code had loaded, I initiated the conversation:</p>
+<pre tabindex="0"><code>In the previous session I asked you to think and plan the implementation of the Import MCP Server. You did this and wrote the plan to @docs/planning/ import-mcp-tools-specification.md. It is now time to start the implementation. Can we begin with setting up the FastMCP project structure. In addition to using what you created in @docs/planning/import-mcp-tools-specification.md, also use the project structure from the FastMCP documentation.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 3:</strong> <em>Initial Conversation with Claude Code</em>
+</p>
+<p>Claude Code went off and thought about the structure, then came back with a plan for the implementation, as well as implementing the project structure:</p>
+<pre tabindex="0"><code>● I&#39;ll help you set up the FastMCP project structure for the Import MCP Server. Let me create a todo list and then search for the latest FastMCP documentation to ensure we&#39;re using the correct structure.
+
+● Web Search(&#34;FastMCP Python framework project structure 2026&#34;)
+  ⎿  Did 1 search in 22s
+
+[snipped for brevity]
+
+● Perfect! Now I have the FastMCP documentation. Let me create the project structure based on both the specification and FastMCP best practices.
+
+[snipped for brevity]
+
+● Write(mcp-servers\import-mcp\pyproject.toml)
+
+[Claude Code creates the project strucure and files - snipped for brevity]
+  ⎿  
+● Perfect! I&#39;ve successfully set up the complete FastMCP project structure for the Import MCP Server. Here&#39;s what was created:
+
+  ✅ Project Structure Complete
+
+[snipped for brevity]
+
+  🎯 Key Features Implemented
+
+  Configuration
+
+[snipped for brevity]
+
+  Server Structure
+
+[snipped for brevity]
+
+  Tool Implementations
+
+  All tools are defined as skeleton implementations (return stub responses) ready for Phase 1 development:
+
+  Phase 1 (Priority):
+  1. ✅ validate_import_data - Basic validation structure ready
+  2. ✅ preview_import - Preview structure ready
+  3. ✅ import_quicket_registrations - Skeleton with full docstrings
+  4. ✅ import_sessionize_data - Skeleton with multi-speaker notes
+  5. ✅ import_speaker_ratings - Skeleton with fuzzy match logic
+
+  Phase 2:
+  6. ✅ import_quicket_checkins - Skeleton ready
+  7. ✅ import_walkup_registrations - Skeleton ready
+
+  📚 Documentation
+
+  The README.md includes:
+ 
+[snipped for brevity]
+
+  🔄 Next Steps
+
+  To start implementing the actual import logic:
+
+  1. Install dependencies: cd mcp-servers/import-mcp &amp;&amp; uv sync
+  2. Set NEON_DATABASE_URL: Export your database connection string
+  3. Start with Phase 1 Tool 1: Implement validate_import_data in tools/validation.py
+  4. Test as you go: Add unit tests in tests/ directory
+
+  The foundation is complete and ready for implementation! 🚀
+
+  Sources:
+
+[snipped for brevity]
+
+✻ Cooked for 7m 15s
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 4:</strong> <em>Claude Code&#39;s Project Structure Implementation</em>
+</p>
+<p>In <em>Code Snippet 4</em>, you can see how Claude Code not only created the project structure but also provided a detailed summary of what was implemented, including skeletons for all the tools we planned. What impresses me is how quickly we moved from planning to a working project structure: ~7 minutes!</p>
+<p>Part of what Claude Code&rsquo;s output was to create (and document) the folder structure for the Import MCP server:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-1.png">
+    
+    
+    <figcaption><b>Figure 1: </b><em>Import MCP Server Project File/Folder Structure</em></figcaption>
+</figure>
+<p>In <em>Figure 1</em>, you can see the clear organisation of the project, with separate folders for tools, tests, and documentation. This structure will make it easy to implement and maintain our Import MCP Server as we move forward. You also see that at the root of the project, we have a <code>pyproject.toml</code> file (see below) and a <code>README.md</code> file. The <code>README.md</code> file provides an overview of the project and instructions for getting started. Once again, this is all generated by Claude Code.</p>
+<h3 id="pyprojecttoml">pyproject.toml</h3>
+<p>A <code>pyproject.toml</code> file is a configuration file used in modern Python projects to define how the project is built, what dependencies it has, and which tools it uses. It&rsquo;s part of Python&rsquo;s move toward a more standardised, language-wide packaging system.</p>
+<p>Let&rsquo;s see what dependencies we need for our Import MCP Server:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span>[<span style="color:#268bd2">project</span>]
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#34;import-mcp&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">version</span> = <span style="color:#2aa198">&#34;0.1.0&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">description</span> = <span style="color:#2aa198">&#34;MCP server for importing event data from Quicket, Sessionize, and Microsoft Forms&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">readme</span> = <span style="color:#2aa198">&#34;README.md&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">requires-python</span> = <span style="color:#2aa198">&#34;&gt;=3.10&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">authors</span> = [
+</span></span><span style="display:flex;"><span>    { <span style="color:#268bd2">name</span> = <span style="color:#2aa198">&#34;Event Contact Management System&#34;</span> }
+</span></span><span style="display:flex;"><span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#268bd2">snipped</span> <span style="color:#268bd2">for</span> <span style="color:#268bd2">brevity</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">dependencies</span> = [
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;fastmcp&gt;=0.3.0,&lt;3&#34;</span>,               <span style="color:#93a1a1;font-style:italic"># MCP server framework (pin to v2)</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;asyncpg&gt;=0.29.0&#34;</span>,                 <span style="color:#93a1a1;font-style:italic"># Async PostgreSQL driver</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;pandas&gt;=2.0.0&#34;</span>,                   <span style="color:#93a1a1;font-style:italic"># CSV parsing</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;openpyxl&gt;=3.1.0&#34;</span>,                 <span style="color:#93a1a1;font-style:italic"># Excel file support</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;fuzzywuzzy[speedup]&gt;=0.18.0&#34;</span>,     <span style="color:#93a1a1;font-style:italic"># Fuzzy string matching</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;python-Levenshtein&gt;=0.21.0&#34;</span>,      <span style="color:#93a1a1;font-style:italic"># Fast string similarity</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#93a1a1;font-style:italic"># html module is part of Python stdlib, no need to install</span>
+</span></span><span style="display:flex;"><span>]
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5:</strong> <em>pyproject.toml Dependencies</em>
+</p>
+<p>In <em>Code Snippet 5</em>, you can see the dependencies we need for our Import MCP Server. We have <code>fastmcp</code> for the MCP framework, <code>pandas</code> for CSV parsing and data manipulation, <code>asyncpg</code> for PostgreSQL database interactions, and some more.</p>
+<p>What is shown in <em>Code Snippet 5</em> is just a part of the full <code>pyproject.toml</code> file, which also includes metadata about the project, build options, etc. The full file was generated by Claude Code, and I have published it as a <code>gist</code>: 
+
+<a href="https://gist.github.com/nielsberglund/5c155c5c2ccc8517fa41cf8aac94ae6e" target="_blank" rel="noopener">Import MCP Server pyproject.toml</a>.</p>
+<h3 id="source-files">Source Files</h3>
+<p>As mentioned in <em>Code Snippet 4</em> and shown in <em>Figure 1</em>, Claude Code also created skeleton implementations for all the tools we planned to implement. Each tool has its own file in the <code>src/import_mcp/tools/</code> directory, with stub functions that Claude Code will fill in later.</p>
+<p>In addition to the tool files, Claude Code also created a <code>server.py</code>. This file is the entry point for our MCP server.</p>
+<h4 id="serverpy">server.py</h4>
+<p>So, <code>server.py</code> is, as we said, the entry point for our MCP server. It sets up the FastMCP server and registers all the tools we defined:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># Initialize FastMCP server</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">mcp</span> = <span style="color:#268bd2">FastMCP</span>(<span style="color:#2aa198">&#34;Import MCP Server&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># Get database connection URL from environment</span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">DATABASE_URL</span> = <span style="color:#268bd2">os</span>.<span style="color:#268bd2">getenv</span>(<span style="color:#2aa198">&#34;NEON_DATABASE_URL&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># snipped for brevity</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#268bd2">@mcp.tool</span>()
+</span></span><span style="display:flex;"><span><span style="color:#859900">async</span> <span style="color:#859900">def</span> <span style="color:#268bd2">validate_import_data</span>(
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">file_path</span>: <span style="color:#cb4b16">str</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#268bd2">import_type</span>: <span style="color:#cb4b16">str</span>,
+</span></span><span style="display:flex;"><span>) -&gt; <span style="color:#cb4b16">dict</span>[<span style="color:#cb4b16">str</span>, <span style="color:#268bd2">Any</span>]:
+</span></span><span style="display:flex;"><span>    <span style="color:#2aa198">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    Validate CSV/Excel file format WITHOUT database access.
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    Fast validation (~50ms) checks:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    - File format (CSV/Excel)
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    - Required columns present
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    - Data types correct
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    - Duplicate rows
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    - Missing data percentage
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    Args:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        file_path: Path to CSV/Excel file to validate
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        import_type: One of: quicket_registrations, quicket_checkins, walkup,
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">                     sessionize, ratings
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    Returns:
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">        Validation results with errors, warnings, and data quality score
+</span></span></span><span style="display:flex;"><span><span style="color:#2aa198">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#859900">return</span> <span style="color:#859900">await</span> <span style="color:#268bd2">validation</span>.<span style="color:#268bd2">validate_import_data</span>(<span style="color:#268bd2">file_path</span>, <span style="color:#268bd2">import_type</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5b:</strong> <em>server.py validate_import_data Tool</em>
+</p>
+<p>We see in <em>Code Snippet 5b</em> how the <code>validate_import_data</code> tool is defined in <code>server.py</code>. It uses a decorator <code>@mcp.tool()</code> to register the function as an MCP tool. When exposing a method as an MCP tool, we also need to define what the tool does to provide the AI with sufficient information. The actual implementation of the validation logic is delegated to the <code>validation.validate_import_data</code> function, which is defined in <code>tools/validation.py</code>.</p>
+<h3 id="installing-dependencies">Installing Dependencies</h3>
+<p>With our <code>pyproject.toml</code> file in place, we can now install the dependencies for our project. This is done using the <code>uv</code> command-line tool:</p>
+<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#cb4b16">cd</span> mcp-servers/import-mcp
+</span></span><span style="display:flex;"><span>uv sync
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 6:</strong> <em>Installing Project Dependencies</em>
+</p>
+<p>What you see in <em>Code Snippet 6</em> is so 2024 when it comes to dependency installation for a Python project. As we are doing AI-native development, we ask Claude Code to handle the dependency management for us:</p>
+<pre tabindex="0"><code>Instead of me installing the  dependencies manually, can you please install them and test the server runs. Please use `uv`.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 7:</strong> <em>Claude Code Prompt for Dependency Installation and Testing</em>
+</p>
+<p>In addition to installing the dependencies, I also asked Claude Code to test that the server runs. My final ask of Claude Code was to use <code>uv</code> for all this.</p>
+<blockquote>
+<p><strong>Note:</strong> If you haven&rsquo;t used Python for a while, you may wonder what <code>uv</code> is. <code>uv</code> is an extremely fast Python package and project manager - think of it as a modern, all-in-one replacement for pip, venv, pyenv, etc., combined.</p>
+</blockquote>
+<p>Having asked Claude Code to handle the installation and testing, it went off and did just that:</p>
+<pre tabindex="0"><code>● I&#39;ll install the dependencies using uv and test that the server runs properly.
+
+● Bash(uv --version)
+  ⎿  uv 0.9.18 (0cee76417 2025-12-16)
+
+● Bash(cd &#34;W:\OneDrive\repos\niels\event-contact-management-2\mcp-servers\import-mcp&#34; &amp;&amp; uv sync)
+  ⎿  Error: Exit code 1
+
+[snipped for brevity]
+
+● I see the issue - the html package has a build error. Actually, we don&#39;t need to install it as a dependency because Python&#39;s standard library already includes html.unescape() for HTML entity decoding. Let me fix the pyproject.toml.
+
+[Claude Code fixes the pyproject.toml - snipped for brevity]
+
+● Now let me try installing the dependencies again:
+
+[snipped for brevity]
+
+● Let me test if the server can start. First, let me check the FastMCP help to see available commands:
+
+[errors occured and handled - snipped for brevity]
+
+● Now let me temporarily comment out the database URL check so we can test the server loads properly:
+
+[Claude Code modifies import_mcp/server.py - snipped for brevity]
+
+● Great! The server is loading. Let me interrupt it and try the dev command to inspect the tools:
+
+[snipped for brevity]
+
+● Perfect! I&#39;ve successfully installed all dependencies and tested the Import MCP server. Here&#39;s what was accomplished:
+
+  ✅ Installation &amp; Testing Complete
+
+  Dependencies Installed (102 packages)
+
+[snipped for brevity]
+
+  Virtual Environment Created
+
+  Location: mcp-servers/import-mcp/.venv
+
+  Next Steps
+
+  The server foundation is complete and ready for implementation! To proceed:
+
+  1. Set your database URL (when implementing actual imports):
+  export NEON_DATABASE_URL=&#34;postgresql://user:pass@host/dbname&#34;
+  2. Add to Claude Desktop - Update your .mcp.json with the configuration from the README
+  3. Start implementing Phase 1 tools - Begin with validate_import_data in tools/validation.py
+
+  The project structure is solid, dependencies are installed, and the server runs successfully! 🚀
+
+✻ Brewed for 4m 46s
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 8:</strong> <em>Claude Code&#39;s Dependency Installation and Testing Output</em>
+</p>
+<p>In <em>Code Snippet 8</em>, you can see how Claude Code handled dependency installation and server testing. While doing this, it encountered some issues, which it fixed, demonstrating its ability to troubleshoot problems autonomously. All this took about ~5 minutes.</p>
+<p>So, all in all, from asking Claude Code to think about the structure, setting it up, installing dependencies, and checking that the skeleton server runs, it took ~12 minutes! I can&rsquo;t imagine how long it would have taken me to do this myself!</p>
+<h3 id="database-connection-validation">Database Connection Validation</h3>
+<p>When Claude Code tested the server, it temporarily commented out the database connection validation in <code>import_mcp/server.py</code>, as Claude Code didn&rsquo;t know if we had a connection yet. The database URL (connection string) is now set as an environment variable: <code>NEON_DATABASE_URL</code>. Let us just make sure the database connection works. I am asking Claude Code to test the database connection, and Claude Code comes back with:</p>
+<pre tabindex="0"><code>● I&#39;ll create a database connection test script that you can run to verify connectivity.
+
+● Write(mcp-servers\import-mcp\test_db_connection.py)
+
+[snipped fr brevity]
+
+● Perfect! The database connection test passed successfully! 🎉
+
+  Test Results Summary
+
+  ✅ All Checks Passed
+
+  1. Environment Variable: NEON_DATABASE_URL is set and accessible
+  2. Database Connection: Successfully connected to PostgreSQL
+  3. Database Version: PostgreSQL 17.7 (Neon managed)
+  4. Schema Tables: All 10 expected tables exist:
+
+[snipped for brevity]
+
+  5. Existing Data: Found test data in the database:
+  
+[snipped for brevity]
+
+  What This Means
+
+  ✅ The Import MCP Server will be able to connect to your database successfully!
+
+  The NEON_DATABASE_URL environment variable is properly set in your current session, and the database schema matches what the Import MCP Server expects.
+
+  Test Script Location
+
+  The test is saved at: mcp-servers/import-mcp/test_db_connection.py
+
+  You can run it anytime with:
+  cd mcp-servers/import-mcp
+  uv run python test_db_connection.py
+
+  Next Steps
+
+  Now that we&#39;ve confirmed database connectivity works, we&#39;re ready to:
+  1. Start implementing the Phase 1 tools (validation, preview, imports)
+  2. Test the Import MCP Server with Claude Desktop
+
+  Would you like to proceed with implementing the validate_import_data tool?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 9:</strong> <em>Claude Code&#39;s Database Connection Test Output</em>
+</p>
+<p>OK, so looking at <em>Code Snippet 9</em>, we can see that Claude Code successfully connected to the database and verified that the expected tables exist.</p>
+<p><strong>Perfect!</strong> Our project structure is set up, dependencies are installed, and the database connection is verified. Time to build some tools.</p>
+<hr>
+<h2 id="building-phase-1-infrastructure-tools">Building Phase 1: Infrastructure Tools</h2>
+<p>With the foundation laid, we can now start implementing the actual tools for our Import MCP Server. Remember our build order from Part 6:</p>
+<p><strong>Phase 1: Foundation</strong> (build this first)</p>
+<ol>
+<li><code>validate_import_data</code> - Fast format checking</li>
+<li><code>preview_import</code> - Shows what will be imported</li>
+<li><code>import_quicket_registrations</code> - High-value import</li>
+<li><code>import_sessionize_data</code> - Also high-value</li>
+<li><code>import_speaker_ratings</code> - Also high-value</li>
+</ol>
+<p>We&rsquo;ll begin with the infrastructure tools: <code>validate_import_data</code> and <code>preview_import</code>. These tools are essential for ensuring data integrity before performing any imports.</p>
+<h3 id="tool-1-validate_import_data">Tool 1: <code>validate_import_data</code></h3>
+<p><strong>Purpose:</strong> Fast format checking without touching the database (target: &lt;50ms)</p>
+<p>This tool should:</p>
+<ul>
+<li>Detect import type from CSV structure</li>
+<li>Validate required fields exist</li>
+<li>Check data types (emails look like emails, dates parse correctly)</li>
+<li>Return issues list for the user</li>
+</ul>
+<p>I asked Claude Code to implement it:</p>
+<pre tabindex="0"><code>Implement the validate_import_data tool.After validation return a detailed validation report. Do NOT access the database. This should be fast (&lt;50ms).
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 10:</strong> <em>Claude Code Prompt for validate_import_data Implementation</em>
+</p>
+<p>Claude Code implemented the tool as requested. I will not show the code, but instead show you Claude Code&rsquo;s response:</p>
+<pre tabindex="0"><code>● I&#39;ll implement the validate_import_data tool with comprehensive validation logic. Let me first check the actual column names from the import analysis document, then implement the validation.
+
+[Claude Code checks the columns from the import analysis doc - snipped for brevity]
+
+● Update(mcp-servers\import-mcp\src\import_mcp\tools\validation.py)
+
+[Claude Code implements the validate_import_data tool - snipped for brevity]
+
+● Excellent! The validate_import_data tool is now fully implemented and tested! 🎉
+
+  ✅ Implementation Complete
+
+  Test Results Summary
+
+  All 5 CSV files validated successfully with performance well under 50ms:
+  ┌────────────────┬───────────────────────┬──────┬────────┬─────────┐
+  │      File      │         Type          │ Rows │  Time  │ Status  │
+  ├────────────────┼───────────────────────┼──────┼────────┼─────────┤
+  │ reg.csv        │ Quicket Registrations │ 49   │ 13.5ms │ ✅ PASS │
+  ├────────────────┼───────────────────────┼──────┼────────┼─────────┤
+  │ checkin.csv    │ Quicket Check-ins     │ 49   │ 8.1ms  │ ✅ PASS │
+  ├────────────────┼───────────────────────┼──────┼────────┼─────────┤
+  │ sessionize.csv │ Sessionize Sessions   │ 18   │ 7.5ms  │ ✅ PASS │
+  ├────────────────┼───────────────────────┼──────┼────────┼─────────┤
+  │ evals.csv      │ Speaker Ratings       │ 199  │ 5.6ms  │ ✅ PASS │
+  ├────────────────┼───────────────────────┼──────┼────────┼─────────┤
+  │ walkins.csv    │ Walk-up Registrations │ 32   │ 4.0ms  │ ✅ PASS │
+  └────────────────┴───────────────────────┴──────┴────────┴─────────┘
+  Features Implemented
+
+  Core Validation (10 steps):
+
+[snipped for brevity]
+
+  Quality Metrics:
+  - Data quality score (0.0-1.0)
+  - Missing data percentage
+  - Error/warning counts
+  - File size and row counts
+
+  Validation Report Structure
+
+  {
+    &#34;valid&#34;: true/false,
+    &#34;file_info&#34;: {
+      &#34;format&#34;: &#34;csv&#34;,
+      &#34;rows&#34;: 49,
+      &#34;columns&#34;: [&#34;col1&#34;, &#34;col2&#34;, ...],
+      &#34;file_size_bytes&#34;: 19054
+    },
+    &#34;validation_results&#34;: {
+      &#34;required_columns_present&#34;: true,
+      &#34;missing_columns&#34;: [],
+      &#34;extra_columns&#34;: [],
+      &#34;data_quality_score&#34;: 0.838,
+      &#34;duplicate_rows&#34;: 0,
+      &#34;missing_data_percentage&#34;: 16.22,
+      &#34;total_errors&#34;: 0,
+      &#34;total_warnings&#34;: 0
+    },
+    &#34;errors&#34;: [...],
+    &#34;warnings&#34;: [...]
+  }
+
+  Key Design Decisions
+
+  1. Multi-speaker sessions handled: Sessionize &#34;Title&#34; not required (only on first row per session)
+  2. Flexible column matching: Extra columns generate warnings, not errors
+  3. Phone validation: Accepts 10 or 11 digits (South African format)
+  4. Fast performance: No database access, pandas-based parsing
+
+  Files Created/Modified
+
+  - ✅ src/import_mcp/tools/validation.py - Complete implementation (390 lines)
+  - ✅ test_validation.py - Test suite with real CSV files
+
+  The validation tool is ready for use! Would you like me to proceed with implementing the next tool (preview_import) or test this in Claude Desktop first?
+
+✻ Churned for 4m 48s
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 11:</strong> <em>Claude Code&#39;s validate_import_data Implementation Output</em>
+</p>
+<p>In <em>Code Snippet 11</em>, you can see that Claude Code successfully implemented the <code>validate_import_data</code> tool, complete with a detailed validation report structure and performance metrics. The tool was built to handle all the validation requirements we specified, and it even includes a test suite with real CSV files.</p>
+<p>As you also see, Claude Code is now asking if we want to proceed with the next tool or test this one in Claude Desktop first. I decided to go ahead with the next tool and asked Claude Code to implement <code>preview_import</code>.</p>
+<h3 id="tool-2-preview_import">Tool 2: <code>preview_import</code></h3>
+<p>Having prompted Claude Code about the <code>preview_import</code> tool, Claude Code responded:</p>
+<pre tabindex="0"><code>● I&#39;ll implement the preview_import tool that connects to the database in read-only mode to show what would happen during import.
+
+● Update(mcp-servers\import-mcp\src\import_mcp\tools\validation.py)
+
+[Claude Code implements the preview_import tool - snipped for brevity]
+
+● Excellent! The preview_import tool is now fully implemented and tested! 🎉
+
+  ✅ Implementation Complete
+
+  Test Results Summary
+
+  All 4 preview tests passed with read-only database access (no writes):
+  ┌────────────────┬───────────────────────┬───────┬──────────┬────────┬─────────┐
+  │      File      │         Type          │ Event │ Strategy │  Time  │ Status  │
+  ├────────────────┼───────────────────────┼───────┼──────────┼────────┼─────────┤
+  │ reg.csv        │ Quicket Registrations │ 5     │ skip     │ 2417ms │ ✅ PASS │
+  ├────────────────┼───────────────────────┼───────┼──────────┼────────┼─────────┤
+  │ sessionize.csv │ Sessionize Sessions   │ 5     │ skip     │ 2387ms │ ✅ PASS │
+  ├────────────────┼───────────────────────┼───────┼──────────┼────────┼─────────┤
+  │ reg.csv        │ Quicket Registrations │ 5     │ update   │ 2451ms │ ✅ PASS │
+  ├────────────────┼───────────────────────┼───────┼──────────┼────────┼─────────┤
+  │ sessionize.csv │ Sessionize Sessions   │ 5     │ update   │ 2367ms │ ✅ PASS │
+  └────────────────┴───────────────────────┴───────┴──────────┴────────┴─────────┘
+  Features Implemented
+
+[snipped for brevity]
+
+  Example Preview Output
+
+  Quicket Registration (49 rows):
+  - Would create: 49 contacts + 49 tickets = 98 records
+  - Would update: 0 (no existing contacts with matching email+name)
+  - Would skip: 0 (no duplicate tickets)
+
+  Sessionize Sessions (18 rows, 16 sessions):
+  - Would create: 16 sessions + 18 speakers = 34 records
+  - Multi-speaker detection: Found 2 sessions with multiple speakers
+
+  Key Design Decisions
+
+  1. Read-only database access: Uses SELECT queries only, no writes
+  2. In-memory duplicate detection: Loads existing records into memory for fast lookups
+  3. Composite key matching: Matches contacts by (email, first_name, last_name) per specification
+  4. Duplicate strategy respected: Shows what would happen based on user&#39;s choice (skip/update/fail)
+  5. Sample limiting: Configurable preview_limit prevents overwhelming output
+
+  Files Created/Modified
+
+  - ✅ src/import_mcp/tools/validation.py - Added preview_import and helper functions (~370 new lines)
+  - ✅ test_preview.py - Test suite with database connection
+
+  Performance
+
+  - ~2.4 seconds per preview (includes database round-trip + duplicate detection)
+  - Well within acceptable range for read-only preview operation
+  - Could be optimized with indexing if needed, but current performance is good
+
+  Status
+
+  Both Phase 1 core infrastructure tools are now complete:
+
+  1. ✅ validate_import_data - Fast CSV validation (&lt;50ms, no DB)
+  2. ✅ preview_import - Dry-run preview (~2.4s, read-only DB)
+
+  Next up would be the actual import tools (Phase 1 priority imports). Would you like to proceed with implementing import_quicket_registrations?
+
+✻ Crunched for 3m 39s`
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12:</strong> <em>Claude Code&#39;s preview_import Implementation Output</em>
+</p>
+<p>As shown in <em>Code Snippet 12</em>, Claude Code successfully implemented the <code>preview_import</code> tool, complete with read-only database access and detailed preview output. The tool was built to handle all the preview requirements we specified, and it includes a test suite with database connection.</p>
+<p>Having done the two &ldquo;infrastructure&rdquo; tools, theoretically, we could now move on to the actual import tools. However, before doing that, I wanted to test what we have built so far in Claude Desktop.</p>
+<hr>
+<h2 id="import-mcp-and-claude-desktop-integration">Import MCP and Claude Desktop Integration</h2>
+<p>With both <code>validate_import_data</code> and <code>preview_import</code> tools implemented, it&rsquo;s time to integrate our Import MCP Server with Claude Desktop. This will allow us to test the tools in a conversational context.</p>
+<p>The <code>import-mcp/README.md</code> file contains all the necessary configuration details for adding the Import MCP Server to Claude Desktop. However, I wanted to check with Claude Code to ensure everything is set up correctly:</p>
+<pre tabindex="0"><code>Instead of implementing import_quicket_registrations, I would like to test what we have done sofar with Claude Desktop. Can you help me with the configuration of Claude Desktop.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 13:</strong> <em>Claude Code Prompt for Claude Desktop Configuration Assistance</em>
+</p>
+<p>After some toing and froing, Claude Code provided the necessary configuration details for adding the Import MCP Server to Claude Desktop:</p>
+<pre tabindex="0"><code>● Perfect! I&#39;ve added the Import MCP Server configuration to your Claude Desktop config file. Here&#39;s what was added:
+
+  &#34;import-mcp&#34;: {
+    &#34;command&#34;: &#34;uv&#34;,
+    &#34;args&#34;: [
+      &#34;--directory&#34;,
+      &#34;W:\\OneDrive\\repos\\niels\\event-contact-management-2\\mcp-servers\\import-mcp&#34;,
+      &#34;run&#34;,
+      &#34;import-mcp&#34;
+    ]
+  }
+
+  Notice: No env section - it will inherit the NEON_DATABASE_URL from your Windows User environment variable.
+
+  Next Steps to Test:
+
+  1. Restart Claude Desktop
+
+  Close Claude Desktop completely and restart it to load the new MCP server configuration.
+
+  2. Verify the Server Loaded
+
+  Once Claude Desktop restarts, you can verify the Import MCP Server is loaded by asking:
+  &#34;What MCP servers are currently available?&#34;
+
+  or
+
+  &#34;List all available MCP tools&#34;
+
+  You should see the 7 Import MCP tools listed:
+  - validate_import_data
+  - preview_import
+  - import_quicket_registrations
+  - import_sessionize_data
+  - import_speaker_ratings
+  - import_quicket_checkins
+  - import_walkup_registrations
+
+  3. Test the Tools
+
+  Try testing the validation tool:
+  &#34;Validate the import file at W:\OneDrive\repos\niels\event-contact-management-2\docs\import-files\reg.csv as a quicket_registrations import&#34;
+
+  Or test the preview tool:
+  &#34;Preview importing W:\OneDrive\repos\niels\event-contact-management-2\docs\import-files\reg.csv as quicket_registrations for event ID 5&#34;
+
+  4. Check for Errors
+
+  If the server doesn&#39;t load, check Claude Desktop&#39;s logs at:
+  %APPDATA%\Claude\logs\
+
+  Let me know once you&#39;ve restarted Claude Desktop and I can help you test the Import MCP Server!
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 14:</strong> <em>Claude Code&#39;s Claude Desktop Configuration Output</em>
+</p>
+<p>In <em>Code Snippet 14</em>, you can see that Claude Code provided a detailed guide on how to add the Import MCP Server to Claude Desktop, verify its loading, and test the tools.</p>
+<h3 id="testing-in-claude-desktop">Testing in Claude Desktop</h3>
+<p>I checked the configuration into my Claude Desktop <code>.mcp.json</code> file, and restarted Claude Desktop. When looking at <strong>Settings → Developer</strong>, I saw:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-2.png">
+    
+    
+    <figcaption><b>Figure 2: </b><em>Import MCP Server Listed in Claude Desktop MCP Servers</em></figcaption>
+</figure>
+<p>In <em>Figure 2</em>, you can see that the Import MCP Server is now listed among the available MCP servers in Claude Desktop. Let&rsquo;s just confirm that further by asking Claude Desktop:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-3.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Available MCP Servers Claude Desktop</em></figcaption>
+</figure>
+<p>We see in <em>Figure 3</em> that Claude Desktop confirms that the Import MCP Server is available, along with the PostgreSQL MCP Pro server and others. Asking Claude Desktop what tools the Import MCP Server has, we see:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-4.png">
+    
+    
+    <figcaption><b>Figure 4: </b><em>Available Import MCP Tools in Claude Desktop</em></figcaption>
+</figure>
+<p>In <em>Figure 4</em>, you can see that all seven tools we defined for the Import MCP Server are now available in Claude Desktop, including the definitions (snipped out for all but the first tool for brevity).</p>
+<h4 id="testing-the-tools">Testing the Tools</h4>
+<p>So far, so good. The Import MCP Server is integrated with Claude Desktop, and all tools are available. Time to test the two we have built so far.</p>
+<p><strong>validate_import_data</strong></p>
+<p>We start with the <code>validate_import_data</code> tool. I asked Claude Desktop to validate a Quicket registrations CSV file:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-5.png">
+    
+    
+    <figcaption><b>Figure 5: </b><em>Testing validate_import_data Tool in Claude Desktop</em></figcaption>
+</figure>
+<p>In <em>Figure 5</em>, you can see the prompt I used to ask Claude Desktop to validate the import file, along with the detailed validation report returned by the <code>validate_import_data</code> tool. The report includes information on the file format, the number of rows and columns, the data quality score, and any errors or warnings found during validation.</p>
+<p>So, <code>validate_import_data</code> works as expected! Moving on to <code>preview_import</code>, I was feeling pretty good about our progress.</p>
+<p><strong>preview_import</strong></p>
+<p>Seeing how well <code>validate_import_data</code> worked, I didn&rsquo;t expect anything less with <code>preview_import</code>.</p>
+<p>I was wrong! This is where real development happens.</p>
+<p>You can see in Figure 5 that, after validation, Claude Desktop asked me whether I would like to run a preview or proceed directly with the import. Since we haven&rsquo;t implemented any import functionality yet, I chose to run <code>preview_import</code> next:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-6.png">
+    
+    
+    <figcaption><b>Figure 6: </b><em>Testing preview_import Tool in Claude Desktop</em></figcaption>
+</figure>
+<p>Shown in <em>Figure 6</em>is the prompt I used to ask Claude Desktop to preview the import of the same Quicket registrations CSV file as in <em>Figure 5</em>. However, the <code>preview_import</code> function requires an event ID, which isn&rsquo;t provided in the registration file, and I didn&rsquo;t include it in my prompt either. The cool thing here is that Claude Desktop picked up on this and asked me for the event ID, and offered to look up the events in the database:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-7.png">
+    
+    
+    <figcaption><b>Figure 7: </b><em>Claude Desktop Loading Events</em></figcaption>
+</figure>
+<p>After some back-and-forth in Claude Desktop, it used the PostgreSQL MCP Server to retrieve the list of events from the database. It presented them to me, as shown in <em>Figure 7</em>.</p>
+<p>I chose the &ldquo;Data &amp; AI Community Day Durban - December 2025&rdquo; event (ID 10), and that&rsquo;s when things started to go off the rails:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-8.png">
+    
+    
+    <figcaption><b>Figure 8: </b><em>preview_import Tool Output in Claude Desktop</em></figcaption>
+</figure>
+<p>As shown in <em>Figure 8</em>, the <code>preview_import</code> tool returned an error indicating that the database connection was refused. This is puzzling; Claude Code had successfully used the Import MCP server with the same configuration (<em>Code Snippet 12</em>).</p>
+<p><strong>What just happened?</strong></p>
+<p>This is a crucial moment in AI-native development. We just hit a real problem, one that wasn&rsquo;t in the tutorials, wasn&rsquo;t in the documentation examples, and wasn&rsquo;t something Claude Code warned us about during implementation. The validation tool works perfectly, but the preview tool (which needs database access) fails with a cryptic network connection error.</p>
+<p>This is where the rubber meets the road. Traditional approach? Google the error, trawl through Stack Overflow, maybe post a question and wait for answers. AI-native approach? Have a conversation with Claude Code about what&rsquo;s happening.</p>
+<p>Let&rsquo;s see how this plays out.</p>
+<h3 id="troubleshooting-the-claude-desktop-issue">Troubleshooting the Claude Desktop Issue</h3>
+<p>My first port of call was to check the Claude Desktop logs located at <code>%APPDATA%\Roaming\Claude\logs\</code>. Looking through the logs, I couldn&rsquo;t find anything beyond what Claude Desktop had already shown me.</p>
+<p>Instead of me troubleshooting this myself, and since Claude Code offered to help, as in <em>Code Snippet 14</em>, I asked Claude Code for help:</p>
+<pre tabindex="0"><code>Claude Desktop has been restarted and I have successfully run validation. However, when I try the preview I get an error: &#34;[WinError 1225] The remote computer refused the network connection&#34;. Could that have something to do with how the database URL is handled, i.e. through an environment variable?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 15:</strong> <em>Claude Code Prompt for Troubleshooting Assistance</em>
+</p>
+<p>You see in <em>Code Snippet 15</em> how I asked Claude Code to help with the database connection issue, and also hinted that it might be related to how the database URL is handled through an environment variable. Claude Code responded:</p>
+<pre tabindex="0"><code>● Good catch! The error suggests the database connection is failing, even though validation works. This is the key difference:
+
+  - ✅ validate_import_data works - NO database access (file-only)
+  - ❌ preview_import fails - REQUIRES database connection
+
+  The Issue: Environment Variable Scope
+
+  The NEON_DATABASE_URL you have set is likely only available in your current bash/terminal session, not at the Windows User level where Claude Desktop can see it.
+
+  Let&#39;s Check Where It&#39;s Set:
+
+[snipped for brevity]
+
+● Interesting! The environment variable IS set at the Windows User level, so that&#39;s not the issue. Let me investigate further.
+
+  Possible Causes:
+
+  1. Check Claude Desktop Logs for More Details
+
+[snipped for brevity]
+
+● Perfect! I can see the exact error in the logs. The MCP server is starting correctly, but when preview_import tries to connect to the database, it gets the Windows network error [WinError 1225].
+
+  The Issue
+
+  This is likely a Windows networking/security restriction when Claude Desktop spawns the subprocess. Even though the environment variable is set, there might be:
+  1. Windows Firewall blocking the subprocess from making outbound connections
+  2. Security policy restrictions on GUI-spawned subprocesses
+  3. Network isolation for certain processes
+
+  Solution: Explicitly Set the Database URL in Config
+
+  Let&#39;s temporarily add the env section to the MCP config to rule out environment variable issues and potentially bypass the security restriction:
+
+[snipped for brevity]
+
+● I&#39;ve added the database URL explicitly to the config. Now:
+
+  1. Restart Claude Desktop Again
+
+  Close and restart Claude Desktop to load the updated configuration.
+
+  2. Try Preview Again
+
+[snipped for brevity]
+
+  Let me know what happens after restarting Claude Desktop!
+
+✻ Brewed for 1m 36s
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 16:</strong> <em>Claude Code&#39;s Troubleshooting Output</em>
+</p>
+<p>The changes Claude Code made, as in <em>Code Snippet 16</em>, were to add the <code>env</code> section to the Import MCP Server configuration in Claude Desktop&rsquo;s <code>.mcp.json</code> file, explicitly setting the <code>NEON_DATABASE_URL</code> environment variable. After having restarted Claude Desktop, I tried the <code>preview_import</code> tool again:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-7-9.png">
+    
+    
+    <figcaption><b>Figure 9: </b><em>preview_import Tool Working in Claude Desktop</em></figcaption>
+</figure>
+<p>In <em>Figure 9</em>, you see that the <code>preview_import</code> tool now works as expected, returning a detailed preview of what would happen during the import of the Quicket registrations CSV file for the selected event. The preview includes information about how many contacts and tickets would be created, updated, or skipped based on existing records in the database.</p>
+<p>So, with that, both the <code>validate_import_data</code> and <code>preview_import</code> tools are now successfully tested in Claude Desktop!</p>
+<hr>
+<h2 id="-security-configuration-note">⚠️ Security Configuration Note</h2>
+<p><strong>Current State:</strong> The database URL is now stored in plain text in Claude Desktop&rsquo;s <code>.mcp.json</code> configuration file. This was necessary to resolve the connection issue, but it&rsquo;s <strong>not appropriate for production use</strong>.</p>
+<p><strong>Why this matters:</strong></p>
+<ul>
+<li>The connection string contains your database credentials</li>
+<li>The config file is stored in your user directory, readable by any process running as your user</li>
+<li>If you share your config or check it into version control, you expose your database</li>
+</ul>
+<p><strong>For this development series:</strong> This is acceptable because:</p>
+<ul>
+<li>We&rsquo;re in a development/testing phase</li>
+<li>The database is a test database with sample data</li>
+<li>We&rsquo;re prioritising learning and rapid iteration</li>
+</ul>
+<p><strong>For production use, you must implement one of these approaches:</strong></p>
+<ol>
+<li>
+<p><strong>Environment Variables (Recommended for local development)</strong></p>
+<ul>
+<li>Store credentials in Windows environment variables</li>
+<li>Reference them in the MCP config</li>
+<li>Never commit the actual values</li>
+</ul>
+</li>
+<li>
+<p><strong>Secret Management Service (Recommended for production)</strong></p>
+<ul>
+<li>Use Azure Key Vault, AWS Secrets Manager, or similar</li>
+<li>Fetch credentials at runtime</li>
+<li>Rotate credentials regularly</li>
+</ul>
+</li>
+<li>
+<p><strong>Encrypted Configuration</strong></p>
+<ul>
+<li>Encrypt sensitive values in the config file</li>
+<li>Decrypt at the MCP server startup</li>
+<li>Store encryption keys securely</li>
+</ul>
+</li>
+</ol>
+<p><strong>Action item:</strong> Claude Code has added this to our technical debt tracking. We&rsquo;ll address proper credential management before any production deployment.</p>
+<p>For now, let&rsquo;s continue building functionality. Just remember: <strong>if you share your config file, sanitise it first by removing or masking the database connection string</strong>.</p>
+<p>We can now move on to implementing the actual import tools, starting with <code>import_quicket_registrations</code>. But that, my friends, will have to wait for the next post.</p>
+<hr>
+<h2 id="what-weve-accomplished-today">What We&rsquo;ve Accomplished Today</h2>
+<p>Even though we are not as far along as I had hoped, we have still accomplished a lot in this post.</p>
+<h3 id="technical-achievements">Technical Achievements</h3>
+<p>✅ <strong>Complete FastMCP Project Structure</strong></p>
+<ul>
+<li>Organised directory layout with separate tool modules</li>
+<li>Comprehensive <code>pyproject.toml</code> with all dependencies</li>
+<li>Professional <code>README.md</code> with usage examples</li>
+<li>Test fixtures and validation scripts</li>
+</ul>
+<p>✅ <strong>Two Production-Ready Infrastructure Tools</strong></p>
+<ul>
+<li><code>validate_import_data</code> - Fast CSV validation (&lt;50ms, no database access)</li>
+<li><code>preview_import</code> - Dry-run preview showing exactly what will be imported</li>
+<li>Both tools have been fully tested with real event data</li>
+</ul>
+<p>✅ <strong>Claude Desktop Integration</strong></p>
+<ul>
+<li>Import MCP Server successfully configured</li>
+<li>All 7 tools are visible and available</li>
+<li>Database connectivity verified and troubleshot</li>
+</ul>
+<p>✅ <strong>Real Problem-Solving Experience</strong></p>
+<ul>
+<li>Encountered and resolved database connection issue</li>
+<li>Learned about environment variable handling in MCP servers</li>
+<li>Documented the solution for future reference</li>
+</ul>
+<h3 id="time-investment">Time Investment</h3>
+<p>Total development time: <strong>~3 hours</strong> (with Claude Code as development partner)</p>
+<ul>
+<li>Project setup: 12 minutes</li>
+<li>Infrastructure tools: 90 minutes</li>
+<li>Claude Desktop integration: 30 minutes</li>
+<li>Troubleshooting and testing: 45 minutes</li>
+</ul>
+<p>Traditional approach estimate: <strong>~12-16 hours</strong></p>
+<ul>
+<li>Project structure and dependencies: 2 hours</li>
+<li>Validation logic research and implementation: 4-6 hours</li>
+<li>Preview logic with database access: 4-6 hours</li>
+<li>Testing and debugging: 2-4 hours</li>
+</ul>
+<h3 id="the-ai-native-development-difference">The AI-Native Development Difference</h3>
+<p>What made this fast wasn&rsquo;t just code generation, it was the <strong>collaborative problem-solving</strong>:</p>
+<p>Traditional Mindset:</p>
+<ul>
+<li>&ldquo;How do I structure a FastMCP project?&rdquo;</li>
+<li>&ldquo;What&rsquo;s the right pandas code for CSV validation?&rdquo;</li>
+<li>&ldquo;How should I handle database connections in MCP?&rdquo;</li>
+<li>Hours on Stack Overflow and documentation</li>
+</ul>
+<p>AI-Native Mindset:</p>
+<ul>
+<li>&ldquo;Claude, think about the project structure&rdquo;</li>
+<li>&ldquo;Claude, implement validation with these requirements&rdquo;</li>
+<li>&ldquo;Claude, why isn&rsquo;t Claude Desktop connecting to the database?&rdquo;</li>
+<li>Conversation-driven development with immediate feedback</li>
+</ul>
+<h3 id="key-learnings">Key Learnings</h3>
+<ol>
+<li><strong>MCP servers must be self-contained</strong> - They can&rsquo;t call each other, but they can use the same battle-tested libraries</li>
+<li><strong>Environment variables require explicit configuration</strong> in Claude Desktop&rsquo;s MCP config (potentially some workaround)</li>
+<li><strong>Testing early reveals issues</strong> - Good thing we tested before implementing all 7 tools</li>
+<li><strong>Claude Code handles integration complexity</strong> - From pyproject.toml to troubleshooting logs</li>
+<li><strong>Real problems are learning opportunities</strong> - The database connection issue taught us about MCP configuration</li>
+</ol>
+<hr>
+<h2 id="whats-next-part-8-preview">What&rsquo;s Next: Part 8 Preview</h2>
+<p><strong>Implementing the Import Tools</strong></p>
+<p>In the next post, we&rsquo;ll build the actual import operations:</p>
+<p><strong>Priority Imports (Phase 1):</strong></p>
+<ol>
+<li><code>import_quicket_registrations</code> - Creates contacts and tickets atomically</li>
+<li><code>import_sessionize_data</code> - Handles speakers and multi-speaker sessions</li>
+<li><code>import_speaker_ratings</code> - Links ratings to sessions with fuzzy matching</li>
+<li>&hellip; and hopefully more</li>
+</ol>
+<p><strong>What We&rsquo;ll Cover:</strong></p>
+<ul>
+<li>Transaction management for atomic operations</li>
+<li>Duplicate detection strategies (composite keys, fuzzy matching)</li>
+<li>CSV encoding edge cases (UTF-8, Windows-1252)</li>
+<li>Real import workflows with actual event data</li>
+<li>Performance optimisation for batch inserts</li>
+</ul>
+<p><strong>The Real Test:</strong></p>
+<p>Can I import my March 2025 event registrations in 2 minutes instead of 2-3 hours? We&rsquo;ll find out.</p>
+<p><strong>Example of What&rsquo;s Coming:</strong></p>
+<pre tabindex="0"><code>Me: &#34;Import the March 2025 Quicket registrations&#34;
+
+Claude Desktop: [calls import_quicket_registrations]
+✅ Imported 144 new contacts
+✅ Updated 3 existing contacts  
+✅ Created 147 tickets
+ℹ️ 0 duplicates skipped
+Time: 2.3 seconds
+
+Me: &#34;Now import the speaker data from Sessionize&#34;
+
+Claude Desktop: [calls import_sessionize_data]
+✅ Created 16 sessions
+✅ Created 18 speaker links
+ℹ️ Detected 2 multi-speaker sessions
+Time: 1.8 seconds
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 17:</strong> <em>Example Conversational Import Workflow in Claude Desktop</em>
+</p>
+<p>This is where the conversational interface really shines; no forms, no clicks, just natural language commands that get things done.</p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>That&rsquo;s all for now! We&rsquo;ve built the foundation of our Import MCP Server and successfully integrated it with Claude Desktop. The infrastructure tools are working beautifully, and we&rsquo;ve learned some valuable lessons about MCP server configuration and troubleshooting.</p>
+<p>In Part 8, we&rsquo;ll implement the actual import operations and experience the transformation from &ldquo;2-3 hours of manual CSV wrangling&rdquo; to &ldquo;2-minute conversational imports.&rdquo;</p>
+<p><strong>Your Turn:</strong></p>
+<p>If you&rsquo;re following along:</p>
+<ol>
+<li>Set up a FastMCP project structure</li>
+<li>Implement a simple validation tool</li>
+<li>Test it in Claude Desktop</li>
+<li>Experience the development speed difference yourself</li>
+</ol>
+<p><strong>Have questions or thoughts?</strong></p>
+<ul>
+<li>Ping me: 
+
+<a href="mailto:niels.it.berglund@gmail.com">niels.it.berglund@gmail.com</a></li>
+<li>Follow on LinkedIn: linkedin.com/in/nielsberglund</li>
+<li>Check out the code: github.com/nielsberglund/event-contact-management-2</li>
+</ul>
+<p>Found this helpful? Share it with your network! The AI-native development journey is one we&rsquo;re all taking together, and I&rsquo;m documenting it as it happens; wins, challenges, and all.</p>
+<p>See you in Part 8, where we make &ldquo;Import the March 2025 registrations&rdquo; actually work! 🚀</p>
+<hr>
+<h2 id="additional-notes">Additional Notes</h2>
+<p><strong>Security Reminder:</strong> The current Claude Desktop configuration includes the database URL in plain text. This is acceptable for development and testing, but for production use, we&rsquo;ll need to implement a more secure credential management approach. Claude Code has noted this for future implementation.</p>
+<p><strong>What Makes This Series Different:</strong> I&rsquo;m not just showing you the finished code; I&rsquo;m showing you the actual development process, including the problems, the troubleshooting, and the learning. That&rsquo;s real AI-native development, and it&rsquo;s a paradigm shift worth documenting.</p>
+<!--
+  post reference
+  [pkg1]: 
+-->  
+<!--
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong><em>&lt;sub-title&gt;</em></strong>
+  </p>
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong>&lt;code snippet/Table, etc&gt;:</strong> <em>Title</em>
+  </p>
+  <figure>
+      
+      <img src="%3cimage-path%20/images/posts/image.ext">
+      
+      
+      <figcaption><b>Fig Num: </b><em>Caption</em></figcaption>
+  </figure>
+  <div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    
+  </div>
+</div>
+-->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2026-01-14-building-an-event-management-system-with-claude-code-part-6---architecture-and-design-of-a-custom-import-mcp-server/" data-toggle="tooltip" data-placement="top" title="Building an Event Management System with Claude Code: Part 6 - Architecture and Design of a Custom Import MCP Server">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2026
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
