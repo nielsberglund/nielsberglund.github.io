@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Niels Berglund">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-10.png">
+    <meta property="twitter:image" content="https://nielsberglund.com//images/thumbnails/posts/claude-code-ai-10.png" />
+    
+
+    
+    <meta name="title" content="Building an Event Management System with Claude Code: Part 10 - Email Infrastructure with Brevo MCP" />
+    <meta property="og:title" content="Building an Event Management System with Claude Code: Part 10 - Email Infrastructure with Brevo MCP" />
+    <meta property="twitter:title" content="Building an Event Management System with Claude Code: Part 10 - Email Infrastructure with Brevo MCP" />
+    
+
+    
+    <meta name="description" content="Part 10: Integrate Brevo MCP for transactional email sending. Set up email infrastructure, create templates, and send your first conversational emails—all without maintaining a separate contact database.">
+    <meta property="og:description" content="Part 10: Integrate Brevo MCP for transactional email sending. Set up email infrastructure, create templates, and send your first conversational emails—all without maintaining a separate contact database." />
+    <meta property="twitter:description" content="Part 10: Integrate Brevo MCP for transactional email sending. Set up email infrastructure, create templates, and send your first conversational emails—all without maintaining a separate contact database." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="SQL Server, .NET, Kafka, Streaming, Azure Data Explorer, AI/ML">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Building an Event Management System with Claude Code: Part 10 - Email Infrastructure with Brevo MCP | Niels Berglund</title>
+
+    <link rel="canonical" href="/post/2026-02-14-building-an-event-management-system-with-claude-code-part-10---email-infrastructure-with-brevo-mcp/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+
+    
+    <link rel="stylesheet" href="/css/niels-styles.css">
+    <link rel="stylesheet" href="/css/niels-styles2.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+    <script defer data-domain="nielsberglund.com" src="https://plausible.io/js/script.file-downloads.outbound-links.js"></script>
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Niels Berglund</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/series//">BLOG SERIES</a></li>
+                    
+                        <li><a href="/top/about//">ABOUT ME</a></li>
+                    
+                        <li><a href="/top/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/top/disclaimer//">DISCLAIMER</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/banner/posts/claude-code-ai-10.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/generative-ai" title="Generative AI">
+                            Generative AI
+                        </a>
+                        
+                        <a class="tag" href="/tags/claude-code" title="Claude Code">
+                            Claude Code
+                        </a>
+                        
+                        <a class="tag" href="/tags/anthropic" title="Anthropic">
+                            Anthropic
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-assisted-coding" title="AI-assisted Coding">
+                            AI-assisted Coding
+                        </a>
+                        
+                        <a class="tag" href="/tags/mcp-servers" title="MCP Servers">
+                            MCP Servers
+                        </a>
+                        
+                        <a class="tag" href="/tags/ai-native-development" title="AI-Native Development">
+                            AI-Native Development
+                        </a>
+                        
+                        <a class="tag" href="/tags/brevo" title="Brevo">
+                            Brevo
+                        </a>
+                        
+                        <a class="tag" href="/tags/email-marketing" title="Email Marketing">
+                            Email Marketing
+                        </a>
+                        
+                    </div>
+                    <h1>Building an Event Management System with Claude Code: Part 10 - Email Infrastructure with Brevo MCP</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                nielsb
+                             
+                            on 
+                            Saturday, February 14, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>Welcome back to the <strong>Building an Event Management System with Claude Code</strong> series! In Part 9, we explored autonomous implementation with Claude Code, letting it implement three import functions with minimal intervention. We learned that autonomous and conversational approaches each have their place, and that verification is always essential.</p>
+<ul>
+<li><strong>To see all posts in the series, go to:</strong> 
+
+<a href="/contact-event-claude-code"><strong>Building an Event Management System with Claude Code</strong></a>.</li>
+</ul>
+<p>With the Import MCP Server complete, we&rsquo;ve achieved the first half of our AI-native vision: <strong>conversational data import</strong>. Today, we tackle the second half: <strong>conversational communication</strong>. By the end of this post, you&rsquo;ll be able to ask Claude to &ldquo;email all speakers from March 2025&rdquo; and watch it happen.</p>
+<hr>
+<h2 id="what-were-building-today">What We&rsquo;re Building Today</h2>
+<p>By the end of this post, we&rsquo;ll have:</p>
+<ul>
+<li>✅ Researched and selected the right Brevo MCP server</li>
+<li>✅ Configured Brevo account (API key, verified sender)</li>
+<li>✅ Installed and tested <code>@houtini/brevo-mcp</code></li>
+<li>✅ Created our first email template in Brevo&rsquo;s editor</li>
+<li>✅ Sent our first transactional email via natural language</li>
+<li>✅ Solved the template parameter mapping challenge</li>
+<li>✅ Built a reusable template parameter registry</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong> My track record of covering what I say we&rsquo;ll cover is&hellip; well, you know the drill by now. Let&rsquo;s see how far we get!</p>
+</blockquote>
+<hr>
+<h2 id="starting-the-conversation-brevo-mcp-research">Starting the Conversation: Brevo MCP Research</h2>
+<h3 id="asking-claude-code-about-our-options">Asking Claude Code About Our Options</h3>
+<p>Back in Part 3, we decided on Brevo for email, and we identified <code>@houtini/brevo-mcp</code> as our top candidate. But since then, multiple people have approached me with suggestions for alternatives. It&rsquo;s always good to double-check critical infrastructure, so I started Claude Code and asked:</p>
+<pre tabindex="0"><code>Let us now start on the Brevo MCP Server implementation. In Part 3 we identified @houtini/brevo-mcp as an option. Before we proceed, I want to make sure this is still the best choice.
+
+Research the current Brevo MCP server options and compare them. Consider:
+- What tools each provides
+- Setup complexity
+- Whether they work with our architecture (PostgreSQL as single source of truth)
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 1:</strong> <em>Asking Claude Code to Research Brevo MCP Options</em>
+</p>
+<p>Claude Code went to work:</p>
+<pre tabindex="0"><code>● Brevo MCP Server Options Comparison
+
+  Based on my research, here are the main options:
+
+[Claude Code listed the options and their pros and cons]
+
+ ---
+  Recommendation for Our Architecture
+
+  Given our requirements:
+  - PostgreSQL as single source of truth for contacts
+  - Brevo for sending only (not contact management)
+  - Transactional emails for event communications
+  - Template support for consistent branding
+  - Email logging in our database
+
+  Recommended: @houtini/brevo-mcp
+
+  Why:
+  1. Focused scope - Email marketing focus matches our needs
+  2. Simple setup - Single npm command, minimal config
+  3. Active maintenance - Updated Dec 2025
+  4. Right-sized - Has transactional email + campaigns without SMS/WhatsApp bloat
+  5. Well-documented - Clear workflow for test → send
+
+  Our workflow would be:
+  1. Query contacts from PostgreSQL (via Postgres MCP Pro)
+  2. Send emails via Brevo MCP (using templates)
+  3. Log email activity back to PostgreSQL
+
+  Setup complexity: Low - just need BREVO_API_KEY environment variable
+
+  ---
+  Would you like me to proceed with setting up @houtini/brevo-mcp?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 2:</strong> <em>Claude Code&#39;s Brevo MCP Server Recommendation</em>
+</p>
+<p>As shown in <em>Code Snippet 2</em>, Claude Code compared several options and recommended <code>@houtini/brevo-mcp</code> as the best fit for our needs — confirming our earlier choice from Part 3.</p>
+<h3 id="the-architecture-decision">The Architecture Decision</h3>
+<p>Before committing to <code>@houtini/brevo-mcp</code>, I wanted to understand the trade-offs between transactional and campaign messaging. I asked Claude Code to explain the differences. After confirming that transactional mode was the right fit for our use case (no need for A/B testing or Brevo-side contact management), I wanted to see what the architecture would look like.</p>
+<p>Claude Code provided a clear architecture diagram and explanation. The full analysis is published as a <code>gist</code> at: 
+
+<a href="https://gist.github.com/nielsberglund/c4d428d2ec6ec18ee939cf4f7cc9e35f" target="_blank" rel="noopener">Email Architecture - Transactional Mode</a>, and the core architecture diagram is shown below:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-1.png">
+    
+    
+    <figcaption><b>Figure 1: </b><em>Email Architecture - Transactional Mode</em></figcaption>
+</figure>
+<p><em>Figure 1</em> shows the core architecture. The key points:</p>
+<ol>
+<li>PostgreSQL = Single source of truth (contacts, history)</li>
+<li>Brevo = Email delivery only (templates, sending)</li>
+<li>Claude = Orchestrator (queries DB, loops through recipients, sends via Brevo)</li>
+<li>Confirmation = Required before bulk sends (&gt;10 recipients)</li>
+</ol>
+<p>With this confirmation, I was ready to proceed.</p>
+<hr>
+<h2 id="setting-up-brevo-with-claude-codes-guidance">Setting Up Brevo with Claude Code&rsquo;s Guidance</h2>
+<p>The question is: what do we need to set up Brevo to start sending emails?</p>
+<h3 id="setting-up-brevo">Setting up Brevo</h3>
+<p>What do we need to configure in Brevo before we can start sending? As usual, I asked Claude Code:</p>
+<pre tabindex="0"><code>Before I can setup and start use @houtini/brevo-mcp, can you guide me through setting up Brevo for our transactional email integration.
+What do I need to configure in Brevo before we can start sending?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 3:</strong> <em>Preparing Brevo Account for MCP Server Use</em>
+</p>
+<p>Claude Code provided a checklist:</p>
+<pre tabindex="0"><code>● Brevo Setup Guide for Transactional Email
+
+STEP 1: Get Your API Key
+─────────────────────────
+1. Log into Brevo at https://app.brevo.com
+2. Navigate to: Settings → API Keys
+3. Create new key or copy existing
+4. Key format: xkeysib-xxxxxxxx...
+
+⚠️  IMPORTANT: Use the STANDARD API key (starts with xkeysib-)
+    NOT the &#34;MCP API key&#34; option (that&#39;s for Official Brevo MCP only)
+
+STEP 2: Verify Your Sender
+──────────────────────────
+Brevo requires verified senders before sending. You need:
+- A verified email address, OR
+- A verified domain (better for deliverability)
+
+For testing: Verified email is fine
+For production: Verify your domain (dataai.community)
+
+Navigate to: Settings → Senders &amp; IP → Add a Sender
+
+STEP 3: Create a Test List (Optional but Recommended)
+─────────────────────────────────────────────────────
+@houtini/brevo-mcp has a send_test_email tool that sends to a 
+pre-configured test list. If you want to use it:
+1. Create a list in Brevo called &#34;Test Recipients&#34;
+2. Add your test email addresses
+3. Configure as default test list in Settings
+
+For transactional mode, this is OPTIONAL since we can send 
+directly to any email address.
+
+Ready to proceed? Let me know when you have your API key.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 4:</strong> <em>Claude Code&#39;s Step-by-Step Brevo Setup Guide</em>
+</p>
+<p>As we see in <em>Code Snippet 4</em>, Claude Code provided a step-by-step guide to setting up our Brevo account, including how to generate an API key and verify the sender email address. Following Claude Code&rsquo;s instructions, I successfully prepared our Brevo account for integration:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-2.png">
+    
+    
+    <figcaption><b>Figure 2: </b><em>Brevo API Key Generated</em></figcaption>
+</figure>
+<p>In <em>Figure 2</em>, the generated API key is outlined in red (partially redacted for security). I generated it by browsing to the Brevo URL, clicking to generate a new API key (outlined in blue), and copying it for later use.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    Keep your API key secure! Store it in environment variables, never in code or committed files. Claude Code will help us configure this properly.
+  </div>
+</div>
+<p>Since I have been using Brevo for a while through their Web UI, I already had a verified sender email address, so I didn&rsquo;t need to repeat that step.</p>
+<hr>
+<h2 id="installing-houtinibrevo-mcp-with-claude-code">Installing @houtini/brevo-mcp with Claude Code</h2>
+<p>We should now be ready to install <code>@houtini/brevo-mcp</code>.</p>
+<h3 id="generating-the-configuration">Generating the Configuration</h3>
+<p>With the API key ready, I asked Claude Code to set up the MCP server:</p>
+<pre tabindex="0"><code>Configure @houtini/brevo-mcp for Claude Desktop. Generate the configuration and add it to Claude Desktop. Please also document the configuration.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 5:</strong> <em>Setting Up @houtini/brevo-mcp with Claude Code</em>
+</p>
+<p>Claude Code generated the configuration:</p>
+<pre tabindex="0"><code>● I can see your current Claude Desktop config. I&#39;ll add the Brevo MCP configuration. However, I need your Brevo API
+  key to complete the setup.
+
+● Please provide your Brevo API key (the one you generated in Step 2 of the setup - starts with xkeysib-).
+
+[I provided the key, Claude Code generated the config, and documentation]
+
+● Done! Here&#39;s what was configured:
+
+  Configuration Added
+
+  Claude Desktop config (C:\Users\niels\AppData\Roaming\Claude\claude_desktop_config.json):
+
+  &#34;brevo&#34;: {
+    &#34;command&#34;: &#34;npx&#34;,
+    &#34;args&#34;: [&#34;-y&#34;, &#34;@houtini/brevo-mcp&#34;],
+    &#34;env&#34;: {
+      &#34;BREVO_API_KEY&#34;: &#34;xkeysib-25ac9167...&#34;
+    }
+  }
+
+  Documentation Created
+
+  docs/mcp-servers-config.md - Complete documentation of all MCP servers:
+  - PostgreSQL MCP Pro (database operations)
+  - Import MCP (CSV imports)
+  - Brevo MCP (email sending)
+
+Next Steps
+
+1. Restart Claude Desktop - Quit completely (check system tray) and relaunch
+2. Verify Brevo MCP loaded - In Claude Desktop, the Brevo tools should be available
+3. Test the connection - Ask Claude Desktop: &#34;What is my Brevo account info?&#34;
+
+---
+⚠️ Security Note: Your API key is now visible in this conversation. Consider regenerating it in Brevo if this
+conversation is shared. The key in the config file is fine - just be careful with this chat log.
+
+Would you like me to commit the documentation to git?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 6:</strong> <em>Claude Code&#39;s Generated @houtini/brevo-mcp Configuration</em>
+</p>
+<p>The only issue with the generated configuration in <em>Code Snippet 6</em> is that the key is visible in this conversation as well as hardcoded in the config file. To mitigate this, I regenerated the API key in Brevo after completing the setup.</p>
+<blockquote>
+<p><strong>NOTE:</strong> All of you reading this are probably groaning out loud, and thinking: &ldquo;Niels, why didn&rsquo;t you just use environment variables properly instead of hardcoding the key in the config file?&rdquo;. Good question. The answer is: cast your minds back to part 7 in this series. There, we realised that Claude Desktop cannot &ldquo;see&rdquo; environment variables. We do have a GH issue open to see how to solve this. Until we&rsquo;ve solved that, hardcoding the key in the config file is the only way to get Claude Code to work with MCP servers requiring authentication.</p>
+</blockquote>
+<p>I restarted Claude Desktop to load the new MCP Server.</p>
+<h3 id="verifying-the-connection">Verifying the Connection</h3>
+<p>Now, the moment of truth: does it work? I switched to Claude Desktop (since we need the Brevo MCP server running) and asked:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-3.png">
+    
+    
+    <figcaption><b>Figure 3: </b><em>Verifying Brevo MCP Connection in Claude Desktop</em></figcaption>
+</figure>
+<p>Yay! In <em>Figure 3</em>, we see that Claude Desktop successfully connected to Brevo and retrieved account information, confirming that our setup was correct. We are now one step closer to sending emails through conversations.</p>
+<hr>
+<h2 id="exploring-the-brevo-mcp-tools-with-claude-code">Exploring the Brevo MCP Tools with Claude Code</h2>
+<p>Before we send our first email, let&rsquo;s explore the tools the Brevo MCP server provides.</p>
+<h3 id="discovering-available-tools">Discovering Available Tools</h3>
+<p>So far, the whole process has been very conversational. Let&rsquo;s continue that trend by using Claude Code to list the available tools:</p>
+<pre tabindex="0"><code>Now that Brevo MCP is connected, list all the available tools and explain which ones we&#39;ll use for our transactional email approach.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 7:</strong> <em>Listing Available Brevo MCP Tools with Claude Code</em>
+</p>
+<p>Claude Code provided a breakdown:</p>
+<pre tabindex="0"><code>● Analyzing @houtini/brevo-mcp tools for transactional use case...
+
+[Claude Code investigates the MCP Server]
+
+● @houtini/brevo-mcp - All Available Tools
+
+  Based on the https://github.com/houtini-ai/brevo-mcp:
+
+  Complete Tool List
+ 
+[Claude Code lists many tools - snipped for brevity]
+
+  ---
+  Tools We&#39;ll Use
+
+  Primary Tool: send_email
+
+  This is our main tool for transactional emails.
+
+  Capabilities:
+  - Send to individual recipients (one at a time)
+  - Use Brevo templates with dynamic personalization
+  - Custom HTML content if needed
+  - Attachment support
+  - Reply tracking
+
+[Snipped for brevity]
+
+  Secondary Tool: get_account_info
+
+  Use for:
+  - Verify API connection works
+  - Check remaining email credits
+  - Confirm account plan/limits
+
+  ---
+  Our Transactional Workflow
+
+[Claude Code outlines the workflow, see diagram below - snipped for brevity]
+
+  ---
+  What We&#39;re NOT Using (and Why)
+
+[Claude Code lists unused tools - snipped for brevity]
+
+  ---
+  Template Parameters
+
+  When using send_email with templates, you can pass dynamic parameters:
+  ┌────────────┬────────────────────┬─────────────────────────┐
+  │ Parameter  │      Example       │    Usage in Template    │
+  ├────────────┼────────────────────┼─────────────────────────┤
+  │ first_name │ &#34;John&#34;             │ {{ params.first_name }} │
+  ├────────────┼────────────────────┼─────────────────────────┤
+  │ event_name │ &#34;Data &amp; AI Day&#34;    │ {{ params.event_name }} │
+  ├────────────┼────────────────────┼─────────────────────────┤
+  │ event_date │ &#34;March 15, 2025&#34;   │ {{ params.event_date }} │
+  ├────────────┼────────────────────┼─────────────────────────┤
+  │ talk_title │ &#34;AI in Production&#34; │ {{ params.talk_title }} │
+  ├────────────┼────────────────────┼─────────────────────────┤
+  │ venue      │ &#34;DUT, Durban&#34;      │ {{ params.venue }}      │
+  └────────────┴────────────────────┴─────────────────────────┘
+  ---
+  Would you like me to test the Brevo connection by calling get_account_info in Claude Desktop?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 8:</strong> <em>Claude Code&#39;s Breakdown of Brevo MCP Tools</em>
+</p>
+<p><em>Code Snippet 8</em> is just a small excerpt of what Claude Code listed. There were many tools, but the key takeaway is that we will primarily use <code>send_email</code> for our transactional emails, with <code>get_account_info</code> as a secondary tool for verification and monitoring.</p>
+<p>You may notice in <em>Code Snippet 8</em> that Claude Code mentioned the transactional workflow, which I snipped for brevity. The workflow looks very much like what you see in <em>Figure 1</em> earlier.</p>
+<h3 id="deep-dive-the-send_email-tool">Deep Dive: The <code>send_email</code> Tool</h3>
+<p>Since a lot of our email sending will revolve around the <code>send_email</code> tool, I asked Claude Code to explain it in more detail, and Claude Code obliged:</p>
+<pre tabindex="0"><code>● Brevo send_email Tool - Full Capabilities
+
+BASIC USAGE (Single Recipient):
+───────────────────────────────
+send_email({
+  to: [{ email: &#34;person@example.com&#34;, name: &#34;Person Name&#34; }],
+  subject: &#34;Your Subject Line&#34;,
+  
+  // Content: Choose ONE of these
+  templateId: 27,                    // Use Brevo template
+  // OR
+  htmlContent: &#34;&lt;h1&gt;Hello!&lt;/h1&gt;&#34;,    // Direct HTML
+  
+  // Personalization
+  params: {
+    FIRSTNAME: &#34;Sarah&#34;,
+    CUSTOM_VAR: &#34;any value&#34;
+  }
+})
+
+BATCH USAGE (Multiple Recipients, Personalized):
+────────────────────────────────────────────────
+send_email({
+  templateId: 27,           // Global template
+  subject: &#34;Default Subject&#34;, // Global default
+  
+  messageVersions: [
+    {
+      to: [{ email: &#34;sarah@example.com&#34;, name: &#34;Sarah&#34; }],
+      params: { FIRSTNAME: &#34;Sarah&#34;, RATING: &#34;6.2&#34; }
+    },
+    {
+      to: [{ email: &#34;john@example.com&#34;, name: &#34;John&#34; }],
+      params: { FIRSTNAME: &#34;John&#34;, RATING: &#34;5.8&#34; },
+      subject: &#34;Custom subject for John&#34;  // Override!
+    },
+    // ... up to 1000 versions
+  ]
+})
+
+[snipped for brevity]
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 9:</strong> <em>Claude Code&#39;s Detailed Explanation of the send_email Tool</em>
+</p>
+<p>The batch capabilities shown in <em>Code Snippet 9</em> are particularly exciting, as they enable us to send personalised emails to multiple recipients in a single go, using a single Brevo template.</p>
+<h3 id="brevo-templates-explained">Brevo Templates Explained</h3>
+<p>Brevo templates are  a pre-designed email layout you create once in Brevo&rsquo;s drag-and-drop editor, containing your logo, colors, formatting, and placeholder text like <code>{{params.firstName}}</code> or <code>{{params.eventName}}</code>. When sending emails via the API, instead of passing raw HTML every time, you just reference the template by its ID (e.g., <code>templateId: 12</code>) and pass the dynamic values (e.g., <code>params: {firstName: &quot;Jane&quot;, eventName: &quot;Tech Conference&quot;}</code>), and Brevo merges them together.</p>
+<p>This separates design from code; we can update email styling in Brevo&rsquo;s visual editor without touching any code, while Claude needs to know &ldquo;use template 12 for registration confirmations&rdquo; and provide the personalisation data.</p>
+<hr>
+<h2 id="creating-our-first-email-template">Creating Our First Email Template</h2>
+<p>How do we create a Brevo template? Before diving into that, what templates would we need for our <strong>Data &amp; AI Community Day Durban</strong> events? Once again, I turned to Claude Code for guidance, and Claude Code responded:</p>
+<pre tabindex="0"><code>● Based on the Data &amp; AI Community Day Durban workflow (Quicket registrations, Sessionize speakers, ~300 attendees,
+  ~20-30 speakers), here are the essential templates:
+
+  Attendee Templates
+  ┌──────────────────────┬───────────────────────┬─────────────────────────────────────────┐
+  │       Template       │       When Used       │               Key Params                │
+  ├──────────────────────┼───────────────────────┼─────────────────────────────────────────┤
+  │ Event Reminder       │ 1 week + 1 day before │ firstName, eventDate, venue, ticketType │
+  ├──────────────────────┼───────────────────────┼─────────────────────────────────────────┤
+  │ Post-Event Thank You │ Day after event       │ firstName, eventName, feedbackLink      │
+  └──────────────────────┴───────────────────────┴─────────────────────────────────────────┘
+  Speaker Templates
+  ┌───────────────────────────┬──────────────────────────┬───────────────────────────────────────────────────────────┐
+  │         Template          │        When Used         │                        Key Params                         │
+  ├───────────────────────────┼──────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ CFP Invitation            │ When opening submissions │ firstName, eventName, cfpDeadline, submitLink             │
+  ├───────────────────────────┼──────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Session Accepted          │ After Sessionize         │ firstName, sessionTitle, sessionTime, room                │
+  │                           │ selection                │                                                           │
+  ├───────────────────────────┼──────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Speaker Logistics         │ 1-2 weeks before         │ firstName, sessionTitle, arrivalTime, avRequirements      │
+  ├───────────────────────────┼──────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Speaker Thank You +       │ After event              │ firstName, sessionTitle, avgRating, attendeeCount,        │
+  │ Ratings                   │                          │ topComments                                               │
+  └───────────────────────────┴──────────────────────────┴───────────────────────────────────────────────────────────┘
+  Recommended Starting Set (4 Templates)
+
+  1. Event Reminder - highest impact, reduces no-shows
+  2. CFP Invitation - recurring annual need
+  3. Speaker Logistics - critical for smooth event day
+  4. Speaker Ratings Report - valuable feedback speakers appreciate
+
+  The registration confirmation is typically handled by Quicket automatically, so you likely don&#39;t need to duplicate
+  that.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 10:</strong> <em>Claude Code&#39;s Recommended Email Templates for Event Management</em>
+</p>
+<p>Shown in <em>Code Snippet 10</em> is Claude Code&rsquo;s recommended set of email templates for our event management system. Since our first event is coming up soon (March 14), I decided to start by creating the &ldquo;CFP Invitation&rdquo; (Call For Papers/Call For Speakers) template.</p>
+<blockquote>
+<p><strong>NOTE:</strong> Looking at <em>Code Snippet 10</em>, I do have some concerns about the templates and the exact parameters. The reservations I have are for the &ldquo;Session Accepted&rdquo; and &ldquo;Speaker Thank You + Ratings&rdquo; templates. Acceptance emails (and rejections) are sent from the Sessionize platform, so no template is needed. For the &ldquo;Speaker Thank You + Ratings&rdquo; template, I believe the parameters need to change somewhat, as one speaker may present multiple topics, and should receive separate ratings for each. Also, for each topic, the ratings cover both the presentation and the content individually. I will revisit this with Claude Code at a later stage to refine the template parameters.</p>
+</blockquote>
+<p>So, how do we create Brevo templates?</p>
+<h3 id="creating-a-template-in-brevo">Creating a Template in Brevo</h3>
+<p>The &ldquo;CFP Invitation&rdquo; template is the one I want to start with (as per above). My assumption is that it will serve as a good starting point for our email communications. I also assume I will create the template using a Brevo editor. What I do not know is how to include the parameters we see in <em>Code Snippet 10</em>. So I asked Claude Code:</p>
+<pre tabindex="0"><code>I have decided to create the &#34;CFP Invitation&#34; email template in Brevo as my first template. Can you guide me through creating this template. What I use to create it. etc., and how to add the dynamic parameters like {{params.firstName}}, {{params.eventName}}, etc.?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 11:</strong> <em>Creating the &#39;CFP Invitation&#39; Template with Claude Code&#39;s Guidance</em>
+</p>
+<p>You see in <em>Code Snippet 11</em> how I &ldquo;hedged&rdquo; my bets about where to create the template (I assume in Brevo&rsquo;s editor), and how I asked about the dynamic parameters. Claude responded:</p>
+<pre tabindex="0"><code>● Creating Your First Brevo Template: CFP Invitation
+
+  Step 1: Access the Template Editor
+
+  1. Log into https://app.brevo.com
+  2. Navigate to Campaigns → Templates
+  3. Click New Template → Drag &amp; Drop Editor (recommended for beginners)
+
+  Step 2: Basic Setup
+
+  When prompted:
+  - Template Name: CFP Invitation - Data &amp; AI Community Day
+  - Subject Line: {{params.firstName}}, speak at {{params.eventName}}!
+  - From: Your verified sender email
+
+  Step 3: Design the Email
+
+  Use the drag-and-drop blocks to build your layout:
+
+[Snipped for brevity]
+
+  Step 4: Adding Dynamic Parameters
+
+  In the drag-and-drop editor:
+
+  1. Click on a Text Block
+  2. Type your text normally
+  3. Where you want a dynamic value, simply type {{params.variableName}}
+  4. The editor will highlight it as a variable
+
+  For the button link:
+  1. Select the button
+  2. In the Link URL field, enter: {{params.submitLink}}
+
+  Step 5: Parameters Summary
+  ┌────────────────────────┬─────────────────────────────────────┬────────────────────────┐
+  │       Parameter        │            Example Value            │      Description       │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.firstName}}   │ Jane                                │ Recipient&#39;s first name │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.eventName}}   │ Data &amp; AI Community Day Durban 2026 │ Full event name        │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.eventDate}}   │ March 15, 2026                      │ Event date             │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.venue}}       │ Durban ICC                          │ Event location         │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.cfpDeadline}} │ January 31, 2026                    │ Submission deadline    │
+  ├────────────────────────┼─────────────────────────────────────┼────────────────────────┤
+  │ {{params.submitLink}}  │ https://sessionize.com/your-event   │ Sessionize CFP URL     │
+  └────────────────────────┴─────────────────────────────────────┴────────────────────────┘
+  Step 6: Preview &amp; Test
+
+  1. Click Preview in the top right
+  2. Click Send Test Email
+  3. Enter test values for each parameter when prompted
+  4. Send to yourself to verify formatting
+
+  Step 7: Save &amp; Note the Template ID
+
+  1. Click Save &amp; Quit
+  2. Back in the Templates list, hover over your template
+  3. Note the Template ID (visible in the URL or template details) - you&#39;ll need this for the API
+
+  ---
+  Using the Template via Claude
+
+  Once saved, Claude can send emails using:
+
+[snipped for brevity]
+
+  Let me know once you&#39;ve created the template and I can help you test it
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 12:</strong> <em>Claude Code&#39;s Step-by-Step Guide to Creating the &#39;CFP Invitation&#39; Template</em>
+</p>
+<p>As shown in <em>Code Snippet 12</em>, Claude Code provided a detailed step-by-step guide to creating the &ldquo;CFP Invitation&rdquo; template in Brevo&rsquo;s drag-and-drop editor, including how to add dynamic parameters like <code>{{params.firstName}}</code> and <code>{{params.eventName}}</code>.</p>
+<p>I logged into my Brevo account and navigated to the &ldquo;Marketing -&gt; Campaigns -&gt;Templates&rdquo; section. From there, I clicked on <strong>Create Template</strong> and chose <strong>Email template</strong>. I proceeded to design a very minimalistic template for testing, and I added the dynamic parameters:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-4.png">
+    
+    
+    <figcaption><b>Figure 4: </b><em>The &#39;CFP Invitation&#39; Template in Brevo&#39;s Editor</em></figcaption>
+</figure>
+<p>In <em>Figure 4</em>, you see the template I created in Brevo&rsquo;s editor, with the dynamic parameters highlighted in red. The parameters are added by simply typing <code>{{params.variableName}}</code> in the text blocks or link fields, and Brevo automatically recognises them as variables.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    Brevo templates use <code>{{params.variableName}}</code> syntax. The <code>params.</code> prefix is required. Using just <code>{{variableName}}</code> won&rsquo;t work for transactional sends.
+  </div>
+</div>
+<p>After creating the template, I saved it and noted the Template ID, which is required to send emails via the API. The next step is to test sending an email using this template through Claude Desktop, which we will cover in the next section.</p>
+<hr>
+<h2 id="sending-our-first-email-via-claude-desktop">Sending Our First Email via Claude Desktop</h2>
+<p>Time for the moment of truth: can we send an email using our new Brevo MCP server and the &ldquo;CFP Invitation&rdquo; template we just created?</p>
+<h3 id="the-test-send">The Test Send</h3>
+<p>In Claude Desktop (where Brevo MCP is running), I asked:</p>
+<pre tabindex="0"><code>I want you to send a Call for Speakers email to Niels Berglund. It is for the event at March 14, 2026. You should use the template with an ID of 49.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 13:</strong> <em>Sending a Test Email via Claude Desktop</em>
+</p>
+<p>Before I asked Claude Desktop to send the email, I had created a new event. This event is the one we are having on March 14, 
+
+<a href="https://aimldatadurban.org/events/2026/ai-unplugged/" target="_blank" rel="noopener"><strong>Data &amp; AI Community Day Durban: AI Unplugged</strong></a>. I added this event to the database using the Import MCP Server, and I ensured the required details were included for the email template parameters.</p>
+<p>Having prompted Claude Desktop as in <em>Code Snippet 13</em>, Claude Desktop responded:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-5.png">
+    
+    
+    <figcaption><b>Figure 5: </b><em>Claude Desktop Confirming Sending Email via Brevo MCP</em></figcaption>
+</figure>
+<p>Claude Desktop did not just send the email immediately. Instead, it confirmed the details with me first, as shown in <em>Figure 5</em>. This is a great safety feature to prevent accidental bulk sends. Everything looked good, so I confirmed I wanted to send. The response was like so:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-6.png">
+    
+    
+    <figcaption><b>Figure 6: </b><em>Claude Desktop Confirming Email Sent and Showing Response</em></figcaption>
+</figure>
+<p>Yes! In <em>Figure 6</em>, we see that Claude Desktop says it successfully sent the email via Brevo MCP. So I went to my email client and waited, and waited and waited&hellip; and no email. After a few minutes, I checked the Brevo dashboard to see if the email was sent:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-7.png">
+    
+    
+    <figcaption><b>Figure 7: </b><em>Brevo Dashboard Showing the Sent Email</em></figcaption>
+</figure>
+<p>As shown in <em>Figure 7</em>, the email was not sent successfully; an error (highlighted in red) occurred. When clicking on the error:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-8.png">
+    
+    
+    <figcaption><b>Figure 8: </b><em>Template Disabled</em></figcaption>
+</figure>
+<p>Ah — as we see in <em>Figure 8</em>, the template was disabled. I had forgotten to click the <strong>Activate</strong> toggle in Brevo&rsquo;s template settings after creating it. Easy fix.</p>
+<p>But there&rsquo;s a more concerning problem. Looking back at the logs in <em>Figure 7</em>, the parameters for <code>{{params.firstName}}</code> and <code>{{params.eventName}}</code> were not passed. This is a problem because these parameters are required for the template to render properly. Going back to <em>Figure 6</em> and expanding what is highlighted in red, we see:</p>
+<pre tabindex="0"><code>Request
+
+{
+  &#34;to&#34;: [
+    {
+      &#34;email&#34;: &#34;niels.it.berglund@gmail.com&#34;,
+      &#34;name&#34;: &#34;Niels Berglund&#34;
+    }
+  ],
+  &#34;templateId&#34;: 49
+}
+Response
+
+{
+  &#34;messageId&#34;: &#34;&lt;202602120526.70190096631@smtp-relay.mailin.fr&gt;&#34;,
+  &#34;status&#34;: &#34;sent&#34;,
+  &#34;to&#34;: [
+    {
+      &#34;email&#34;: &#34;niels.it.berglund@gmail.com&#34;,
+      &#34;name&#34;: &#34;Niels Berglund&#34;
+    }
+  ],
+  &#34;subject&#34;: &#34;Template-based email&#34;
+}
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 14:</strong> <em>Brevo MCP Request and Response for the Test Email</em>
+</p>
+<p>I guess the problem is what we do <strong>NOT</strong> see in <em>Code Snippet 14</em>; the <code>params</code> object that should have been passed in the request. This is a problem because without the parameters, the template cannot render properly. Clearly, the parameters aren&rsquo;t being passed correctly from Claude Desktop to the Brevo MCP server. Back to Claude Code.</p>
+<h3 id="debugging-the-missing-parameters-issue">Debugging the Missing Parameters Issue</h3>
+<p>I asked Claude Code:</p>
+<pre tabindex="0"><code>So I just tried to send an email from Claude Desktop to a Brevo teamplate. Claude desktop correctly identified the email to send to and the template, but it did not acknowledge the parameters for the template. How do I solve this?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 15:</strong> <em>Debugging Missing Template Parameters with Claude Code</em>
+</p>
+<p>I thought I would get a simple answer, but instead, Claude Code responded:</p>
+<pre tabindex="0"><code>● This is a common issue — Claude Desktop needs to know what parameters the template expects. There are a few things to
+  check:
+
+  1. Check what the Brevo MCP tool accepts
+
+[snipped for brevity]
+
+  2. Be explicit in your prompt
+
+  When asking Claude Desktop to send, be very specific about the parameters:
+
+[snipped for brevity]
+
+  3. Possible root cause
+
+  The @houtini/brevo-mcp tool might not expose template params as a tool parameter. If that&#39;s the case, you have two
+  options:
+
+[snipped for brevity]
+
+  Can you try the explicit prompt first and share what happens? Also, what exactly did Claude Desktop respond when it
+  sent the email — did it show the tool call it made?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 16:</strong> <em>Claude Code&#39;s Troubleshooting Steps for Missing Template Parameters</em>
+</p>
+<p>This was a bit disappointing. Instead of a quick fix, I got a rather generic troubleshooting response from Claude Code — check the tool schema, be more explicit in the prompt. Not particularly helpful.</p>
+<p>When checking if the MCP server has a tool/function to retrieve parameter information, I found that it does not, bummer!</p>
+<p>Back to the drawing board, I asked Claude Code:</p>
+<pre tabindex="0"><code>So it looks like the MCP server does not expose any tool/function to retrieve parameters for a template id. I do definitely not want to  define the parameters in each call, for each template id. Do you have any ideas how to solve this?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 17:</strong> <em>Finding a Solution for Missing Template Parameters with Claude Code</em>
+</p>
+<p>The response to the prompt/question in <em>Code Snippet 17</em>:</p>
+<pre tabindex="0"><code>● Good thinking — you shouldn&#39;t have to repeat parameters every time. Here are a few approaches, from simplest to most
+  robust:
+
+  Option A: Template registry in your database (Recommended)
+
+  Store template metadata in PostgreSQL. Claude already has the Postgres MCP, so it can look up what any template needs
+  before sending.
+
+[snipped for brevity]
+
+  The workflow becomes:
+  1. You say: &#34;Send the CFP invitation to all 2024 speakers&#34;
+  2. Claude queries email_templates to find template 49 and its parameters
+  3. Claude queries contacts/events to resolve the source fields automatically
+  4. Claude asks you only for values it can&#39;t resolve (like cfpDeadline, submitLink)
+  5. Claude sends via Brevo with all params filled in
+
+  Option B: JSON config file in the project
+
+  A simpler version — just a templates.json file Claude reads before sending. Less powerful (no auto-resolution from DB
+  fields) but quick to set up.
+
+  Option C: Custom MCP tool that calls Brevo API
+
+[snipped for brevity]
+
+  ---
+  My recommendation: Option A. It uses your existing Postgres MCP, lets Claude auto-resolve most parameters from
+  database fields, and scales cleanly as you add more templates. You&#39;d essentially tell Claude once how a template maps
+  to your data, and it figures out the rest.
+
+  Want me to design the full table schema and create the migration?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 18:</strong> <em>Claude Code&#39;s Proposed Solutions for Managing Template Parameters</em>
+</p>
+<p>The response we see in <em>Code Snippet 18</em> is better. Claude Code acknowledged the problem and provided multiple solutions to solve it, which is great. For now, I am going to go with Option B, the JSON config file, as it is the quickest to set up. I can always migrate to Option A later when I have more templates and want the auto-resolution from database fields.</p>
+<p>So I indicated to Claude Code that I want to go with Option B, and asked what the file should look like. The file looked good, but it only listed the template parameters, not mapped them to what is in the database. So I asked Claude Code how to map the JSON file parameters to the database fields so that Claude Desktop can automatically resolve them when sending emails. Claude Code&rsquo;s response was:</p>
+<pre tabindex="0"><code>● Claude Desktop won&#39;t reliably resolve that on its own — it would have to guess which database field maps to which
+  template parameter every time. Sometimes it&#39;ll get it right, sometimes not.
+
+  You should add the mapping explicitly. Just add a source field:
+
+  {
+    &#34;templates&#34;: [
+      {
+        &#34;brevo_template_id&#34;: 49,
+        &#34;name&#34;: &#34;CFP Invitation&#34;,
+        &#34;description&#34;: &#34;Invite speakers to submit sessions for Call for Papers&#34;,
+        &#34;parameters&#34;: {
+          &#34;firstName&#34;: {
+            &#34;description&#34;: &#34;Recipient&#39;s first name&#34;,
+            &#34;source&#34;: &#34;contacts.first_name&#34;,
+            &#34;required&#34;: true
+          },
+          &#34;eventName&#34;: {
+            &#34;description&#34;: &#34;Full event name&#34;,
+            &#34;source&#34;: &#34;events.name&#34;,
+            &#34;required&#34;: true
+          },
+
+[snipped for brevity]
+
+          &#34;bannerImageUrl&#34;: {
+            &#34;description&#34;: &#34;Event-specific banner image URL&#34;,
+            &#34;source&#34;: null,
+            &#34;required&#34;: false
+          }
+        }
+      }
+    ]
+  }
+
+  The logic is simple:
+  - source has a value → Claude queries the database to get it automatically
+  - source is null → Claude must ask you or you provide it in the prompt
+
+  So when you say &#34;Send the CFP invitation to all 2024 speakers for Data &amp; AI Community Day 2026&#34;, Claude would:
+
+  1. Read templates.json → find template 49
+  2. Auto-resolve firstName from contacts.first_name for each recipient
+  3. Auto-resolve eventName, eventDate, venue from the events table
+  4. Ask you for cfpDeadline, submitLink, and optionally bannerImageUrl
+
+  Want me to create this file in the project?
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 19:</strong> <em>Claude Code&#39;s Explanation of Mapping Template Parameters to Database Fields</em>
+</p>
+<p>This is great, I like the idea of having a <code>source</code> field that tells Claude Desktop where to look for the parameter value in the database. This way, we can automate the resolution of parameter values based on what is stored in the database, and only ask for values that are not stored (like <code>cfpDeadline</code> and <code>submitLink</code>).</p>
+<blockquote>
+<p><strong>NOTE:</strong> Maybe I should list parameters like <code>cfpDeadline</code> and <code>submitLink</code> in the JSON file as well. For now, I will ask for them in the prompt, but in the future, it may be better to include them in the JSON file with a <code>source</code> of <code>null</code> to make it clear they are required parameters.</p>
+</blockquote>
+<p>I asked Claude Code to create this file in the project:</p>
+<pre tabindex="0"><code>Can you please create the file for me. The CFP template have the following parameters:
+
+  * params.firstName
+  * params.eventName
+  * params.eventDate
+  * params.venue
+  * params.cfpDeadline
+  * params.submitLink
+  * params.bannerImageUrl
+
+  Please match them against what we have in the database, and create the file. The templateId is 49
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 20:</strong> <em>Requesting Claude Code to Create the Template Parameters JSON File</em>
+</p>
+<p>Based on my prompt in <em>Code Snippet 20</em>, Claude Code went ahead:</p>
+<pre tabindex="0"><code>● Let me check the database schema first to get the exact column names.
+
+[snipped for brevity]
+
+● Got the events table. Let me retry contacts.
+
+[snipped for brevity]
+
+● Got both tables. Here&#39;s the mapping:
+  ┌────────────────┬─────────────────────┐
+  │   Parameter    │      DB Source      │
+  ├────────────────┼─────────────────────┤
+  │ firstName      │ contacts.first_name │
+  ├────────────────┼─────────────────────┤
+  │ eventName      │ events.name         │
+  ├────────────────┼─────────────────────┤
+  │ eventDate      │ events.event_date   │
+  ├────────────────┼─────────────────────┤
+  │ venue          │ events.location     │
+  ├────────────────┼─────────────────────┤
+  │ cfpDeadline    │ no match — manual   │
+  ├────────────────┼─────────────────────┤
+  │ submitLink     │ no match — manual   │
+  ├────────────────┼─────────────────────┤
+  │ bannerImageUrl │ no match — manual   │
+  └────────────────┴─────────────────────┘
+
+● Write(templates.json)
+  ⎿  Wrote 1 lines to templates.json
+       1 {
+       2   &#34;templates&#34;: [
+       3     {
+       4       &#34;brevo_template_id&#34;: 49,
+       5       &#34;name&#34;: &#34;CFP Invitation&#34;,
+       6       &#34;description&#34;: &#34;Invite speakers to submit sessions for Call for Papers&#34;,
+       7       &#34;parameters&#34;: {
+       8         &#34;firstName&#34;: {
+       9           &#34;description&#34;: &#34;Recipient&#39;s first name&#34;,
+      10           &#34;source&#34;: &#34;contacts.first_name&#34;,
+
+● Created templates.json. Here&#39;s a summary:
+
+  Auto-resolved from database (per recipient/event):
+  - firstName → contacts.first_name
+  - eventName → events.name
+  - eventDate → events.event_date
+  - venue → events.location
+
+  Manual (you provide in the prompt):
+  - cfpDeadline — no DB field for this
+  - submitLink — no DB field for this
+  - bannerImageUrl — optional, no DB field
+
+  So a typical Claude Desktop prompt would be:
+
+  &#34;Send the CFP invitation to all 2024 speakers for Data &amp; AI Community Day 2026. CFP deadline is January 31, 2026.
+  Submit link is https://sessionize.com/data-ai-durban-2026&#34;
+
+  Claude would handle the rest by reading templates.json and querying the database for the four auto-resolved fields.
+
+  You&#39;ll want to reference this file in your Claude Desktop system prompt or project instructions so Claude knows to
+  consult it before sending emails.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 21:</strong> <em>Claude Code Creating the Template Parameters JSON File and Explaining the Resulting Workflow</em>
+</p>
+<p>We see in <em>Code Snippet 21</em> that Claude Code successfully created the file, along with a description of the workflow and a potential prompt for Claude Desktop. In addition, Claude Code said that I could reference this file in the Claude Desktop project instructions so that Claude knows to consult it before sending emails. This is a good point, and I will do that next.</p>
+<h3 id="configure-claude-desktop-to-use-the-template-parameters-file">Configure Claude Desktop to Use the Template Parameters File</h3>
+<p>I took the <code>templates.json</code> file Claude Code created and added it to the Claude Desktop project. I also referenced it in the project instructions. A Claude Desktop project has the notions of <strong>Instructions</strong>, which are guidelines or information that Claude Desktop reads before performing any actions. My instructions look like so:</p>
+<pre tabindex="0"><code>This is the project for the Data &amp; AI Contact and Event Management system. The underlying database is a PostgreSQL database, so for direct database queries, always use the PostgreSQL MCP Server - unless otherwise informed.
+
+When sending emails use the Brevo MCP server. As the emails are templated, a file named templates.json is uploaded to the project. For emails read the parameters for the template in question and query the database for the values. If any parameters are not in the database, ask the user for the values.
+</code></pre><p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+<strong>Code Snippet 22:</strong> <em>Claude Desktop Project Instructions Including Reference to Template Parameters File</em>
+</p>
+<p>Having updated the instructions as in <em>Code Snippet 22</em>, I am now ready to test sending the email again, this time with the expectation that Claude Desktop will read the <code>templates.json</code> file, understand what parameters are needed for the template, and query the database for the values it can resolve, while asking me for any values it cannot resolve.</p>
+<h4 id="test-send-with-template-parameters">Test Send with Template Parameters</h4>
+<p>Before doing anything, I made sure to activate the template in Brevo, as that was the issue last time. Then I prompted Claude Desktop with the same CFP invitation request from <em>Code Snippet 13</em>, and Claude Desktop started working:</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-9.png">
+    
+    
+    <figcaption><b>Figure 9: </b><em>Claude Desktop Resolving Template Parameters from JSON File and Database</em></figcaption>
+</figure>
+<p>As shown in <em>Figure 9</em>, Claude Desktop read the <code>templates.json</code> file, identified the required template parameters, and queried the database to retrieve the values for <code>firstName</code>, <code>eventName</code>, <code>eventDate</code>, and <code>venue</code>. For the parameters it couldn&rsquo;t resolve (<code>cfpDeadline</code> and <code>submitLink</code>), it asked me for their values. I provided them, and Claude Desktop then sent the email.</p>
+<p>As before, I checked my email client, and &hellip; the email was there! It worked (sort of):</p>
+<figure>
+    
+    <img src="/images/posts/claude-code-10-10.png">
+    
+    
+    <figcaption><b>Figure 10: </b><em>Received Email with (almost) Rendered Template Parameters</em></figcaption>
+</figure>
+<p>In <em>Figure 10</em>, we see the email I received. The template rendered — mostly. The parameters highlighted in yellow are all correct. However, the values highlighted in red are not rendered. That&rsquo;s strange, as those parameters were read from the database and should have been passed. I checked the Brevo dashboard to confirm the parameters were included in the request, and they were.</p>
+<p>Eventually, I checked the template in Brevo (<em>Figure 4</em>), and the issue became obvious. Remember what I said about adding parameters in the Brevo editor? You have to type <code>{{params.variableName}}</code> for Brevo to recognise it as a parameter. For some reason, I had typed <code>{{firstName}}</code> and <code>{{eventName}}</code> instead of <code>{{params.firstName}}</code> and <code>{{params.eventName}}</code> in the template. That&rsquo;s why they weren&rsquo;t rendering. I fixed the template and sent the email again, and this time it rendered correctly. Yay!</p>
+<p>Is all well and good now? Not quite. I still need to figure out how to include an image in the email. I have the <code>bannerImageUrl</code>, but I do not know how to set that parameter. I am uploading images to Brevo, but I cannot find a way to get the correct URL for them. For now, I am happy, and I will make the image thing a problem for another day.</p>
+<hr>
+<h2 id="what-weve-accomplished">What We&rsquo;ve Accomplished</h2>
+<p>Let&rsquo;s step back and look at what we built in this post:</p>
+<p><strong>Infrastructure:</strong></p>
+<ul>
+<li>Researched and validated <code>@houtini/brevo-mcp</code> as our email MCP server</li>
+<li>Set up Brevo account with API key and verified sender</li>
+<li>Installed and configured the MCP server in Claude Desktop</li>
+<li>Created our first email template with dynamic parameters in Brevo&rsquo;s editor</li>
+</ul>
+<p><strong>The Template Parameter Challenge:</strong></p>
+<ul>
+<li>Discovered that the Brevo MCP server doesn&rsquo;t expose template parameter metadata</li>
+<li>Designed a <code>templates.json</code> registry that maps template parameters to database fields</li>
+<li>Configured Claude Desktop project instructions to use the registry automatically</li>
+<li>Achieved automatic parameter resolution: Claude queries the database for what it can, asks for what it can&rsquo;t</li>
+</ul>
+<p><strong>First Emails Sent:</strong></p>
+<ul>
+<li>Sent our first transactional email via natural language</li>
+<li>Debugged template activation and parameter passing issues</li>
+<li>Confirmed end-to-end: prompt → database query → Brevo API → email delivered</li>
+</ul>
+<p>The debugging journey was arguably the most valuable part. Real systems have real problems, and seeing how to diagnose issues across the MCP boundary (Claude Desktop → Brevo MCP → Brevo API) is knowledge you can&rsquo;t get from documentation alone.</p>
+<hr>
+<h2 id="-finally">~ Finally</h2>
+<p>Part 10 marks a significant milestone in this series. The system we envisioned back in 
+
+<a href="/post/2025-12-28-building-an-event-management-system-with-claude-code-part-3---architecting-an-ai-native-system/">Part 3</a> is now functional end-to-end:</p>
+<ol>
+<li><strong>Import data</strong> via conversational commands (Parts 6-9)</li>
+<li><strong>Query and analyse</strong> via natural language (Parts 4-5)</li>
+<li><strong>Send communications</strong> via conversation (this post)</li>
+</ol>
+<p>What used to require switching between multiple tools, databases, Excel, and email platforms now happens in a single conversation with Claude.</p>
+<p><strong>The key insight from this post:</strong> By choosing transactional email over campaigns, we kept PostgreSQL as the single source of truth. No contact sync, no duplicate data, no architectural complexity. The trade-off (no A/B testing, no Brevo-side analytics) is well worth the simplicity for our use case.</p>
+<p><strong>The template parameter challenge</strong> taught us something important about working with third-party MCP servers: they won&rsquo;t always expose everything you need. The <code>templates.json</code> registry we built is a simple yet effective bridge; it provides Claude with the context it needs to resolve parameters automatically, without requiring changes to the MCP server itself.</p>
+<p><strong>What didn&rsquo;t we cover?</strong> Campaign tracking tables for logging who received what email and when, batch sending to multiple recipients, and handling the 300/day free-tier limit. These are all important for a production workflow, and they&rsquo;ll be the focus of Part 11.</p>
+<h3 id="what-comes-next">What Comes Next</h3>
+<p>In Part 11, we&rsquo;ll build on today&rsquo;s foundation with:</p>
+<ul>
+<li>Campaign tracking tables in PostgreSQL (who got what, when)</li>
+<li>Batch sending with personalisation to multiple recipients</li>
+<li>Segmentation queries (&ldquo;email all speakers who haven&rsquo;t been contacted in 30 days&rdquo;)</li>
+<li>Handling the 300/day free-tier limit with smart batching</li>
+</ul>
+<p>The questions that naturally arise: &ldquo;How do I know who&rsquo;s already received this?&rdquo;, &ldquo;How do I avoid emailing the same person twice?&rdquo; are exactly the problems Part 11 will solve.</p>
+<h3 id="questions-or-thoughts">Questions or thoughts?</h3>
+<ul>
+<li>Ping me: 
+
+<a href="mailto:niels.it.berglund@gmail.com">niels.it.berglund@gmail.com</a></li>
+<li>Follow on LinkedIn: 
+
+<a href="https://www.linkedin.com/in/nielsberglund/" target="_blank" rel="noopener">linkedin.com/in/nielsberglund</a></li>
+</ul>
+<p><strong>Found this helpful?</strong> Share it with your network! Email integration is a common need, and the MCP-based approach shown here is reusable beyond event management.</p>
+<p>See you in Part 11, where we add campaign tracking and batch sending!</p>
+<hr>
+<p><strong>Series Navigation:</strong></p>
+<ul>
+<li>
+
+<a href="/post/2025-07-29-building-an-event-management-system-with-claude-code-claude-code-installation-and-initialisation/">✅ Part 1: Installation &amp; Initialisation</a></li>
+<li>
+
+<a href="/post/2025-08-13-building-an-event-management-system-with-claude-code-part-2---ide-integration-and-advanced-features/">✅ Part 2: IDE Integration</a></li>
+<li>
+
+<a href="/post/2025-12-28-building-an-event-management-system-with-claude-code-part-3---architecting-an-ai-native-system/">✅ Part 3: Architecture Planning</a></li>
+<li>
+
+<a href="/post/2026-01-01-building-an-event-management-system-with-claude-code-part-4---database-setup-and-first-conversations/">✅ Part 4: Database Infrastructure</a></li>
+<li>
+
+<a href="/post/2026-01-04-building-an-event-management-system-with-claude-code-part-5---database-schema-and-natural-language-queries/">✅ Part 5: Schema &amp; Conversations</a></li>
+<li>
+
+<a href="/post/2026-01-12-building-an-event-management-system-with-claude-code-part-55---schema-refinement-when-real-data-reveals-the-truth/">✅ Part 5.5: Schema Refinement</a></li>
+<li>
+
+<a href="/post/2026-01-14-building-an-event-management-system-with-claude-code-part-6---architecture-and-design-of-a-custom-import-mcp-server/">✅ Part 6: Import MCP Server Design</a></li>
+<li>
+
+<a href="/post/2026-01-18-building-an-event-management-system-with-claude-code-part-7---implementing-the-import-mcp-server/">✅ Part 7: Import MCP Server Foundation</a></li>
+<li>
+
+<a href="/post/2026-01-24-building-an-event-management-system-with-claude-code-part-8---implementing-import-functions/">✅ Part 8: Implementing Import Functions</a></li>
+<li>
+
+<a href="/post/2026-01-29-building-an-event-management-system-with-claude-code-part-9---autonomous-implementation-letting-claude-code-loose/">✅ Part 9: Autonomous Implementation</a></li>
+<li>✅ Part 10: Email Infrastructure (this post)</li>
+<li>🚀 Part 11: Campaign Tracking &amp; Batch Sending (coming soon)</li>
+</ul>
+<hr>
+<!--
+  post reference
+  [pkg1]: 
+-->  
+<!--
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong><em>&lt;sub-title&gt;</em></strong>
+  </p>
+  <p style="margin-top: -0.5rem; font-size: 1em; color: #666;">
+  <strong>&lt;code snippet/Table, etc&gt;:</strong> <em>Title</em>
+  </p>
+  <figure>
+      
+      <img src="%3cimage-path%20/images/posts/image.ext">
+      
+      
+      <figcaption><b>Fig Num: </b><em>Caption</em></figcaption>
+  </figure>
+  <div class="callout callout-tip">
+  <div class="callout-title">
+    💡 TIP
+    
+    
+    
+    
+    
+  </div>
+  <div class="callout-content">
+    
+  </div>
+</div>
+-->
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/2026-02-08-interesting-stuff---week-06-2026/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 06, 2026">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "manageddata" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">                  
+                    
+                    <li>
+                        <a href="mailto:niels.it.berglund@gmail.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://fosstodon.org/@nielsb">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+            
+            
+            
+           
+           <li>
+             <a target="_blank" href="https://nielsberglund.com/index.xml">
+                <span class="fa-stack fa-lg">
+                    <i class="fas fa-circle fa-stack-2x"></i>
+                    <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+             </a>
+           </li>
+           
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Niels Berglund 2026
+                    <br>
+                    <a href="https://themes.gohugo.io/hugo-theme-cleanwhite">CleanWhite Hugo Theme</a> by <a href="https://zhaohuabing.com">Huabing</a> |
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true" >
+                    </iframe>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose'  
+  });
+</script>
+</body>
+</html>
