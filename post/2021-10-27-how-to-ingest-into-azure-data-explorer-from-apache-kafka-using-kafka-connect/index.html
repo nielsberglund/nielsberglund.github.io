@@ -157,61 +157,14 @@
 
 
 
-
-<style type="text/css">
-    header.intro-header {
-        background-image: url('/images/banner/main-banner-2.jpg')
-    }
-</style>
-
-<header class="intro-header" >
-
+<header class="intro-header" style="background-image: url('/images/banner/main-banner-2.jpg')">
     <div class="container">
         <div class="row">
-            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-                <div class="post-heading">
-                    <div class="tags">
-                        
-                        <a class="tag" href="/tags/azure-data-explorer" title="Azure Data Explorer">
-                            Azure Data Explorer
-                        </a>
-                        
-                        <a class="tag" href="/tags/kusto" title="Kusto">
-                            Kusto
-                        </a>
-                        
-                        <a class="tag" href="/tags/kql" title="KQL">
-                            KQL
-                        </a>
-                        
-                        <a class="tag" href="/tags/kafka-connect" title="Kafka Connect">
-                            Kafka Connect
-                        </a>
-                        
-                        <a class="tag" href="/tags/confluent-cloud" title="Confluent Cloud">
-                            Confluent Cloud
-                        </a>
-                        
-                        <a class="tag" href="/tags/kusto-sink-connector" title="Kusto Sink Connector">
-                            Kusto Sink Connector
-                        </a>
-                        
-                    </div>
-                    <h1>How to Ingest Into Azure Data Explorer From Apache Kafka using Kafka Connect</h1>
-                    <h2 class="subheading"></h2>
-                    <span class="meta">
-                        
-                            Posted by 
-                            
-                                nielsb
-                             
-                            on 
-                            Wednesday, October 27, 2021
-                            
-                            
-                            
-                            
-                    </span>
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1 ">
+                <div class="site-heading">
+                    <h1>Niels Berglund </h1>
+                    
+		    <span class="subheading"></span>
                 </div>
             </div>
         </div>
@@ -224,14 +177,14 @@
 <article>
     <div class="container">
         <div class="row">
-
             
             <div class="
-                col-lg-8 col-lg-offset-2
-                col-md-10 col-md-offset-1
-                post-container">
-
-                
+            col-lg-8 col-lg-offset-1
+            col-md-8 col-md-offset-1
+            col-sm-12
+            col-xs-12
+            post-container">
+            
                 <p>If you follow my blog, you probably know that I am a huge fan of <strong>Apache Kafka</strong> and event streaming/stream processing. Recently <strong>Azure Data Explorer</strong> (<strong>ADX</strong>) has caught my eye. In fact, in the last few weeks, I did two conference sessions about ADX. A month ago, I published a blog post related to Kafka and ADX: 
 
 <a href="/post/2021-09-06-run-self-managed-kafka-connector-in-serverless-azure-container-instance/"><strong>Run Self-Managed Kusto Kafka Connector Serverless in Azure Container Instances</strong></a>.</p>
@@ -284,9 +237,9 @@
 <p>Before we go further, let&rsquo;s see what data we are working with. Since I am working at 
 
 <a href="/derivco">Derivco</a>, an online gaming company, I guess it is only natural that my sample data is gameplay-related (fictitious gameplay that is). The idea is that, in this post, we have online players playing various types of games, and the games are submitting game events to a Kafka topic. The event looks something like so:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
@@ -295,7 +248,7 @@
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
 </span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;playerId&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">32</span>,
 </span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;gameId&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">32</span>,
 </span></span><span style="display:flex;"><span>  <span style="color:#268bd2;font-weight:bold">&#34;win&#34;</span>: Int<span style="color:#2aa198;font-weight:bold">64</span>,
@@ -316,9 +269,9 @@
 <p>The event we see the schema for above is what is submitted to Kafka.</p>
 <h4 id="create-topic">Create Topic</h4>
 <p>Let us create the topic to which the events are submitted:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
@@ -329,7 +282,7 @@
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">9
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># list existing topics</span>
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># list existing topics</span>
 </span></span><span style="display:flex;"><span>$ ccloud kafka topic list
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># the above returns no topics</span>
@@ -350,14 +303,14 @@
 <p>Let us publish an event to finish the <em>Setting the Scene</em> topic (did you see what I did there?).</p>
 <h4 id="test-publish">Test Publish</h4>
 <p>We start with setting up a listener in a terminal window, so we can see when data arrives in the topic:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># setup a listener, when clicking enter it will start listening</span>
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#93a1a1;font-style:italic"># setup a listener, when clicking enter it will start listening</span>
 </span></span><span style="display:flex;"><span>ccloud kafka topic consume gameplay -b
 </span></span><span style="display:flex;"><span>Starting Kafka Consumer. Use Ctrl-C to exit.
 </span></span></code></pre></td></tr></table>
@@ -365,14 +318,14 @@
 </div><p><strong>Code Snippet 3:</strong> <em>Consume from Topic</em></p>
 <p>The code in <em>Code Snippet 3</em> sets up a listener. After clicking enter, you see the &ldquo;Starting Kafka Consumer &hellip;&rdquo; as in the code snippet, and the listener is now ready to receive messages.</p>
 <p>Time to publish an event. Open another terminal window and, if you are on Windows, make sure the terminal is Windows command prompt - not PowerShell. For some reason, when I try to publish with <code>ccloud</code> using PowerShell, I get errors. Anyway, the code:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ ccloud kafka topic produce gameplay --parse-key --delimiter ,
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ ccloud kafka topic produce gameplay --parse-key --delimiter ,
 </span></span><span style="display:flex;"><span>33, {<span style="color:#2aa198">&#34;playerId&#34;</span>:33, <span style="color:#2aa198">&#34;gameId&#34;</span>:23, <span style="color:#2aa198">&#34;win&#34;</span>:55, <span style="color:#2aa198">&#34;score&#34;</span>:123, <span style="color:#2aa198">\ </span>
 </span></span><span style="display:flex;"><span>      <span style="color:#2aa198">&#34;eventTime&#34;</span>:<span style="color:#2aa198">&#34;2021-10-24 04:14:39.572&#34;</span>}
 </span></span></code></pre></td></tr></table>
@@ -505,12 +458,12 @@
 <li>if you have more than one subscription, you set the subscription you want to use: <code>az account set --subscription your-sub-id</code>.</li>
 </ul>
 <p>Having done the above, you now create the service principal:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az ad sp create-for-rbac -n <span style="color:#2aa198">&#34;kusto-kafka-nielsblog&#34;</span>
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>az ad sp create-for-rbac -n <span style="color:#2aa198">&#34;kusto-kafka-nielsblog&#34;</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 5:</strong> <em>Create Service Principal</em></p>
@@ -529,12 +482,12 @@
 </p>
 <p><strong>Figure 9:</strong> <em>ADX Database</em></p>
 <p>I have in <em>Figure 9</em> logged in to my Azure subscription and navigated to my ADX cluster (highlighted in yellow). In the cluster, I have one database (outlined in blue). The database is selected, and to get to the query explorer, I click on the <em>Query</em> button outlined in red. When the query explorer opens, I can create the service principal as an admin user in the database:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">add</span> <span style="color:#859900">database</span> <span style="color:#268bd2">nielsblogpostsdb1</span> <span style="color:#268bd2">admins</span> (<span style="color:#2aa198">&#39;aadapp=The-AppId;The-Tenant&#39;</span>) <span style="color:#2aa198">&#39;AAD App&#39;</span>
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">add</span> <span style="color:#859900">database</span> <span style="color:#268bd2">nielsblogpostsdb1</span> <span style="color:#268bd2">admins</span> (<span style="color:#2aa198">&#39;aadapp=The-AppId;The-Tenant&#39;</span>) <span style="color:#2aa198">&#39;AAD App&#39;</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Code Snippet 6</strong> <em>Create Service Principal Admin User in Database</em></p>
@@ -577,9 +530,9 @@
 <p>As we see in <em>Figure 12</em>, the table has been created. There is one more thing we need to do in the database related to the table. We need to create a mapping between the event data and the columns in the table.</p>
 <h4 id="ingestion-mapping">Ingestion Mapping</h4>
 <p>As the event lands in Kafka as JSON (or some other format), Azure Data Explorer needs to understand how the fields in the event map to the columns in the table. We do this by creating a table ingestion mapping in the database:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
@@ -587,7 +540,7 @@
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">6
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">ingestion</span> <span style="color:#268bd2">json</span> <span style="color:#268bd2">mapping</span> <span style="color:#2aa198">&#39;gameplay_json_mapping&#39;</span> 
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">create</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">ingestion</span> <span style="color:#268bd2">json</span> <span style="color:#268bd2">mapping</span> <span style="color:#2aa198">&#39;gameplay_json_mapping&#39;</span> 
 </span></span><span style="display:flex;"><span><span style="color:#2aa198">&#39;[{&#34;column&#34;:&#34;PlayerID&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.playerId&#34;}}, 
 </span></span></span><span style="display:flex;"><span><span style="color:#2aa198">{&#34;column&#34;:&#34;GameID&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.gameId&#34;}}, 
 </span></span></span><span style="display:flex;"><span><span style="color:#2aa198">{&#34;column&#34;:&#34;Win&#34;, &#34;Properties&#34;:{&#34;path&#34;:&#34;$.win&#34;}}, 
@@ -602,13 +555,13 @@
 <p>Above I said that we had to do one more thing in the database, which was the ingestion mapping we just saw. Actually, there is another thing to do. It is not 100% necessary, but it impacts the ingestion latency. We should create an ingestion policy.</p>
 <h4 id="ingestion-policy">Ingestion Policy</h4>
 <p>A future blog post, will talk in detail about ADX various ingestion options, and what an ingestion policy is. For now, let us just &ldquo;roll&rdquo; with this, and take it for what it is worth. So to create an ingestion batching policy you:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">alter</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">policy</span> <span style="color:#268bd2">ingestionbatching</span> 
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span>.<span style="color:#859900">alter</span> <span style="color:#859900">table</span> <span style="color:#268bd2">GamePlay</span> <span style="color:#268bd2">policy</span> <span style="color:#268bd2">ingestionbatching</span> 
 </span></span><span style="display:flex;"><span>@<span style="color:#2aa198">&#39;{&#34;MaximumBatchingTimeSpan&#34;:&#34;00:00:10&#34;, &#34;MaximumNumberOfItems&#34;: 5, &#34;MaximumRawDataSizeMB&#34;: 100}&#39;</span>
 </span></span></code></pre></td></tr></table>
 </div>
@@ -650,13 +603,13 @@
 <p>Above, I said we&rsquo;d come back to <code>kusto.tables.topics.mapping</code>, so let us do that.</p>
 <p><strong>kusto.tables.topics.mapping</strong></p>
 <p>As the name implies, this property defines the mapping between the topic and the table(s) in the database(s). My mapping looks like so:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>[{&#39;topic&#39;: &#39;gameplay&#39;,&#39;db&#39;: &#39;nielsblogpostsdb1&#39;, &#39;table&#39;: &#39;GamePlay&#39;,&#39; \
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>[{&#39;topic&#39;: &#39;gameplay&#39;,&#39;db&#39;: &#39;nielsblogpostsdb1&#39;, &#39;table&#39;: &#39;GamePlay&#39;,&#39; \
 </span></span><span style="display:flex;"><span>   format&#39;: &#39;json&#39;, &#39;mapping&#39;:&#39;gameplay_json_mapping&#39;, &#39;streaming&#39;: &#39;false&#39;}]
 </span></span></code></pre></td></tr></table>
 </div>
@@ -701,9 +654,9 @@
 <h2 id="testing-the-connector">Testing the Connector</h2>
 <p>Suppose you haven&rsquo;t torn down the topic and recreated it. In that case, the easiest way to do a quick test is that after 10 seconds after the connector is up and running, execute the following query in the <em>Query Editor</em>: <code>GamePlay | count</code>. That on my box results in a value of 1, which is the event we published in <em>Code Snippet 4</em>. The event sits in the topic; the connector connects and starts consuming from the topic ingesting into the table.</p>
 <p>Let&rsquo;s now publish some more events:</p>
-<div class="highlight"><div style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<div class="highlight"><div style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;">
 <table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
@@ -712,7 +665,7 @@
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">7
 </span></code></pre></td>
 <td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
-<pre tabindex="0" style="color:#586e75;background-color:#eee8d5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ ccloud kafka topic produce gameplay --parse-key --delimiter ,
+<pre tabindex="0" style="color:#586e75;background-color:#fdf6e3;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ ccloud kafka topic produce gameplay --parse-key --delimiter ,
 </span></span><span style="display:flex;"><span>34, {<span style="color:#2aa198">&#34;playerId&#34;</span>:34, <span style="color:#2aa198">&#34;gameId&#34;</span>:27, <span style="color:#2aa198">&#34;win&#34;</span>:0, <span style="color:#2aa198">&#34;score&#34;</span>:99, <span style="color:#2aa198">\ </span>
 </span></span><span style="display:flex;"><span>      <span style="color:#2aa198">&#34;eventTime&#34;</span>:<span style="color:#2aa198">&#34;2021-10-27 07:56:39.572&#34;</span>}
 </span></span><span style="display:flex;"><span>38, {<span style="color:#2aa198">&#34;playerId&#34;</span>:38, <span style="color:#2aa198">&#34;gameId&#34;</span>:27, <span style="color:#2aa198">&#34;win&#34;</span>:0, <span style="color:#2aa198">&#34;score&#34;</span>:99, <span style="color:#2aa198">\ </span>
@@ -745,61 +698,143 @@
 <p>In a future post, we will look more in detail into the different ingestion methods and how to configure them. Until then!</p>
 <h2 id="finally">Finally</h2>
 <p>If you have comments, questions etc., please comment on this post or [ping][ma] me.</p>
+            
+             
+            
 
-                
 
-                
-                <hr>
-                <ul class="pager">
-                    
-                    <li class="previous">
-                        <a href="/post/2021-10-24-interesting-stuff---week-43-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 43, 2021">&larr;
-                            Previous Post</a>
+            
+            </div>
+            
+            
+
+<div class="
+    col-lg-3 col-lg-offset-0
+    col-md-3 col-md-offset-0
+    col-sm-12
+    col-xs-12
+    sidebar-container
+">
+    
+	
+    <section class="visible-md visible-lg">
+	
+        <div class="short-about">
+            
+            <a href="/about">
+               <img src="/images/nielsb-round.jpg" alt="avatar" style="cursor: pointer" />
+            </a>
+            
+            
+                <p>Technology musings about coding and data. Some topics: .NET, SQL Server, AI/ML, Big Data, Streaming, Kafka, Azure Data Explorer, and a lot more.</p>
+            
+           
+           <ul class="list-inline">
+               
+               <li>
+                   <a href="mailto:niels.it.berglund@gmail.com">
+                      <span class="fa-stack fa-lg">
+                          <i class="fa fa-circle fa-stack-2x"></i>
+                          <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                      </span>
+                   </a>
+               </li>
+               
+               
+               <li>
+                   <a href="https://twitter.com/nielsberglund">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+               
+               
+               
+               
+               
+               <li>
+                   <a target="_blank" href="https://github.com/nielsberglund">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+               
+               
+               
+               <li>
+                   <a target="_blank" href="https://www.linkedin.com/in/niels-berglund-0122593">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+               
+               <li>
+                   <a target="_blank" href="https://medium.com/@nielsberglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-medium fa-stack-1x fa-inverse"></i>
+                            </span>
+                   </a>
+               </li>
+               
+               
+                    <li>
+                        <a target="_blank" href="https://stackoverflow.com/users/7656880/niels-berglund">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
                     </li>
-                    
-                    
-                    <li class="next">
-                        <a href="/post/2021-10-31-interesting-stuff---week-44-2021/" data-toggle="tooltip" data-placement="top" title="Interesting Stuff - Week 44, 2021">Next
-                            Post &rarr;</a>
-                    </li>
-                    
+            
+            
+            
+               <li>
+                   <a target="_blank" href="https://fosstodon.org/@nielsb">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-mastodon fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+               
+               
+               
+               
+               
+               <li>
+                 <a target="_blank" href="https://nielsberglund.com/index.xml">
+                    <span class="fa-stack fa-lg">
+                        <i class="fas fa-circle fa-stack-2x"></i>
+                        <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                    </span>
+                 </a>
+               </li>
+               
                 </ul>
-                
-
-                
-
-
             </div>
+    </section>
+	
+    
+    
+    
+    
 
-            
-            
-            <div class="
-                col-lg-2 col-lg-offset-0
-                visible-lg-block
-                sidebar-container
-                catalog-container">
-                <div class="side-catalog">
-                    <hr class="hidden-sm hidden-xs">
-                    <h5>
-                        <a class="catalog-toggle" href="#">CATALOG</a>
-                    </h5>
-                    <ul class="catalog-body"></ul>
-                </div>
-            </div>
-            
+    
+    
+    
+</div>
 
-            
-            <div class="
-                col-lg-8 col-lg-offset-2
-                col-md-10 col-md-offset-1
-                sidebar-container">
-
-                
-                
-
-                
-                
-            </div>
         </div>
     </div>
 </article>
@@ -1029,14 +1064,5 @@
 
 
 
-
-<script type="module">
-  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({ 
-    startOnLoad: true,
-    theme: 'default',
-    securityLevel: 'loose'  
-  });
-</script>
 </body>
 </html>
